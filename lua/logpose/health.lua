@@ -45,6 +45,16 @@ function M.check()
   local project = require("logpose.project")
   h.info((project.describe(project.resolve(root)):gsub("^%l", string.upper)))
 
+  h.start("logpose: archive periods")
+  local popts = config.get().period
+  local current = require("logpose.period").of(require("logpose.util.date").today())
+  if popts.kind == "sprint" then
+    h.ok(("By sprint (%d days): current is %s"):format(popts.sprint.length_days, current.label))
+  else
+    local day = require("logpose.util.date").weekday_name(current.start)
+    h.ok(("By week, starting %s: current is %s"):format(day, current.label))
+  end
+
   h.start("logpose: journal paths")
   local keys = vim.tbl_keys(config.get().dirs)
   table.sort(keys)
