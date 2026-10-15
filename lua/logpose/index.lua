@@ -367,18 +367,50 @@ function M.files(root)
   return out
 end
 
+--- Per-file cache: path -> { mtime_sec, mtime_nsec, size, items }. Valid while the options
+--- table is the same (setup() resets it) and the file's mtime and size are unchanged.
+local cache, cache_opts = {}, nil
+M.reads = 0 -- files actually parsed (for tests and health)
+
+function M.clear_cache()
+  cache = {}
+end
+
 --- Build the index for the whole journal.
 ---@param root string
 ---@return logpose.Item[]
 function M.build(root)
+  local opts = config.get()
+  if cache_opts ~= opts then
+    cache, cache_opts = {}, opts
+  end
   local items = {}
+  local uv = vim.uv or vim.loop
+  local seen = {}
   for _, path in ipairs(M.files(root)) do
-    local lines = fs.read_lines(path)
-    if lines then
-      if lines[#lines] == "" then
-        table.remove(lines)
+    seen[path] = true
+    local st = uv.fs_stat(path)
+    local hit = st and cache[path]
+    if hit and hit.sec == st.mtime.sec and hit.nsec == st.mtime.nsec and hit.size == st.size then
+      vim.list_extend(items, hit.items)
+    else
+      local lines = fs.read_lines(path)
+      if lines then
+        M.reads = M.reads + 1
+        if lines[#lines] == "" then
+          table.remove(lines)
+        end
+        local file_items = M.index_lines(path, lines, root)
+        if st then
+          cache[path] = { sec = st.mtime.sec, nsec = st.mtime.nsec, size = st.size, items = file_items }
+        end
+        vim.list_extend(items, file_items)
       end
-      vim.list_extend(items, M.index_lines(path, lines, root))
+    end
+  end
+  for path in pairs(cache) do
+    if not seen[path] then
+      cache[path] = nil
     end
   end
   return items
