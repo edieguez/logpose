@@ -3,7 +3,7 @@
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
 > **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
-> meeting notes, and archiving. The Kanban flow (capture/done) lands next.
+> meeting notes, and weekly or sprint archiving. The Kanban flow (capture/done) lands next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -66,6 +66,21 @@ from before the current week into `journal-entries/week-<monday>.md` (from INBOX
 Current-week sections, the title and any non-date sections (`## Someday`) stay put. If either
 file has unsaved changes, nothing is written. Running it again is always safe.
 
+To archive by sprint instead, give logpose the start date of any one sprint and its number. For
+two-week sprints running Thursday to Wednesday:
+
+```lua
+period = {
+  kind = "sprint",
+  sprint = { anchor = "2026-10-01", length_days = 14, first_number = 42 },
+},
+```
+
+Sprints are counted from the anchor in both directions, so 2026-10-15 → 2026-10-28 is `sprint-43`.
+Archives go to `journal-entries/sprint-42.md` and `done-entries/done-sprint-42.md`, and `{sprint}`
+works in templates. To keep weekly archives aligned with Thursday sprints, use
+`period = { week_start = 4 }` instead.
+
 ### Projects
 
 One journal can hold several unrelated projects. You keep a single daily note (and standup), while
@@ -85,7 +100,7 @@ meeting notes are filed per project:
 Put `<name>.md` in your journal's templates directory (`dirs.templates`) to override a shipped
 template (`daily`, `meeting`, `planning`, `refinement`, `review`, `retro`, `1on1`). Variables:
 `{date}`, `{time}`, `{weekday}`, `{iso_week}`, `{title}`, `{type}`, `{type_label}`, `{series}`,
-`{project}`.
+`{project}`, `{sprint}` (with a sprint anchor configured).
 `{cursor}` marks where the cursor lands.
 
 ## Configuration
@@ -106,7 +121,7 @@ require("logpose").setup({
     templates = "templates",
     reports = "reports",
   },
-  affixes = { daily = "daily-", week = "week-", done_week = "done-week-" },
+  affixes = { daily = "daily-", week = "week-", done_week = "done-week-", sprint = "", done_sprint = "done-" },
   link_style = "wiki",                   -- or "markdown"
   link_base = "",                        -- wiki-link targets are relative to this dir ("" = root)
   workdays = { 1, 2, 3, 4, 5 },          -- ISO weekdays, Monday = 1
@@ -116,8 +131,13 @@ require("logpose").setup({
   section_order = "auto",               -- order of ## YYYY-MM-DD sections: follow the file, or force
                                          -- "newest_first" / "oldest_first"
   archive = {
-    journal_title = "# Journal: week of {period}",
-    done_title = "# Done: week of {period}",
+    journal_title = "# Journal: {period_label}", -- "week of 2026-10-05" / "sprint-42 (… – …)"
+    done_title = "# Done: {period_label}",
+  },
+  period = {
+    kind = "week",                       -- or "sprint"
+    week_start = 1,                      -- ISO weekday weeks start on (4 = Thursday)
+    sprint = { anchor = nil, length_days = 14, first_number = 1, name = "sprint-{n}" },
   },
   projects = {
     detect = true,                       -- the git repo you're in is the project

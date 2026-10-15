@@ -36,7 +36,7 @@ Options ~
                  `meetings`, `inbox`, `done`, `journal_entries`,
                  `done_entries`, `templates`, `reports`.
   affixes        (table)       Filename prefixes: `daily`, `week`,
-                 `done_week`.
+                 `done_week`, `sprint` (""), `done_sprint` ("done-").
   link_style     ("wiki"|"markdown")  Link format. Default "wiki".
   workdays       (integer[])   ISO weekdays (Monday = 1). Default Mon-Fri.
                                                             *logpose-workdays*
@@ -58,7 +58,16 @@ Options ~
                  inserts one: "auto" (follow the file), "newest_first" or
                  "oldest_first". Default "auto".
   archive        (table)       `journal_title`, `done_title`: title of a new
-                 archive file; {period} is the week's Monday.
+                 archive file; {period} is the period key (week start or
+                 sprint name), {period_label} e.g. "week of 2026-10-05".
+  period         (table)       How archives are grouped. `kind`: "week"
+                 (default) or "sprint". `week_start`: ISO weekday weeks
+                 start on (default 1, Monday). `sprint.anchor`: start date
+                 of any one sprint (required for "sprint"; also enables
+                 {sprint}); `sprint.length_days` (14); `sprint.first_number`
+                 (number of the anchor sprint, 1); `sprint.name`
+                 ("sprint-{n}"). Sprints are counted from the anchor in
+                 both directions.
   projects       (table)       `detect` (boolean, default true): the git
                  repo of the current buffer/cwd is the project. `paths`
                  (table): directory -> project name; longest match wins.
@@ -118,10 +127,11 @@ A bare `journal/` directory is not a marker.
 
                                                             *:Logpose-archive*
 :Logpose archive[!]
-    Move `## YYYY-MM-DD` sections from before the current week out of
-    `dirs.inbox` and `dirs.done` into one file per week in
-    `dirs.journal_entries` and `dirs.done_entries` (`affixes.week`,
-    `affixes.done_week` + the week's Monday). Existing week files are merged
+    Move `## YYYY-MM-DD` sections from before the current period (week or
+    sprint, see `period`) out of `dirs.inbox` and `dirs.done` into one file
+    per period in `dirs.journal_entries` and `dirs.done_entries`
+    (`affixes.week` + the week's start date, or `affixes.sprint` + the
+    sprint name). Existing week files are merged
     into: new dates are inserted in order, same dates get the body appended
     (unless it's already there, so re-running is safe). The preamble,
     current-week and non-date sections stay. A preview is shown first;
@@ -149,7 +159,7 @@ plugin's `templates/` directory. Shipped: daily, meeting, planning,
 refinement, review, retro, 1on1.
 
 Variables: {date} {time} {weekday} {iso_week} {title} {type} {type_label}
-{series} {attendees} {project}. Unknown variables are left as is. {cursor} marks where
+{series} {attendees} {project} {sprint}. Unknown variables are left as is. {cursor} marks where
 the cursor goes and is removed.
 
 ==============================================================================
