@@ -83,8 +83,9 @@ end
 ---@param input? string answer to the type's prompt
 ---@param iso string
 ---@param project? string active project
+---@param attendees? string[]
 ---@return logpose.MeetingNote
-function M.build(root, key, input, iso, project)
+function M.build(root, key, input, iso, project, attendees)
   local spec = get_type(key)
   local title
   if spec.title then
@@ -112,11 +113,25 @@ function M.build(root, key, input, iso, project)
     series = project .. "/" .. series -- recurring meetings never mix across projects
   end
 
+  -- People: a person-type answer (1:1) is also an attendee.
+  attendees = vim.deepcopy(attendees or {})
+  local with
+  if spec.person and input then
+    with = input
+    local present = false
+    for _, a in ipairs(attendees) do
+      present = present or text.slugify(a) == text.slugify(input)
+    end
+    if not present then
+      table.insert(attendees, 1, input)
+    end
+  end
+
   local vars = template.vars(iso, {
     title = title,
     type = key,
     type_label = spec.label or key,
-    attendees = "",
+    attendees = table.concat(attendees, ", "),
     series = series,
     previous = "",
     project = project or "",
@@ -127,7 +142,15 @@ function M.build(root, key, input, iso, project)
   if project then
     table.insert(frontmatter, "project: " .. project)
   end
-  vim.list_extend(frontmatter, { "title: " .. yaml_string(title), "attendees: []", "series: " .. series, "---" })
+  local function yaml_item(v)
+    return v:find("[,:%[%]\"'#]") and yaml_string(v) or v
+  end
+  table.insert(frontmatter, "title: " .. yaml_string(title))
+  if with then
+    table.insert(frontmatter, "with: " .. yaml_string(with))
+  end
+  table.insert(frontmatter, "attendees: [" .. table.concat(vim.tbl_map(yaml_item, attendees), ", ") .. "]")
+  vim.list_extend(frontmatter, { "series: " .. series, "---" })
 
   local path = fs.join(M.dir(root, project), M.filename(iso, slug, key))
   local body = vim.split(rendered.text, "\n", { plain = true })
@@ -409,8 +432,9 @@ end
 ---@param input? string
 ---@param iso string
 ---@param project? string
-function M.create(root, key, input, iso, project)
-  local note = M.build(root, key, input, iso, project)
+---@param attendees? string[]
+function M.create(root, key, input, iso, project, attendees)
+  local note = M.build(root, key, input, iso, project, attendees)
   if fs.exists(note.path) then
     open(note.path)
     return
@@ -437,6 +461,61 @@ function M.create(root, key, input, iso, project)
   write_and_open(root, note)
 end
 
+--- Type currently being prompted for (used by the completion functions below).
+M._completing = nil
+
+--- Past titles of the type being prompted (or people names for person types).
+---@param arglead string
+---@return string[]
+function M.complete_titles(arglead)
+  local key = M._completing
+  local root = config.resolve_root()
+  if not key or not root then
+    return {}
+  end
+  local spec = config.get().meeting_types[key] or {}
+  if spec.person then
+    return require("logpose.people").complete(arglead)
+  end
+  local seen, out = {}, {}
+  for _, it in ipairs(require("logpose.index").build(root)) do
+    if it.kind == "note" and it.type == key and not seen[it.title] then
+      seen[it.title] = true
+      if vim.startswith(it.title:lower(), arglead:lower()) then
+        table.insert(out, it.title)
+      end
+    end
+  end
+  table.sort(out)
+  return out
+end
+
+_G.LogposeCompleteTitles = function(arglead)
+  return M.complete_titles(arglead)
+end
+
+--- Ask for attendees when the type wants them, then create.
+local function with_attendees(root, key, input, iso, project)
+  local spec = get_type(key)
+  if not spec.ask_attendees then
+    M.create(root, key, input, iso, project)
+    return
+  end
+  vim.ui.input(
+    { prompt = "Attendees (comma separated): ", completion = "customlist,v:lua.LogposeCompletePeople" },
+    safely(function(value)
+      local attendees = {}
+      for name in (value or ""):gmatch("[^,]+") do
+        name = vim.trim(name):gsub("^@", "")
+        if name ~= "" then
+          table.insert(attendees, name)
+        end
+      end
+      M.create(root, key, input, iso, project, attendees)
+    end)
+  )
+end
+
 --- Ask for the type's prompt (if any), then create the note.
 ---@param root string
 ---@param key string
@@ -445,18 +524,21 @@ end
 function M.start(root, key, iso, project)
   local spec = get_type(key)
   if not spec.prompt then
-    M.create(root, key, nil, iso, project)
+    with_attendees(root, key, nil, iso, project)
     return
   end
+  require("logpose.people") -- defines the completion globals
+  M._completing = key
   vim.ui.input(
-    { prompt = spec.prompt },
+    { prompt = spec.prompt, completion = "customlist,v:lua.LogposeCompleteTitles" },
     safely(function(input)
+      M._completing = nil
       input = input and text.trim(input) or ""
       if input == "" then
         vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
         return
       end
-      M.create(root, key, input, iso, project)
+      with_attendees(root, key, input, iso, project)
     end)
   )
 end

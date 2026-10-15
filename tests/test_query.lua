@@ -25,10 +25,11 @@ T["parse"] = function()
       since = "2026-10-01",
       ["until"] = "2026-10-14",
       words = { "flaky", "test" },
+      people = {},
     }
   )
   eq(query.parse({ "p:x" }).project, "x")
-  eq(query.parse({}), { tags = {}, words = {} })
+  eq(query.parse({}), { tags = {}, words = {}, people = {} })
 end
 
 T["parse rejects bad dates"] = function()
