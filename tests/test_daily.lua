@@ -17,7 +17,7 @@ local T = MiniTest.new_set({
 })
 
 local function daily_path(iso)
-  return root .. "/journal/daily/daily-" .. iso .. ".md"
+  return root .. "/daily/daily-" .. iso .. ".md"
 end
 
 local function bufname()
@@ -82,7 +82,7 @@ T["rejects invalid dates"] = function()
 end
 
 T["uses a template from the journal"] = function()
-  H.write(root .. "/journal/templates/daily.md", "# {weekday} {date}\n{cursor}\n")
+  H.write(root .. "/templates/daily.md", "# {weekday} {date}\n{cursor}\n")
   child.cmd("Logpose daily")
   eq(H.read(daily_path("2026-10-14")), "# Wednesday 2026-10-14\n\n")
   eq(child.api.nvim_win_get_cursor(0), { 2, 0 })
@@ -100,11 +100,22 @@ T["completes arguments"] = function()
   eq(child.fn.getcompletion("Logpose daily ", "cmdline"), { "today", "prev", "next" })
 end
 
-T["reports a missing root"] = function()
+T["without a journal, offers to create one and continues"] = function()
   child.lua("require('logpose').setup({})")
   child.cmd("cd " .. H.tmpdir())
+  local new = H.tmpdir() .. "/my journal"
+  child.lua(("vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb(%q) end"):format(new))
   child.cmd("Logpose daily")
-  H.contains(child.notifications()[1].msg, "journal root not found")
+  H.contains(child.lua_get("_G.prompt"), "No journal found")
+  eq(bufname(), new .. "/daily/daily-2026-10-14.md")
+end
+
+T["without a journal, cancelling explains how to set one up"] = function()
+  child.lua("require('logpose').setup({})")
+  child.cmd("cd " .. H.tmpdir())
+  child.lua("vim.ui.input = function(_, cb) cb(nil) end")
+  child.cmd("Logpose daily")
+  H.contains(child.notifications()[1].msg, "run :Logpose init")
 end
 
 return T

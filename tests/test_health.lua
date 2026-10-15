@@ -13,12 +13,12 @@ end
 
 T["reports a configured root and its paths"] = function()
   local journal = H.journal()
-  vim.fn.mkdir(journal .. "/journal/daily", "p")
+  vim.fn.mkdir(journal .. "/daily", "p")
   child.lua(("require('logpose').setup({ root = %q })"):format(journal))
   local out = health()
   H.contains(out, "from setup({ root = ... })")
-  H.contains(out, "daily: journal/daily")
-  H.contains(out, "meetings: journal/meetings does not exist yet")
+  H.contains(out, "daily: daily")
+  H.contains(out, "meetings: meetings does not exist yet")
   H.contains(out, "vim.ui.select")
 end
 
@@ -32,7 +32,14 @@ T["reports a missing root with advice"] = function()
   child.cmd("cd " .. H.tmpdir())
   local out = health()
   H.contains(out, "journal root not found")
-  H.contains(out, "setup({ root =")
+  H.contains(out, "Run :Logpose init")
+end
+
+T["reports a root saved by :Logpose init"] = function()
+  local journal = H.tmpdir()
+  child.lua(("require('logpose.state').set('root', %q)"):format(journal))
+  child.cmd("cd " .. H.tmpdir())
+  H.contains(health(), "saved by :Logpose init")
 end
 
 return T

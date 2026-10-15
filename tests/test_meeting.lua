@@ -17,11 +17,11 @@ local T = MiniTest.new_set({
 })
 
 local function meeting(name)
-  return root .. "/journal/meetings/" .. name
+  return root .. "/meetings/" .. name
 end
 
 local function daily(iso)
-  return root .. "/journal/daily/daily-" .. (iso or "2026-10-14") .. ".md"
+  return root .. "/daily/daily-" .. (iso or "2026-10-14") .. ".md"
 end
 
 --- Answer vim.ui.input / vim.ui.select in the child.
@@ -110,7 +110,7 @@ T["empty or cancelled input aborts"] = function()
   answer_input(nil)
   child.cmd("Logpose meeting adhoc")
   H.contains(child.notifications()[1].msg, "cancelled")
-  eq(vim.fn.isdirectory(root .. "/journal/meetings"), 0)
+  eq(vim.fn.isdirectory(root .. "/meetings"), 0)
 end
 
 T["symbol-only titles fall back to the type name"] = function()
@@ -180,7 +180,7 @@ T["accepts a date for backfilling"] = function()
 end
 
 T["uses a template from the journal"] = function()
-  H.write(root .. "/journal/templates/retro.md", "# {title} ({weekday})\n{cursor}\n")
+  H.write(root .. "/templates/retro.md", "# {title} ({weekday})\n{cursor}\n")
   child.cmd("Logpose meeting retro")
   H.contains(H.read(meeting("2026-10-14 - retro.md")), "---\n# Retro (Wednesday)\n")
 end

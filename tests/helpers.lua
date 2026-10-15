@@ -7,6 +7,8 @@ H.neq = MiniTest.expect.no_equality
 function H.new_child()
   local child = MiniTest.new_child_neovim()
   function child.setup()
+    -- Fresh data dir per case so saved state (stdpath("data")) never leaks or touches the real one.
+    vim.env.XDG_DATA_HOME = H.tmpdir()
     child.restart({ "-u", "tests/minimal_init.lua" })
     -- Capture notifications instead of printing them.
     child.lua([[
@@ -60,7 +62,7 @@ end
 --- Journal root fixture: a temp dir with the default marker.
 function H.journal()
   local root = H.tmpdir()
-  H.write(root .. "/.llm-wiki-layout", "")
+  H.write(root .. "/.logpose", "")
   return root
 end
 
