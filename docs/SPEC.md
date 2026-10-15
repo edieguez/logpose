@@ -362,6 +362,9 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 - Later features use it: F3 capture tags items `#acme`; F4 pickers, F5 actions and F7 reports
   default to "all", with a `project` argument (`current` = active project).
 - Health shows the active project and how it was chosen.
+- Project names are slugs (`Acme API` → `acme-api`); `none`, `auto` and `clear` unpin.
+- The daily-link duplicate check matches the exact link target, so `retro` in two projects (or
+  `retro` vs `retro-2`) are distinct links.
 
 **Acceptance criteria**
 - Inside `~/work/acme-api`, `:Logpose meeting retro` creates `meetings/acme-api/<date> - retro.md`

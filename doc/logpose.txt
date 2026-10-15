@@ -51,6 +51,12 @@ Options ~
                  `template` (default "meeting"), `order`, and either `title`
                  (fixed, no prompt) or `prompt` (asks; `title` may use
                  {input}). Set a type to `false` to remove it.
+  meeting_subdir (string)      Subdirectory of `dirs.meetings` for meeting
+                 notes; `{project}` is the active project. "" keeps all
+                 notes in one folder. Default "{project}".
+  projects       (table)       `detect` (boolean, default true): the git
+                 repo of the current buffer/cwd is the project. `paths`
+                 (table): directory -> project name; longest match wins.
 
 Unknown options produce a warning; invalid values raise an error.
 
@@ -103,6 +109,19 @@ A bare `journal/` directory is not a marker.
     {time} in `meeting_filename`, you're asked whether to open the existing
     note or create a new one.
 
+                                                            *:Logpose-project*
+:Logpose project [{name}|none]
+    Pin the active project ({name} is slugified), or `none` to go back to
+    auto-detection. Without an argument, pick from known projects.
+
+    The active project is, in order: the pinned one, a `projects.paths`
+    match, the git repo of the current buffer (or cwd), none. Inside the
+    journal there is no project (unless pinned). With a project, meeting
+    notes go to `meetings/{project}/`, get `project:` frontmatter, a
+    project-scoped series and a `{project}: ` prefix on the daily link.
+
+    `require("logpose").project()` returns the active project.
+
 ==============================================================================
 TEMPLATES                                                  *logpose-templates*
 
@@ -111,7 +130,7 @@ plugin's `templates/` directory. Shipped: daily, meeting, planning,
 refinement, review, retro, 1on1.
 
 Variables: {date} {time} {weekday} {iso_week} {title} {type} {type_label}
-{series} {attendees}. Unknown variables are left as is. {cursor} marks where
+{series} {attendees} {project}. Unknown variables are left as is. {cursor} marks where
 the cursor goes and is removed.
 
 ==============================================================================

@@ -2,7 +2,7 @@
 
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
-> **Status: early development.** Onboarding, daily and meeting notes work; archiving lands next.
+> **Status: early development.** Onboarding, projects, daily and meeting notes work; archiving lands next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -40,6 +40,7 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | Command | What it does |
 |---|---|
 | `:Logpose init [dir]` | Choose or create the journal directory and remember it. |
+| `:Logpose project [name\|none]` | Pin the active project (or `none` to go back to auto-detection). No argument: pick from a list. |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -55,11 +56,26 @@ vim.keymap.set("n", "<leader>jd", "<Plug>(logpose-daily)", { desc = "Daily note"
 vim.keymap.set("n", "<leader>jm", "<Plug>(logpose-meeting)", { desc = "Meeting note" })
 ```
 
+### Projects
+
+One journal can hold several unrelated projects. You keep a single daily note (and standup), while
+meeting notes are filed per project:
+
+- The active project is the git repo you're working in (`~/work/acme-api` → `acme-api`), a name
+  you map in `projects.paths`, or one you pin with `:Logpose project <name>`. Inside the journal
+  itself there is no project.
+- With a project, `:Logpose meeting retro` writes `meetings/<project>/<date> - retro.md`, adds
+  `project: <name>` to the frontmatter, and links it in the daily note as
+  `- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]`. Recurring meetings are grouped per
+  project.
+- `require("logpose").project()` returns the active project, e.g. for your statusline.
+
 ### Templates
 
 Put `<name>.md` in your journal's templates directory (`dirs.templates`) to override a shipped
 template (`daily`, `meeting`, `planning`, `refinement`, `review`, `retro`, `1on1`). Variables:
-`{date}`, `{time}`, `{weekday}`, `{iso_week}`, `{title}`, `{type}`, `{type_label}`, `{series}`.
+`{date}`, `{time}`, `{weekday}`, `{iso_week}`, `{title}`, `{type}`, `{type_label}`, `{series}`,
+`{project}`.
 `{cursor}` marks where the cursor lands.
 
 ## Configuration
@@ -86,6 +102,11 @@ require("logpose").setup({
   workdays = { 1, 2, 3, 4, 5 },          -- ISO weekdays, Monday = 1
   picker = "auto",                       -- "snacks" | "fzf_lua" | "telescope" | "select"
   meeting_filename = "{date} - {slug}",  -- may add {time} (HHMM) for several same-title meetings a day
+  meeting_subdir = "{project}",          -- meetings/<project>/; "" keeps all meetings in one folder
+  projects = {
+    detect = true,                       -- the git repo you're in is the project
+    paths = {},                          -- { ["~/work/acme-api"] = "acme" }; longest match wins
+  },
   meeting_types = {
     -- title = fixed title (no prompt); prompt = ask, and {input} goes into title
     planning   = { label = "Sprint planning", template = "planning", title = "Sprint planning", order = 10 },
