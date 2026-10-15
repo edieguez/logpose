@@ -119,6 +119,22 @@ M.defaults = {
     --- Group :Logpose standup items by project (#project tags).
     group_by_project = true,
   },
+  review = {
+    --- Open tasks older than this many days are listed as stale in reports.
+    stale_days = 14,
+  },
+  tickets = {
+    --- Lua pattern for ticket IDs (default: JIRA-style PROJ-123).
+    pattern = "%u[%u%d]+%-%d+",
+    --- URL template; {id} is the ticket. nil disables `gx` on tickets.
+    ---@type string?
+    url = nil,
+  },
+  telemetry = {
+    --- Local, opt-in usage counts (stdpath("data")/logpose/usage.json). Nothing leaves your machine.
+    enabled = false,
+    retention_days = 180,
+  },
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
   retrieval = {
@@ -134,7 +150,7 @@ M.defaults = {
 }
 
 --- Keys whose default is nil (so they're known even though absent from `defaults`).
-M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true }
+M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true, ["tickets.url"] = true }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
 M.open_keys = { meeting_types = true, ["projects.paths"] = true, views = true }
@@ -256,6 +272,14 @@ local function validate(opts)
   for _, k in ipairs({ "carry_forward", "mark_carried", "include_done", "group_by_project" }) do
     check("standup." .. k, opts.standup[k], "boolean")
   end
+  check("review", opts.review, "table")
+  check("review.stale_days", opts.review.stale_days, "number")
+  check("tickets", opts.tickets, "table")
+  check("tickets.pattern", opts.tickets.pattern, "string")
+  check("tickets.url", opts.tickets.url, "string", true)
+  check("telemetry", opts.telemetry, "table")
+  check("telemetry.enabled", opts.telemetry.enabled, "boolean")
+  check("telemetry.retention_days", opts.telemetry.retention_days, "number")
   check("views", opts.views, "table")
   for name, v in pairs(opts.views) do
     check("views." .. tostring(name), v, "string")

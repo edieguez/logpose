@@ -68,13 +68,19 @@ function M.dispatch(cmd)
     vim.notify(("logpose: unknown subcommand %q. Valid: %s"):format(name, valid), vim.log.levels.ERROR)
     return
   end
+  local args = vim.list_slice(fargs, 2)
   local ok, err = pcall(sub.impl, {
-    args = vim.list_slice(fargs, 2),
+    args = args,
     bang = cmd.bang or sub_bang,
     range = cmd.range or 0,
     line1 = cmd.line1 or 0,
     line2 = cmd.line2 or 0,
   })
+  if name ~= "stats" then
+    pcall(function()
+      require("logpose.telemetry").record(name, args, ok)
+    end)
+  end
   if not ok then
     local msg = type(err) == "string" and err or vim.inspect(err)
     if not msg:find("^logpose:") then
@@ -131,6 +137,9 @@ M.builtin = {
   backlinks = { module = "logpose.links", fn = "backlinks_command", complete = false, desc = "logpose: backlinks" },
   links = { module = "logpose.links", fn = "links_command", complete = false, desc = "logpose: outgoing links" },
   view = { module = "logpose.views", desc = "logpose: run a saved search" },
+  report = { module = "logpose.report", desc = "logpose: week or sprint report" },
+  ticket = { module = "logpose.tickets", complete = false, desc = "logpose: notes mentioning a ticket" },
+  stats = { module = "logpose.telemetry", complete = false, desc = "logpose: local usage stats" },
   ["rename-tag"] = {
     module = "logpose.maintenance",
     fn = "rename_tag_command",
