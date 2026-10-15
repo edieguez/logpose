@@ -108,6 +108,7 @@ end
 --- Built-in subcommands: name -> module exposing `command(opts)` and optionally `complete(arglead, args)`.
 --- Modules load only when the subcommand runs or completes.
 M.builtin = {
+  init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
 }

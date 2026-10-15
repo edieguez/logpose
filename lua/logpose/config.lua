@@ -9,17 +9,18 @@ M.defaults = {
   ---@type string?
   root = nil,
   --- Files/dirs that mark a journal root when `root` is not set.
-  root_markers = { ".llm-wiki-layout" },
+  --- `:Logpose init` creates the first one.
+  root_markers = { ".logpose" },
   --- Paths relative to the root.
   dirs = {
-    daily = "journal/daily",
-    meetings = "journal/meetings",
-    inbox = "journal/INBOX.md",
-    done = "journal/DONE.md",
-    journal_entries = "journal/journal-entries",
-    done_entries = "journal/done-entries",
-    templates = "journal/templates",
-    reports = "journal/reports",
+    daily = "daily",
+    meetings = "meetings",
+    inbox = "INBOX.md",
+    done = "DONE.md",
+    journal_entries = "journal-entries",
+    done_entries = "done-entries",
+    templates = "templates",
+    reports = "reports",
   },
   affixes = {
     daily = "daily-",
@@ -28,8 +29,8 @@ M.defaults = {
   },
   ---@type "wiki"|"markdown"
   link_style = "wiki",
-  --- Directory (relative to root) that wiki-link targets are relative to.
-  link_base = "journal",
+  --- Directory (relative to root) that wiki-link targets are relative to ("" = the root).
+  link_base = "",
   --- ISO weekday numbers (Mon = 1 … Sun = 7).
   workdays = { 1, 2, 3, 4, 5 },
   --- "auto" (snacks -> fzf_lua -> telescope -> select) or a backend name.
@@ -158,9 +159,12 @@ function M.get()
   return M.options
 end
 
----@alias logpose.RootSource "config"|"buffer"|"cwd"
+---@alias logpose.RootSource "config"|"buffer"|"cwd"|"saved"
 
---- Resolve the journal root: configured `root` -> marker above the current buffer -> marker above cwd.
+M.NOT_FOUND = "logpose: journal root not found; run :Logpose init or set `root` in setup()"
+
+--- Resolve the journal root: configured `root` -> marker above the current buffer ->
+--- marker above cwd -> the root saved by `:Logpose init`.
 ---@return string? root, logpose.RootSource|string source_or_err
 function M.resolve_root()
   local opts = M.get()
@@ -186,7 +190,26 @@ function M.resolve_root()
       return root, "cwd"
     end
   end
-  return nil, "logpose: journal root not found; set `root` in setup()"
+  local saved = require("logpose.state").get("root")
+  if type(saved) == "string" and fs.is_dir(saved) then
+    return saved, "saved"
+  end
+  return nil, M.NOT_FOUND
+end
+
+--- Run `fn(root)` with the journal root. When there is none, offer to create one
+--- (`:Logpose init` flow) and continue with it.
+---@param fn fun(root: string)
+function M.with_root(fn)
+  local root = M.resolve_root()
+  if root then
+    fn(root)
+    return
+  end
+  if M.get().root then
+    error(select(2, M.resolve_root()), 0) -- a configured but missing root is a config error
+  end
+  require("logpose.onboard").prompt({ first_run = true }, fn)
 end
 
 --- Resolve the root or raise a user-facing error.

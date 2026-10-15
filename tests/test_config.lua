@@ -14,14 +14,14 @@ end
 T["setup"] = MiniTest.new_set()
 
 T["setup"]["uses defaults without setup()"] = function()
-  eq(child.lua_get("require('logpose.config').get().dirs.daily"), "journal/daily")
+  eq(child.lua_get("require('logpose.config').get().dirs.daily"), "daily")
   eq(child.lua_get("require('logpose.config').get().link_style"), "wiki")
 end
 
 T["setup"]["merges nested tables"] = function()
   child.lua([[require("logpose").setup({ dirs = { daily = "notes/daily" } })]])
   eq(child.lua_get("require('logpose.config').get().dirs.daily"), "notes/daily")
-  eq(child.lua_get("require('logpose.config').get().dirs.meetings"), "journal/meetings")
+  eq(child.lua_get("require('logpose.config').get().dirs.meetings"), "meetings")
 end
 
 T["setup"]["replaces lists instead of merging them"] = function()
@@ -75,14 +75,14 @@ T["resolve_root"]["finds a marker above the current buffer"] = function()
   local journal = H.journal()
   local elsewhere = H.journal()
   child.cmd("cd " .. elsewhere) -- buffer beats cwd
-  child.cmd("edit " .. journal .. "/journal/daily/daily-2026-10-14.md")
+  child.cmd("edit " .. journal .. "/daily/daily-2026-10-14.md")
   eq(resolve(), { journal, "buffer" })
 end
 
 T["resolve_root"]["falls back to a marker above cwd"] = function()
   local journal = H.journal()
-  vim.fn.mkdir(journal .. "/journal/meetings", "p")
-  child.cmd("cd " .. journal .. "/journal/meetings")
+  vim.fn.mkdir(journal .. "/meetings/sub", "p")
+  child.cmd("cd " .. journal .. "/meetings/sub")
   eq(resolve(), { journal, "cwd" })
 end
 
@@ -92,13 +92,30 @@ T["resolve_root"]["ignores a bare journal/ directory"] = function()
   child.cmd("cd " .. dir)
   local res = resolve()
   eq(res[1], vim.NIL)
-  H.contains(res[2], "set `root` in setup()")
+  H.contains(res[2], "run :Logpose init or set `root` in setup()")
+end
+
+T["resolve_root"]["uses the root saved by :Logpose init last"] = function()
+  local saved = H.tmpdir()
+  child.lua(("require('logpose.state').set('root', %q)"):format(saved))
+  child.cmd("cd " .. H.tmpdir())
+  eq(resolve(), { saved, "saved" })
+  -- a marker above cwd still wins
+  local marked = H.journal()
+  child.cmd("cd " .. marked)
+  eq(resolve(), { marked, "cwd" })
+end
+
+T["resolve_root"]["ignores a saved root that no longer exists"] = function()
+  child.lua("require('logpose.state').set('root', '/nonexistent/logpose-journal')")
+  child.cmd("cd " .. H.tmpdir())
+  eq(resolve()[1], vim.NIL)
 end
 
 T["path joins dirs onto the root"] = function()
   local journal = H.journal()
   child.lua(("require('logpose').setup({ root = %q })"):format(journal))
-  eq(child.lua_get("require('logpose.config').path('inbox')"), journal .. "/journal/INBOX.md")
+  eq(child.lua_get("require('logpose.config').path('inbox')"), journal .. "/INBOX.md")
 end
 
 return T

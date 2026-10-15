@@ -47,10 +47,10 @@ T["load"] = MiniTest.new_set()
 
 T["load"]["prefers the journal's templates dir"] = function()
   local root = H.journal()
-  H.write(root .. "/journal/templates/retro.md", "custom {title}\n")
+  H.write(root .. "/templates/retro.md", "custom {title}\n")
   local content, path = template.load("retro", root)
   eq(content, "custom {title}\n")
-  eq(path, root .. "/journal/templates/retro.md")
+  eq(path, root .. "/templates/retro.md")
 end
 
 T["load"]["falls back to the shipped templates"] = function()
