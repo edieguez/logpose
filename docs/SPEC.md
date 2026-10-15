@@ -34,23 +34,24 @@ capture/done, sprint-aware archives and reports.
 | F1.5 | Onboarding (`init`, first run) | Core      | F1         | new                                 |
 | F1.6 | Projects                       | Core      | F1.5       | new                                 |
 | F2 | Archive                          | Core      | F0         | new                                 |
+| F2.1 | Sprint archiving               | Core      | F2         | new (moved up from F7)              |
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
 | F4 | Navigation (pickers)             | High      | F1         | new                                 |
 | F5 | Action items & meeting series    | High      | F1, F4*    | new                                 |
 | F6 | Standup prep                     | Medium    | F1         | new                                 |
-| F7 | Sprints & reports                | Medium    | F1, F2     | new                                 |
+| F7 | Reports                          | Medium    | F2.1, F5   | new                                 |
 | F8 | Ticket references                | Low       | F0, F4*    | new                                 |
 
 \* soft dependency: works with the `vim.ui.select` fallback, better with F4.
 
 **Milestones**
-- **M1 (F0–F2, incl. F1.5–F1.6): Core journal.** Onboarding, projects, daily and meeting notes,
-  and weekly archiving.
+- **M1 (F0–F2.1): Core journal.** Onboarding, projects, daily and meeting notes, and weekly or
+  sprint archiving.
 - **M2 (F3–F5): Daily driver.** Capture, complete, find, and follow up on meeting action items.
-- **M3 (F6–F8): Scrum layer.** Standup prefill, sprint archives/reports, ticket links.
+- **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2 / M1 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -102,13 +103,13 @@ lua/logpose/
   util/fs.lua               -- join, mkdir_p, read_lines, atomic write, buffer safety
   notes/daily.lua           -- F1
   notes/meeting.lua         -- F1 (+ F5 series hooks)
-  archive.lua               -- F2 (+ F7 period hook)
+  archive.lua               -- F2
   tasks.lua                 -- F3
   picker/init.lua           -- F4 adapter
   picker/{snacks,fzf_lua,telescope,select}.lua
   actions.lua               -- F5
   standup.lua               -- F6
-  period.lua                -- F7 (week/sprint periods)
+  period.lua                -- F2.1 (week/sprint periods)
   report.lua                -- F7
   tickets.lua               -- F8
 templates/                  -- default templates shipped with the plugin
@@ -192,7 +193,7 @@ two note scripts.
 ### F1.1 Templates (`template.lua`)
 - Lookup order: `<root>/<dirs.templates>/<name>.md` → plugin `templates/<name>.md`.
 - Variables: `{date}`, `{time}`, `{weekday}` (e.g. "Wednesday"), `{iso_week}`, `{title}`,
-  `{type}`, `{attendees}`, `{series}`, `{previous}`, `{sprint}` (empty until F7).
+  `{type}`, `{attendees}`, `{series}`, `{previous}`, `{sprint}` (empty unless a sprint anchor is configured, F2.1).
 - Render with a **function replacement**: `tpl:gsub("{([%w_]+)}", function(k) ... end)`. Never
   pass user text as a `gsub` replacement string — a `%` in a title would break it. Unknown
   variables are left untouched.
@@ -379,12 +380,13 @@ archive file per week, with a preview + confirm step and safe writes.
 **Design** (`archive.lua`, using `markdown.lua`)
 - `markdown.lua` parses a file into blocks: preamble (before the first `## `), date sections
   (`## YYYY-MM-DD` + body) and other `## ` sections. `parse → render` is lossless.
-- Grouping goes through a **period function** — `period_of(iso) -> { key, start }` — that
-  defaults to "Monday of week". F7 plugs sprints in here without touching the archive logic.
+- Grouping goes through a **period function** — `period.of(iso) -> { key, start, finish, label }`
+  — Monday weeks by default; F2.1 adds configurable weeks and sprints. Periods are compared by
+  start date, never by key.
 - Jobs: `inbox → journal_entries/<affixes.week><key>.md`, `done → done_entries/<affixes.done_week><key>.md`.
   Date sections in the current (or a future) period stay; preamble and non-date sections stay.
 - New archive files start with `archive.journal_title` / `archive.done_title`
-  (`# Journal: week of {period}`, `# Done: week of {period}`).
+  (`# Journal: {period_label}`, `# Done: {period_label}`; `{period}` is the key).
 - Merging into an archive file: a new date is inserted in date order (`section_order`: "auto"
   follows the file, then the source, else oldest first); an existing date gets the moved body
   appended — unless every line is already there (so re-running after an interrupted archive
@@ -412,6 +414,47 @@ archive file per week, with a preview + confirm step and safe writes.
 - Unit: `parse → render` round-trip is lossless; block classification; order detection.
 
 **Milestone M1** after F2.
+
+---
+
+## F2.1 — Sprint archiving (Core)
+
+**Goal.** Archive by the team's sprints (two weeks, Thursday to Wednesday) instead of Monday weeks.
+
+**Design** (`period.lua`)
+- Config:
+  ```lua
+  period = {
+    kind = "week",           -- or "sprint"
+    week_start = 1,          -- ISO weekday weeks start on; 4 = Thursday
+    sprint = {
+      anchor = nil,          -- start date of any one sprint; required for kind = "sprint"
+      length_days = 14,
+      first_number = 1,      -- number of the sprint starting on `anchor`
+      name = "sprint-{n}",
+    },
+  },
+  affixes = { sprint = "", done_sprint = "done-" },  -- sprint-42.md / done-sprint-42.md
+  ```
+- `period.of(iso)`: weeks start on `week_start`; sprints are counted in fixed steps of
+  `length_days` from `anchor`, forward and backward (`n = first_number + floor(days / length)`).
+  Label: `week of 2026-10-08` or `sprint-42 (2026-10-01 – 2026-10-14)`.
+- The archive groups by period and compares start dates (so `sprint-9` is older than
+  `sprint-10`). Sprint files use `affixes.sprint`/`affixes.done_sprint` + the sprint name.
+  Switching kinds never rewrites existing archive files.
+- `{sprint}` in templates is the sprint name whenever an anchor is set (any `kind`).
+- Health shows the period kind and the current period. Validation: `kind`, `week_start` 1–7,
+  ISO `anchor` (required for sprints), positive `length_days`, integer `first_number`.
+
+**Acceptance criteria**
+- With a Thursday anchor and 14 days, dates Thursday…the second Wednesday share one sprint file.
+- `{sprint}` and archive filenames match the configured calendar.
+
+**Tests**
+- Periods: anchor sprint, forward/backward, year boundary, DST, every day of a year lands in a
+  sprint starting on the anchor weekday, name format; Monday and Thursday weeks.
+- Archive: sprint files (INBOX and DONE), sprint 9 vs 10, preview label, Thursday weeks.
+- Config validation; `{sprint}` in templates; health.
 
 ---
 
@@ -529,38 +572,24 @@ previous one.
 
 ---
 
-## F7 — Sprints & reports (Medium)
+## F7 — Reports (Medium)
 
-**Goal.** Archive and report by sprint, not just by calendar week.
+**Goal.** Summaries per week or sprint (periods from F2.1) for reviews, retros and status updates.
 
-**Design**
-- `period.lua` config:
-  ```lua
-  period = {
-    kind = "week",                       -- or "sprint"
-    week_start = 1,                      -- ISO weekday
-    sprint = { anchor = "2026-10-05", length_days = 14, first_number = 1, name = "sprint-{n}" },
-  }
-  ```
-- `period_of(iso)` implements both kinds; F2's archive uses it (sprint files:
-  `sprint-<n>.md` / `done-sprint-<n>.md`, prefixes configurable). `{sprint}` template variable
-  resolves to the sprint name. Switching from `week` to `sprint` never rewrites existing archives.
-- `:Logpose report [week|sprint] [offset]` (offset `0` = current, `-1` = previous) opens a
-  markdown scratch buffer with:
+**Design** (`report.lua`)
+- `:Logpose report [week|sprint] [offset]` (default: the configured period kind; offset `0` =
+  current, `-1` = previous) opens a markdown scratch buffer with:
   - DONE items in the period (from `DONE.md` and the period's done archive), grouped by date;
-  - meetings held in the period (title + link), grouped by type;
+  - meetings held in the period (title + link), grouped by type and project;
   - open action items created in the period (reusing F5).
   `:Logpose report! …` also writes it to `<dirs.reports>/<period key>.md`.
+- Optional `project` argument limits the report to one project (F1.6).
 
 **Acceptance criteria**
-- With `kind = "sprint"`, `{sprint}` and archive filenames match the configured calendar.
 - `:Logpose report sprint -1` summarises the previous sprint correctly on fixture data.
 
 **Tests**
-- `period_of` for weeks with each `week_start`, sprints across anchor and year boundaries, dates
-  before the anchor.
-- Archive golden cases re-run with sprint periods.
-- Report assembly on fixtures.
+- Report assembly on fixtures for weeks and sprints, offsets, project filter.
 
 ---
 
@@ -594,7 +623,7 @@ previous one.
 | `:Logpose project [name\|none]`           | F1.6 |
 | `:Logpose daily [date\|prev\|next\|today]` | F1 |
 | `:Logpose meeting [type] [date]`          | F1, F5 |
-| `:Logpose archive[!]`                     | F2, F7 |
+| `:Logpose archive[!]`                     | F2, F2.1 |
 | `:Logpose capture [text]`                 | F3 |
 | `:Logpose done` (normal / visual)         | F3 |
 | `:Logpose find daily\|weekly\|meetings [type]\|all` | F4 |
