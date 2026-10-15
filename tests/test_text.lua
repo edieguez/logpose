@@ -30,8 +30,7 @@ T["slugify"]["returns empty for symbol-only titles"] = function()
   eq(text.slugify(""), "")
 end
 
-T["slugify"]["matches the Python scripts for ASCII titles"] = function()
-  -- Python: re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+T["slugify"]["lowercases ASCII and collapses separators"] = function()
   eq(text.slugify("Sprint Planning"), "sprint-planning")
   eq(text.slugify("Q4 roadmap: review & sync"), "q4-roadmap-review-sync")
 end

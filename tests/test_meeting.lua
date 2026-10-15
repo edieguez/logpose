@@ -89,7 +89,7 @@ T["adhoc: prompts, transliterates the filename, keeps the title"] = function()
   H.contains(H.read(path), "series: adhoc-reunion-con-qa")
 end
 
-T["filename and header match the Python script for ASCII titles"] = function()
+T["filename and header format for ASCII titles"] = function()
   answer_input("Sprint Planning")
   child.cmd("Logpose meeting adhoc")
   local path = meeting("2026-10-14 - sprint-planning.md")
