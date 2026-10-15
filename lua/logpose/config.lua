@@ -119,6 +119,8 @@ M.defaults = {
     --- Group :Logpose standup items by project (#project tags).
     group_by_project = true,
   },
+  --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
+  views = {},
   retrieval = {
     --- Every line under these `## ` headings is searchable (find decisions, section:…).
     sections = { "decisions", "blockers", "risks", "open questions" },
@@ -135,7 +137,7 @@ M.defaults = {
 M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
-M.open_keys = { meeting_types = true, ["projects.paths"] = true }
+M.open_keys = { meeting_types = true, ["projects.paths"] = true, views = true }
 
 ---@type logpose.Config?
 M.options = nil
@@ -253,6 +255,10 @@ local function validate(opts)
   end
   for _, k in ipairs({ "carry_forward", "mark_carried", "include_done", "group_by_project" }) do
     check("standup." .. k, opts.standup[k], "boolean")
+  end
+  check("views", opts.views, "table")
+  for name, v in pairs(opts.views) do
+    check("views." .. tostring(name), v, "string")
   end
   check("retrieval", opts.retrieval, "table")
   check("retrieval.sections", opts.retrieval.sections, "table")
