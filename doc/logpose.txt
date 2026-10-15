@@ -80,6 +80,9 @@ Options ~
                  blockers headings), `carry_forward` (true), `mark_carried`
                  (true), `include_done` (false), `group_by_project` (true).
                  See |logpose-standup|.
+  retrieval      (table)       `sections`: headings whose every line is
+                 searchable. Default decisions, blockers, risks, open
+                 questions.
   projects       (table)       `detect` (boolean, default true): the git
                  repo of the current buffer/cwd is the project. `paths`
                  (table): directory -> project name; longest match wins.
@@ -200,6 +203,7 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
     fzf-lua or Telescope (see `picker`), else |vim.ui.select|.
 
     Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`,
+    `decisions`, `blockers` (lines under those `## ` headings),
     `tags` (choose a tag, then everything carrying it), `projects` (choose
     a project, then its notes and tasks).
 
@@ -208,7 +212,11 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
       `#{tag}`, `tag:{tag}`  tagged
       `type:{type}`      meeting type
       `open`, `done`     tasks by state
-      `since:{date}`, `until:{date}`  YYYY-MM-DD
+      `since:{date}`, `until:{date}`  YYYY-MM-DD, today, yesterday,
+                         tomorrow, -7d, +2w
+      `week:{spec}`, `sprint:{spec}`  current, -N, +N, a date, or a
+                         sprint number (sprints need `period.sprint.anchor`)
+      `section:{name}`   under a `## ` heading containing {name}
       other words        must all appear in the text
 
     Tags are inline `#words` (not headings, URL fragments or numbers such
