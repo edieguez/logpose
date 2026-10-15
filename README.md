@@ -3,8 +3,8 @@
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
 > **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
-> meeting notes, and weekly or sprint archiving. M2 is under way: capture/done and search work;
-> meeting action items land next.
+> meeting notes, and weekly or sprint archiving. M2 (daily driver) is done too: capture/done,
+> search, action items and meeting series. Standup prep lands next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -48,6 +48,7 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | `:Logpose done` | Mark the task on the current line (or a range / visual selection) done: from INBOX it moves to `DONE.md`; in a meeting or daily note it's checked off and logged in DONE with a link. |
 | `:Logpose find [scope] [filters]` | Search notes, tasks, tags and projects (see below). |
 | `:Logpose grep [text]` | Live grep in the journal (quickfix list without a picker plugin). |
+| `:Logpose actions [open\|mine\|overdue\|all] [filters]` | Action items from meeting notes in the quickfix list (or picker). |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -104,6 +105,24 @@ meeting notes are filed per project:
   `- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]`. Recurring meetings are grouped per
   project.
 - `require("logpose").project()` returns the active project, e.g. for your statusline.
+
+### Action items and recurring meetings
+
+Write action items as tasks, optionally with an owner and a due date:
+
+```markdown
+- [ ] fix CI @ana due:2026-10-20
+```
+
+`:Logpose actions` lists the open ones from all meeting notes, soonest due first, overdue ones
+flagged. `mine` uses `me = "@yourname"` (plus unassigned items), `overdue` the due dates, `all`
+includes closed items. Filters work as in `:Logpose find`: `:Logpose actions overdue project:acme`.
+
+Meetings in the same series (the same type and title, or the same person for 1:1s, within a
+project) are chained: a new note starts with `Previous: [[…]]` and a `## Carried over` section
+holding the previous note's open tasks. Those are marked `- [>]` (migrated) in the old note so
+they're only tracked once. Turn either off with `series = { carry_over = false }` or
+`series = { mark_carried = false }`.
 
 ### Searching
 
@@ -177,6 +196,9 @@ require("logpose").setup({
     week_start = 1,                      -- ISO weekday weeks start on (4 = Thursday)
     sprint = { anchor = nil, length_days = 14, first_number = 1, name = "sprint-{n}" },
   },
+  me = nil,                              -- "@yourname", for :Logpose actions mine
+  actions = { include_daily = false, unassigned_mine = true, output = "quickfix" }, -- or "picker"
+  series = { carry_over = true, mark_carried = true },
   projects = {
     detect = true,                       -- the git repo you're in is the project
     paths = {},                          -- { ["~/work/acme-api"] = "acme" }; longest match wins
