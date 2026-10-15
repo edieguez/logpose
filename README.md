@@ -164,7 +164,17 @@ Files with unsaved changes are never overwritten: logpose edits the buffer inste
 ## Search
 
 `:Logpose find [scope] [filters…]` searches an index of every note, task and tagged line, and
-opens the result at its line. Every picker shows the same results.
+opens the result at its line. Every picker shows the same results, with a preview of the file
+at that line.
+
+**Live search.** With snacks.nvim, fzf-lua or Telescope, the picker prompt *is* the query: it
+starts with the filters you typed on the command line, and the results update as you edit
+it, so `:Logpose find tasks` then typing `#perf open flaky` narrows step by step. Half-typed
+filters (`project:`, `since:2026-1`) are ignored until they're complete. In snacks, `<C-g>`
+switches to fuzzy-matching the current results. Set `search = { live = false }` to get fixed
+results that the picker fuzzy-filters instead. In `tags`, `projects` and `people`, the
+preview shows what each entry leads to.
+
 
 Scopes: `notes` (default), `daily`, `meetings`, `topics`, `archives`, `tasks`, `decisions`,
 `blockers`, `tags` (pick a tag, then everything carrying it), `projects`, `people`.
@@ -348,6 +358,7 @@ require("logpose").setup({
   tickets = { pattern = "%u[%u%d]+%-%d+", url = nil },
   telemetry = { enabled = false, retention_days = 180 },
   views = {},
+  search = { live = true },              -- the picker prompt re-runs the query as you type
   retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
   projects = {
     detect = true,                       -- the git repo you're in is the project
