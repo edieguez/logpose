@@ -155,6 +155,31 @@ A bare `journal/` directory is not a marker.
     skipped. The current buffer is edited so |u| undoes it, then saved
     unless it already had unsaved changes.
 
+                                                               *:Logpose-find*
+:Logpose find [{scope}] [{filters}...]
+    Search the journal and open the choice at its line. Uses snacks.picker,
+    fzf-lua or Telescope (see `picker`), else |vim.ui.select|.
+
+    Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`,
+    `tags` (choose a tag, then everything carrying it), `projects` (choose
+    a project, then its notes and tasks).
+
+    Filters (all must match):
+      `project:{name}`   item's project, or a `#{name}` tag
+      `#{tag}`, `tag:{tag}`  tagged
+      `type:{type}`      meeting type
+      `open`, `done`     tasks by state
+      `since:{date}`, `until:{date}`  YYYY-MM-DD
+      other words        must all appear in the text
+
+    Tags are inline `#words` (not headings, URL fragments or numbers such
+    as `#123`) and frontmatter `tags:`, compared case-insensitively.
+
+                                                               *:Logpose-grep*
+:Logpose grep [{text}]
+    Live grep in the journal with the picker plugin. Without one, searches
+    for {text} (prompted if omitted) and opens the quickfix list.
+
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
     Pin the active project ({name} is slugified), or `none` to go back to
