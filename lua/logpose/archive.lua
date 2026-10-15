@@ -1,42 +1,32 @@
---- `:Logpose archive[!]`: move `## YYYY-MM-DD` sections from past weeks out of INBOX.md and
---- DONE.md into one archive file per week, merging into existing week files.
+--- `:Logpose archive[!]`: move `## YYYY-MM-DD` sections from past periods (weeks or sprints)
+--- out of INBOX.md and DONE.md into one archive file per period, merging into existing files.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
 local markdown = require("logpose.markdown")
+local period = require("logpose.period")
 local template = require("logpose.template")
 local ui = require("logpose.util.ui")
 
 local M = {}
 
----@class logpose.Period
----@field key string    used in archive filenames
----@field start string  first day of the period
-
---- Period containing `iso`. Weeks for now; F7 adds sprints here.
----@param iso string
----@return logpose.Period
-function M.period_of(iso)
-  local start = date.monday_of(iso)
-  return { key = start, start = start }
-end
-
 ---@param root string
 local function jobs(root)
   local opts = config.get()
+  local sprint = opts.period.kind == "sprint"
   return {
     {
       name = "inbox",
       source = config.path("inbox", root),
       dest_dir = config.path("journal_entries", root),
-      prefix = opts.affixes.week,
+      prefix = sprint and opts.affixes.sprint or opts.affixes.week,
       title = opts.archive.journal_title,
     },
     {
       name = "done",
       source = config.path("done", root),
       dest_dir = config.path("done_entries", root),
-      prefix = opts.affixes.done_week,
+      prefix = sprint and opts.affixes.done_sprint or opts.affixes.done_week,
       title = opts.archive.done_title,
     },
   }
@@ -125,7 +115,7 @@ end
 ---@field dests logpose.ArchiveDest[]
 
 ---@class logpose.ArchivePlan
----@field current string   key of the current period (kept)
+---@field current logpose.Period  the current period (kept)
 ---@field jobs logpose.ArchiveJob[]
 ---@field writes { path: string, content: string }[]  archive files first, then sources
 ---@field moves integer    number of sections moved
@@ -135,7 +125,7 @@ end
 ---@param today string
 ---@return logpose.ArchivePlan
 function M.plan(root, today)
-  local current = M.period_of(today).key
+  local current = period.of(today)
   local plan = { current = current, jobs = {}, writes = {}, moves = 0 }
   local source_writes = {}
   local configured_order = config.get().section_order
@@ -144,22 +134,26 @@ function M.plan(root, today)
     local content = fs.read_file(job.source)
     if content then
       local doc = markdown.parse(content)
-      local kept, groups, keys = {}, {}, {}
+      local kept, groups, keys, periods = {}, {}, {}, {}
       for _, block in ipairs(doc.blocks) do
-        local key = block.kind == "date" and M.period_of(block.date).key or nil
-        if key and key < current then
-          if not groups[key] then
-            groups[key] = {}
-            table.insert(keys, key)
+        local p = block.kind == "date" and period.of(block.date) or nil
+        -- Compare start dates, not keys: "sprint-9" sorts after "sprint-10" as a string.
+        if p and p.start < current.start then
+          if not groups[p.key] then
+            groups[p.key] = {}
+            periods[p.key] = p
+            table.insert(keys, p.key)
           end
-          table.insert(groups[key], block)
+          table.insert(groups[p.key], block)
         else
           table.insert(kept, block)
         end
       end
 
       if #keys > 0 then
-        table.sort(keys)
+        table.sort(keys, function(a, b)
+          return periods[a].start < periods[b].start
+        end)
         local entry = { source = job.source, dests = {} }
         for _, key in ipairs(keys) do
           local path = fs.join(job.dest_dir, job.prefix .. key .. ".md")
@@ -168,7 +162,7 @@ function M.plan(root, today)
           if existing then
             dest = markdown.parse(existing)
           else
-            local title = template.substitute(job.title, { period = key })
+            local title = template.substitute(job.title, { period = key, period_label = periods[key].label })
             dest = { blocks = { { kind = "preamble", lines = { title, "" } } }, final_newline = true }
           end
           local order = configured_order
@@ -233,7 +227,8 @@ function M.describe(plan, root)
   local function rel(path)
     return require("logpose.link").relpath(root, path)
   end
-  local lines = { ("Archive sections from before the week of %s"):format(plan.current), "" }
+  local lines =
+    { ("Archive sections from before the current %s (%s)"):format(plan.current.kind, plan.current.label), "" }
   for _, job in ipairs(plan.jobs) do
     table.insert(lines, rel(job.source))
     for _, dest in ipairs(job.dests) do
@@ -288,7 +283,10 @@ function M.command(opts)
   config.with_root(ui.safely(function(root)
     local plan = M.plan(root, date.today())
     if plan.moves == 0 then
-      vim.notify("logpose: nothing to archive; every section is in the current week", vim.log.levels.INFO)
+      vim.notify(
+        ("logpose: nothing to archive; every section is in the current %s"):format(plan.current.kind),
+        vim.log.levels.INFO
+      )
       return
     end
     if opts.bang then

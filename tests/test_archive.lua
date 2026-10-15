@@ -243,7 +243,7 @@ T["preview"]["lists the moves and asks before writing"] = function()
   child.cmd("Logpose archive")
   eq(child.lua_get("_G.items"), { "Archive", "Cancel" })
   local preview = table.concat(child.lua_get("_G.preview"), "\n")
-  H.contains(preview, "Archive sections from before the week of 2026-10-12")
+  H.contains(preview, "Archive sections from before the current week (week of 2026-10-12)")
   H.contains(preview, "INBOX.md\n  → journal-entries/week-2026-09-28.md (merge): 2026-09-29 (already there)")
   H.contains(preview, "  → journal-entries/week-2026-10-05.md (new): 2026-10-05, 2026-10-07")
   H.contains(child.lua_get("_G.preview_name"), "logpose://archive-preview")
@@ -272,6 +272,89 @@ T["honours custom dirs, affixes and titles"] = function()
   H.write(p("journal/INBOX.md"), INBOX)
   child.cmd("Logpose archive!")
   eq(H.read(p("journal/weeks/w-2026-09-28.md")), lines("# Semana 2026-09-28", "", "## 2026-09-29", "- [ ] old"))
+end
+
+T["sprints"] = MiniTest.new_set()
+
+local function sprints(extra)
+  child.lua(
+    ([[require('logpose').setup({ root = %q, period = { kind = "sprint", sprint = %s } })]]):format(root, extra)
+  )
+end
+
+T["sprints"]["archive whole past sprints, Thursday to Wednesday"] = function()
+  sprints([[{ anchor = "2026-10-01", first_number = 42 }]])
+  H.write(
+    p("INBOX.md"),
+    lines(
+      "# INBOX",
+      "",
+      "## 2026-09-17",
+      "- [ ] a",
+      "",
+      "## 2026-09-30",
+      "- [ ] b",
+      "",
+      "## 2026-10-01",
+      "- [ ] c",
+      "",
+      "## 2026-10-14",
+      "- [ ] d"
+    )
+  )
+  H.write(p("DONE.md"), lines("# DONE", "", "## 2026-09-24", "- [x] e"))
+  child.cmd("Logpose archive!")
+  eq(
+    H.read(p("journal-entries/sprint-41.md")),
+    lines(
+      "# Journal: sprint-41 (2026-09-17 – 2026-09-30)",
+      "",
+      "## 2026-09-17",
+      "- [ ] a",
+      "",
+      "## 2026-09-30",
+      "- [ ] b"
+    )
+  )
+  eq(
+    H.read(p("done-entries/done-sprint-41.md")),
+    lines("# Done: sprint-41 (2026-09-17 – 2026-09-30)", "", "## 2026-09-24", "- [x] e")
+  )
+  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-01", "- [ ] c", "", "## 2026-10-14", "- [ ] d"))
+end
+
+T["sprints"]["sprint 9 is older than sprint 10"] = function()
+  sprints([[{ anchor = "2026-10-01", first_number = 9 }]])
+  H.freeze(child, 2026, 10, 15) -- first day of sprint 10
+  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-02", "- [ ] old", "", "## 2026-10-16", "- [ ] now"))
+  child.cmd("Logpose archive!")
+  eq(
+    H.read(p("journal-entries/sprint-9.md")),
+    lines("# Journal: sprint-9 (2026-10-01 – 2026-10-14)", "", "## 2026-10-02", "- [ ] old")
+  )
+  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-16", "- [ ] now"))
+end
+
+T["sprints"]["the preview names the current sprint"] = function()
+  sprints([[{ anchor = "2026-10-01", first_number = 42 }]])
+  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-09-30", "- [ ] b"))
+  stub_select("Cancel")
+  child.cmd("Logpose archive")
+  H.contains(
+    table.concat(child.lua_get("_G.preview"), "\n"),
+    "before the current sprint (sprint-42 (2026-10-01 – 2026-10-14))"
+  )
+end
+
+T["weeks can start on Thursday"] = function()
+  child.lua(("require('logpose').setup({ root = %q, period = { week_start = 4 } })"):format(root))
+  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-07", "- [ ] wed", "", "## 2026-10-08", "- [ ] thu"))
+  child.cmd("Logpose archive!")
+  eq(
+    H.read(p("journal-entries/week-2026-10-01.md")),
+    lines("# Journal: week of 2026-10-01", "", "## 2026-10-07", "- [ ] wed")
+  )
+  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-08", "- [ ] thu"))
 end
 
 T["completes as a subcommand"] = function()
