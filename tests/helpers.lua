@@ -14,6 +14,9 @@ function H.new_child()
     child.lua([[
       _G.notifications = {}
       vim.notify = function(msg, level) table.insert(_G.notifications, { msg = msg, level = level }) end
+      -- An unstubbed prompt would block the headless child forever: fail fast instead.
+      vim.ui.select = function(_, opts) error("unexpected vim.ui.select: " .. tostring(opts and opts.prompt)) end
+      vim.ui.input = function(opts) error("unexpected vim.ui.input: " .. tostring(opts and opts.prompt)) end
     ]])
   end
   function child.notifications()
