@@ -63,7 +63,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -873,3 +873,5 @@ Strictly local: nothing ever leaves the machine.
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
 - 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
+- 0.19.0: `:Logpose find` is live by default with a picker plugin (the filters move into the
+  prompt); `search = { live = false }` restores fixed results.

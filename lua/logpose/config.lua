@@ -137,6 +137,11 @@ M.defaults = {
   },
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
+  search = {
+    --- Re-run the search as you edit the picker prompt (snacks, fzf-lua, telescope). The prompt
+    --- takes the same filters as :Logpose find. false = the picker fuzzy-filters fixed results.
+    live = true,
+  },
   retrieval = {
     --- Every line under these `## ` headings is searchable (find decisions, section:…).
     sections = { "decisions", "blockers", "risks", "open questions" },
@@ -284,6 +289,8 @@ local function validate(opts)
   for name, v in pairs(opts.views) do
     check("views." .. tostring(name), v, "string")
   end
+  check("search", opts.search, "table")
+  check("search.live", opts.search.live, "boolean")
   check("retrieval", opts.retrieval, "table")
   check("retrieval.sections", opts.retrieval.sections, "table")
   check("meeting_subdir", opts.meeting_subdir, "string")
