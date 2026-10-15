@@ -3,7 +3,9 @@
 ---   #perf  tag:perf        tagged
 ---   type:retro             meeting type
 ---   open | done            tasks by state
----   since:YYYY-MM-DD  until:YYYY-MM-DD
+---   since:DATE  until:DATE   DATE = YYYY-MM-DD, today, yesterday, -7d, +2w…
+---   week:SPEC  sprint:SPEC   SPEC = current, -1, +1, a date, or a sprint number
+---   section:decisions      under a `## ` heading containing the text
 ---   anything else          words that must all appear in the text
 local date = require("logpose.util.date")
 
@@ -16,11 +18,14 @@ local M = {}
 ---@field state? "open"|"done"
 ---@field since? string
 ---@field until? string
+---@field section? string
 ---@field words string[]
 
 ---@param args string[]
+---@param today? string defaults to today
 ---@return logpose.Query
-function M.parse(args)
+function M.parse(args, today)
+  today = today or date.today()
   local q = { tags = {}, words = {} }
   for _, arg in ipairs(args) do
     local key, value = arg:match("^(%a+):(.+)$")
@@ -32,10 +37,19 @@ function M.parse(args)
     elseif key == "type" then
       q.type = value
     elseif key == "since" or key == "until" then
-      if not date.is_iso(value) then
-        error(("logpose: %s: needs a YYYY-MM-DD date, got %q"):format(key, value), 0)
+      local d = date.resolve(value, today)
+      if not d then
+        error(("logpose: %s: needs a date (YYYY-MM-DD, today, -7d…), got %q"):format(key, value), 0)
       end
-      q[key] = value
+      q[key] = d
+    elseif key == "week" or key == "sprint" then
+      local p, err = require("logpose.period").resolve(key, value, today)
+      if not p then
+        error(err, 0)
+      end
+      q.since, q["until"] = p.start, p.finish
+    elseif key == "section" then
+      q.section = (value:lower():gsub("%-", " "))
     elseif arg:match("^#.") then
       table.insert(q.tags, arg:sub(2):lower())
     elseif arg == "open" or arg == "done" then
@@ -82,6 +96,9 @@ function M.match(item, q)
     return false
   end
   if q["until"] and (not item.date or item.date > q["until"]) then
+    return false
+  end
+  if q.section and not (item.section and item.section:find(q.section, 1, true)) then
     return false
   end
   if #q.words > 0 then
