@@ -376,6 +376,14 @@ function M.command(opts)
   local args = opts.args
   query.parse(args) -- validate before any prompt
   config.with_root(ui.safely(function(root)
+    if config.get().tasks.mode == "files" then
+      -- With task files, triage happens on the board, starting at the column captures land in.
+      require("logpose.board").open_board(
+        root,
+        { filter = table.concat(args, " "), column = config.get().tasks.capture_status }
+      )
+      return
+    end
     local queue = M.collect(root, args)
     if #queue == 0 then
       vim.notify("logpose: INBOX is clear", vim.log.levels.INFO)

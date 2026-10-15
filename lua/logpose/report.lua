@@ -68,7 +68,11 @@ function M.build(root, p, args, today, dest)
   local out = { title, "", ("Generated %s."):format(today) }
 
   -- Done: DONE.md and the done archives.
+  local done_status = config.get().board.done
   local done = vim.tbl_filter(function(it)
+    if it.kind == "note" and it.note_type == "task" then
+      return it.status == done_status -- task files (archived ones too); dated by when they finished
+    end
     return it.kind == "task" and it.checked and (it.file == done_path or vim.startswith(it.file, done_dir .. "/"))
   end, in_period(items, p))
   section(out, "Done", #done)
@@ -78,7 +82,11 @@ function M.build(root, p, args, today, dest)
   for _, d in ipairs(dates) do
     table.insert(out, "### " .. d)
     for _, it in ipairs(by_date[d]) do
-      table.insert(out, "- " .. it.text)
+      if it.kind == "note" then
+        table.insert(out, ("- %s (%s)%s"):format(it.text, ref(it), it.project and ("  @" .. it.project) or ""))
+      else
+        table.insert(out, "- " .. it.text)
+      end
     end
   end
 
@@ -141,6 +149,35 @@ function M.build(root, p, args, today, dest)
   table.insert(out, ("### Stale open tasks, older than %d days (%d)"):format(config.get().review.stale_days, #stale))
   for _, it in ipairs(stale) do
     table.insert(out, ("- %s %s (%s)"):format(it.date, it.text, ref(it)))
+  end
+
+  -- Task files: blocked, and in progress for too long.
+  local task_files = vim.tbl_filter(function(it)
+    return it.kind == "note" and it.note_type == "task" and not it.archived and it.status ~= done_status
+  end, items)
+  if #task_files > 0 then
+    local taskfile = require("logpose.taskfile")
+    local blocked = vim.tbl_filter(function(it)
+      return it.blocked ~= nil
+    end, task_files)
+    table.insert(out, "")
+    table.insert(out, ("### Blocked tasks (%d)"):format(#blocked))
+    for _, it in ipairs(blocked) do
+      local reason = it.blocked == "yes" and "" or (": " .. it.blocked)
+      table.insert(out, ("- [%s] %s%s (%s)"):format(taskfile.label(it.status), it.text, reason, ref(it)))
+    end
+    local start = config.get().board.start
+    local lingering = vim.tbl_filter(function(it)
+      return it.status == start and it.started ~= nil and it.started < stale_before
+    end, task_files)
+    table.insert(out, "")
+    table.insert(
+      out,
+      ("### %s for more than %d days (%d)"):format(taskfile.label(start), config.get().review.stale_days, #lingering)
+    )
+    for _, it in ipairs(lingering) do
+      table.insert(out, ("- since %s %s (%s)"):format(it.started, it.text, ref(it)))
+    end
   end
 
   local inbox_path = config.path("inbox", root)

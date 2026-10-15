@@ -13,7 +13,14 @@ local M = {}
 ---@field lnum integer
 ---@field text string
 ---@field date? string
----@field note_type string  daily|meeting|inbox|done|archive|other
+---@field note_type string  daily|meeting|inbox|done|archive|project|topic|task|other
+---@field status? string   task files: board column
+---@field blocked? string  task files: block reason
+---@field due? string      task files: due date
+---@field created? string  task files
+---@field started? string  task files
+---@field done_date? string task files: when it reached Done
+---@field archived? boolean task files under tasks/archive
 ---@field type? string      meeting type (frontmatter)
 ---@field project? string
 ---@field tags string[]     lowercase, without '#'; a note's tags include all its inline tags
@@ -174,6 +181,8 @@ function M.note_type(path, root)
     return "meeting"
   elseif under(path, p("journal_entries")) or under(path, p("done_entries")) then
     return "archive"
+  elseif under(path, p("tasks")) then
+    return "task"
   elseif under(path, p("projects")) then
     return "project"
   elseif under(path, p("notes")) then
@@ -256,6 +265,12 @@ function M.index_lines(path, lines, root)
     names = names,
     links = {},
   }
+  if note_type == "task" then
+    local t = require("logpose.taskfile").parse(path, lines, root)
+    note.status, note.blocked, note.due = t.status, t.blocked, t.due
+    note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
+    note.date = t.done or t.created or note.date
+  end
   table.insert(items, note)
 
   local retrievable = {}

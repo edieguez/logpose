@@ -23,6 +23,7 @@ M.defaults = {
     reports = "reports",
     notes = "notes",
     projects = "projects",
+    tasks = "tasks",
   },
   affixes = {
     daily = "daily-",
@@ -137,6 +138,33 @@ M.defaults = {
   },
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
+  tasks = {
+    --- "files": one markdown file per task, shown on :Logpose board. "inbox": the INBOX.md /
+    --- DONE.md checkbox flow (capture, done, triage) as before.
+    ---@type "files"|"inbox"
+    mode = "files",
+    --- Column a captured task starts in, and one promoted from a checkbox.
+    capture_status = "backlog",
+    promote_status = "todo",
+  },
+  board = {
+    --- Columns, left to right. `key` is the task's `status:`; `label` is shown.
+    columns = {
+      { key = "backlog", label = "Backlog" },
+      { key = "todo", label = "TODO" },
+      { key = "in-progress", label = "In progress" },
+      { key = "follow-up", label = "Follow-up" },
+      { key = "done", label = "Done" },
+    },
+    --- Reaching this column sets `started:`; reaching `done` sets `done:`.
+    start = "in-progress",
+    done = "done",
+    --- Done tasks shown: "period" (current week or sprint) or a number of days.
+    ---@type "period"|integer
+    done_window = "period",
+    --- Narrower than this, columns stack vertically.
+    min_column_width = 24,
+  },
   search = {
     --- Re-run the search as you edit the picker prompt (snacks, fzf-lua, telescope). The prompt
     --- takes the same filters as :Logpose find. false = the picker fuzzy-filters fixed results.
@@ -289,6 +317,40 @@ local function validate(opts)
   for name, v in pairs(opts.views) do
     check("views." .. tostring(name), v, "string")
   end
+  check("tasks", opts.tasks, "table")
+  if opts.tasks.mode ~= "files" and opts.tasks.mode ~= "inbox" then
+    error(('logpose: `tasks.mode` must be "files" or "inbox", got %s'):format(vim.inspect(opts.tasks.mode)), 0)
+  end
+  check("board", opts.board, "table")
+  check("board.columns", opts.board.columns, "table")
+  if #opts.board.columns < 2 then
+    error("logpose: `board.columns` needs at least two columns", 0)
+  end
+  local keys = {}
+  for i, col in ipairs(opts.board.columns) do
+    check(("board.columns[%d]"):format(i), col, "table")
+    check(("board.columns[%d].key"):format(i), col.key, "string")
+    check(("board.columns[%d].label"):format(i), col.label, "string", true)
+    if not col.key:match("^[%w_%-]+$") then
+      error(("logpose: board column key %q may only use letters, digits, - and _"):format(col.key), 0)
+    end
+    if keys[col.key] then
+      error(("logpose: duplicate board column %q"):format(col.key), 0)
+    end
+    keys[col.key] = true
+  end
+  for _, name in ipairs({ "board.start", "board.done", "tasks.capture_status", "tasks.promote_status" }) do
+    local section, key = name:match("^(%w+)%.([%w_]+)$")
+    local v = opts[section][key]
+    check(name, v, "string")
+    if not keys[v] then
+      error(("logpose: `%s` = %q is not a board column"):format(name, v), 0)
+    end
+  end
+  if opts.board.done_window ~= "period" and type(opts.board.done_window) ~= "number" then
+    error('logpose: `board.done_window` must be "period" or a number of days', 0)
+  end
+  check("board.min_column_width", opts.board.min_column_width, "number")
   check("search", opts.search, "table")
   check("search.live", opts.search.live, "boolean")
   check("retrieval", opts.retrieval, "table")
