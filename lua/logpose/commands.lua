@@ -121,6 +121,15 @@ M.builtin = {
   project = { module = "logpose.project", desc = "logpose: set the active project" },
   standup = { module = "logpose.standup", complete = false, desc = "logpose: show today's standup" },
   triage = { module = "logpose.triage", desc = "logpose: process INBOX items one by one" },
+  note = { module = "logpose.notes.topic", fn = "note_command", complete = false, desc = "logpose: topic note" },
+  ["project-page"] = {
+    module = "logpose.notes.topic",
+    fn = "project_page_command",
+    complete_fn = "complete_projects",
+    desc = "logpose: project page",
+  },
+  backlinks = { module = "logpose.links", fn = "backlinks_command", complete = false, desc = "logpose: backlinks" },
+  links = { module = "logpose.links", fn = "links_command", complete = false, desc = "logpose: outgoing links" },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task to INBOX" },
   find = { module = "logpose.search", fn = "find_command", desc = "logpose: find notes, tasks, tags, projects" },
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
@@ -141,7 +150,8 @@ function M.create()
           return {}
         end
         local mod = require(spec.module)
-        return mod.complete and mod.complete(arglead, args) or {}
+        local fn = mod[spec.complete_fn or "complete"]
+        return fn and fn(arglead, args) or {}
       end,
     })
   end

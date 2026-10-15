@@ -26,6 +26,8 @@ local M = {}
 ---@field people string[]   person slugs: @mentions (tasks/lines); attendees, `with:` and all
 ---                         mentions (notes)
 ---@field names? table<string, string>  person slug -> name as written (notes only)
+---@field links? { target: string, style: "wiki"|"markdown", lnum: integer, text: string }[]
+---                         raw outgoing links (notes only; resolved by links.lua)
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
 ---@param line string
@@ -51,6 +53,27 @@ function M.mentions_in(line)
     local slug = require("logpose.util.text").slugify(name)
     if slug ~= "" then
       table.insert(out, { slug = slug, name = name })
+    end
+  end
+  return out
+end
+
+--- Links in a line: wiki `[[target|label]]` and markdown `[label](target)` (local files only).
+---@param line string
+---@return { target: string, style: "wiki"|"markdown" }[]
+function M.links_in(line)
+  local out = {}
+  for inner in line:gmatch("%[%[(.-)%]%]") do
+    local target = vim.trim(inner:match("^([^|]*)") or "")
+    target = target:gsub("#.*$", "")
+    if target ~= "" then
+      table.insert(out, { target = target, style = "wiki" })
+    end
+  end
+  for target in line:gmatch("%]%((.-)%)") do
+    target = vim.trim(target):gsub("^<(.*)>$", "%1"):gsub("#.*$", "")
+    if target ~= "" and not target:match("^%a[%w+.-]*:") then
+      table.insert(out, { target = target, style = "markdown" })
     end
   end
   return out
@@ -151,6 +174,10 @@ function M.note_type(path, root)
     return "meeting"
   elseif under(path, p("journal_entries")) or under(path, p("done_entries")) then
     return "archive"
+  elseif under(path, p("projects")) then
+    return "project"
+  elseif under(path, p("notes")) then
+    return "topic"
   end
   return "other"
 end
@@ -227,6 +254,7 @@ function M.index_lines(path, lines, root)
     fm_tags = tag_list(fm.tags),
     people = {},
     names = names,
+    links = {},
   }
   table.insert(items, note)
 
@@ -253,6 +281,9 @@ function M.index_lines(path, lines, root)
     end
     local tags = M.tags_in(line)
     vim.list_extend(note_tags, tags)
+    for _, l in ipairs(M.links_in(line)) do
+      table.insert(note.links, { target = l.target, style = l.style, lnum = i, text = vim.trim(line) })
+    end
     local people = {}
     for _, m in ipairs(M.mentions_in(line)) do
       table.insert(people, m.slug)

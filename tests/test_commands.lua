@@ -26,27 +26,16 @@ end
 
 T["without a subcommand prints usage"] = function()
   child.cmd("Logpose")
-  H.contains(
-    child.notifications()[1].msg,
-    "usage :Logpose {actions|archive|capture|daily|done|find|grep|init|meeting|project|standup|triage}"
-  )
+  local names = child.lua_get("require('logpose.commands').names()")
+  H.contains(child.notifications()[1].msg, "usage :Logpose {" .. table.concat(names, "|") .. "}")
 end
 
 T["built-in subcommands are registered"] = function()
-  eq(child.fn.getcompletion("Logpose ", "cmdline"), {
-    "actions",
-    "archive",
-    "capture",
-    "daily",
-    "done",
-    "find",
-    "grep",
-    "init",
-    "meeting",
-    "project",
-    "standup",
-    "triage",
-  })
+  local names = child.lua_get("require('logpose.commands').names()")
+  eq(child.fn.getcompletion("Logpose ", "cmdline"), names)
+  for _, want in ipairs({ "daily", "meeting", "find", "triage", "note", "backlinks", "project-page" }) do
+    eq(vim.tbl_contains(names, want), true)
+  end
   H.neq(child.fn.maparg("<Plug>(logpose-meeting)", "n"), "")
 end
 
