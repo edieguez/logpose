@@ -24,7 +24,8 @@ function M.check()
   local root, source = config.resolve_root()
   if not root then
     h.error(source, {
-      'Set it explicitly: require("logpose").setup({ root = "~/path/to/journal" })',
+      "Run :Logpose init to choose or create a journal directory",
+      'Or set it in your config: require("logpose").setup({ root = "~/path/to/journal" })',
       "Or add one of these markers to the journal root: " .. table.concat(config.get().root_markers, ", "),
     })
     return
@@ -33,10 +34,11 @@ function M.check()
     config = "from setup({ root = ... })",
     buffer = "found by marker above the current buffer",
     cwd = "found by marker above the current directory",
+    saved = "saved by :Logpose init",
   })[source] or source
   h.ok(("%s (%s)"):format(vim.fn.fnamemodify(root, ":~"), how))
-  if source ~= "config" then
-    h.info("Setting `root` explicitly makes commands work from any buffer, e.g. a work repo.")
+  if source == "buffer" or source == "cwd" then
+    h.info("Run :Logpose init (or set `root`) so commands work from any buffer, e.g. a work repo.")
   end
 
   h.start("logpose: journal paths")

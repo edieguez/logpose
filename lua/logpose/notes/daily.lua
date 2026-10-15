@@ -3,6 +3,7 @@ local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
 local template = require("logpose.template")
+local ui = require("logpose.util.ui")
 
 local M = {}
 
@@ -61,16 +62,24 @@ function M.ensure(iso, root)
   return path, true, rendered.cursor
 end
 
---- Create (if needed) and open the daily note.
----@param arg? string
-function M.open(arg)
-  local root = config.root()
-  local iso = M.resolve_date(arg)
+--- Create (if needed) and open the daily note for `iso`.
+---@param iso string
+---@param root string
+function M.open_date(iso, root)
   local path, created, cursor = M.ensure(iso, root)
   vim.cmd.edit(vim.fn.fnameescape(path))
   if created and cursor then
     pcall(vim.api.nvim_win_set_cursor, 0, cursor)
   end
+end
+
+--- Create (if needed) and open the daily note. Offers onboarding when there's no journal yet.
+---@param arg? string today|prev|next|YYYY-MM-DD
+function M.open(arg)
+  local iso = M.resolve_date(arg) -- resolve now: `prev`/`next` depend on the current buffer
+  config.with_root(ui.safely(function(root)
+    M.open_date(iso, root)
+  end))
 end
 
 ---@param opts logpose.CommandOpts

@@ -6,6 +6,7 @@ local fs = require("logpose.util.fs")
 local link = require("logpose.link")
 local template = require("logpose.template")
 local text = require("logpose.util.text")
+local ui = require("logpose.util.ui")
 
 local M = {}
 
@@ -233,16 +234,7 @@ local function open(path, cursor)
   end
 end
 
----@param fn function
-local function safely(fn)
-  return function(...)
-    local ok, err = pcall(fn, ...)
-    if not ok then
-      local msg = tostring(err)
-      vim.notify(msg:find("^logpose:") and msg or ("logpose: " .. msg), vim.log.levels.ERROR)
-    end
-  end
-end
+local safely = ui.safely
 
 ---@param root string
 ---@param note logpose.MeetingNote
@@ -333,26 +325,30 @@ function M.command(opts)
   elseif not date.is_iso(iso) then
     error(("logpose: invalid date %q (use YYYY-MM-DD)"):format(iso), 0)
   end
-  local root = config.root()
-
   if key then
-    M.start(root, key, iso)
-    return
+    get_type(key) -- fail on an unknown type before any prompt
   end
-  vim.ui.select(
-    M.types(),
-    {
-      prompt = "Meeting type",
-      format_item = function(t)
-        return t.spec.label or t.key
-      end,
-    },
-    safely(function(choice)
-      if choice then
-        M.start(root, choice.key, iso)
-      end
-    end)
-  )
+
+  config.with_root(safely(function(root)
+    if key then
+      M.start(root, key, iso)
+      return
+    end
+    vim.ui.select(
+      M.types(),
+      {
+        prompt = "Meeting type",
+        format_item = function(t)
+          return t.spec.label or t.key
+        end,
+      },
+      safely(function(choice)
+        if choice then
+          M.start(root, choice.key, iso)
+        end
+      end)
+    )
+  end))
 end
 
 ---@return string[]
