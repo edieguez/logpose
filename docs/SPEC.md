@@ -39,6 +39,7 @@ logic (week grouping + same-date body merge).
 | F0 | Foundation                       | Core      | —          | scaffold, config, root, tests, CI   |
 | F1 | Daily & meeting notes            | Core      | F0         | replaces `new-daily-note.py`, `new-meeting-note.py` |
 | F1.5 | Onboarding (`init`, first run) | Core      | F1         | new                                 |
+| F1.6 | Projects                       | Core      | F1.5       | new                                 |
 | F2 | Archive                          | Core      | F0         | replaces `archive-journal.py`       |
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
 | F4 | Navigation (pickers)             | High      | F1         | new                                 |
@@ -50,13 +51,13 @@ logic (week grouping + same-date body merge).
 \* soft dependency: works with the `vim.ui.select` fallback, better with F4.
 
 **Milestones**
-- **M1 (F0–F2, incl. F1.5): Python scripts retired.** Everything `bin/` does is in the plugin, with parity
+- **M1 (F0–F2, incl. F1.5–F1.6): Python scripts retired.** Everything `bin/` does is in the plugin, with parity
   verified. Owner decides whether to delete `bin/` or keep it as a cron fallback.
 - **M2 (F3–F5): Daily driver.** Capture, complete, find, and follow up on meeting action items.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, sprint archives/reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F2 / M1 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2 / M1 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -334,6 +335,46 @@ the link to the buffer (left unsaved) instead of refusing.
 
 ---
 
+## F1.6 — Projects (Core)
+
+**Goal.** Work on several unrelated projects in **one** journal: one daily note and standup
+across everything, but meetings, tasks and reports can be kept apart and filtered per project.
+
+**Design** (`project.lua`)
+- Config:
+  ```lua
+  projects = {
+    detect = true,      -- use the git repo of the current buffer/cwd as the project
+    paths = {},         -- { ["~/work/acme-api"] = "acme", ["~/school/thesis"] = "thesis" }
+  },
+  meeting_subdir = "{project}",  -- meetings/<project>/…; "" keeps everything in meetings/
+  ```
+- **Active project** (first match wins): set with `:Logpose project <name>` (kept in state until
+  changed or cleared) → longest `projects.paths` prefix of the current buffer/cwd → the git repo
+  name (slugified) of the current buffer/cwd, unless that repo is the journal itself → none.
+- `:Logpose project [name|none]`: set or clear; no argument → pick from known projects (config
+  paths + subdirectories of `meetings/`) or type a new one. Completion lists known projects.
+- Meeting notes (F1): saved under `meetings/<project>/` when a project is active; frontmatter
+  gains `project: acme`; `{project}` template variable; the series key is project-scoped
+  (`acme/retro`) so recurring meetings never mix across projects. The daily-note link is
+  prefixed with the project: `- acme: [[meetings/acme/2026-10-14 - retro|Retro]]`.
+- `require("logpose").project()` returns the active project (for statuslines).
+- Later features use it: F3 capture tags items `#acme`; F4 pickers, F5 actions and F7 reports
+  default to "all", with a `project` argument (`current` = active project).
+- Health shows the active project and how it was chosen.
+
+**Acceptance criteria**
+- Inside `~/work/acme-api`, `:Logpose meeting retro` creates `meetings/acme-api/<date> - retro.md`
+  with `project: acme-api`; the daily note links it under `## Meetings` with the project prefix.
+- `:Logpose project thesis` overrides detection until `:Logpose project none`.
+- With no project (e.g. editing the journal itself), notes go to `meetings/` as in F1.
+
+**Tests**
+- Resolution order (explicit, paths prefix, git, journal repo excluded, none); slugified names;
+  subdir and frontmatter; project-scoped series; `meeting_subdir = ""`; completion.
+
+---
+
 ## F2 — Archive (Core)
 
 **Goal.** Port `archive-journal.py` with a preview + confirm step and safe writes. Replaces the
@@ -547,6 +588,7 @@ previous one.
 | Command                                   | Feature |
 |-------------------------------------------|---------|
 | `:Logpose init [dir]`                     | F1.5 |
+| `:Logpose project [name\|none]`           | F1.6 |
 | `:Logpose daily [date\|prev\|next\|today]` | F1 |
 | `:Logpose meeting [type] [date]`          | F1, F5 |
 | `:Logpose archive[!]`                     | F2, F7 |
