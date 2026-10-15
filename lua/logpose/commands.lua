@@ -48,6 +48,11 @@ end
 function M.dispatch(cmd)
   local fargs = cmd.fargs or {}
   local name = fargs[1]
+  -- `:Logpose archive!` reads better than `:Logpose! archive`; accept both.
+  local sub_bang = false
+  if name and name:sub(-1) == "!" then
+    name, sub_bang = name:sub(1, -2), true
+  end
   local names = M.names()
   if not name then
     if #names == 0 then
@@ -65,7 +70,7 @@ function M.dispatch(cmd)
   end
   local ok, err = pcall(sub.impl, {
     args = vim.list_slice(fargs, 2),
-    bang = cmd.bang or false,
+    bang = cmd.bang or sub_bang,
     range = cmd.range or 0,
     line1 = cmd.line1 or 0,
     line2 = cmd.line2 or 0,
@@ -109,6 +114,7 @@ end
 --- Modules load only when the subcommand runs or completes.
 M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
+  archive = { module = "logpose.archive", desc = "logpose: archive past weeks of INBOX/DONE" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },

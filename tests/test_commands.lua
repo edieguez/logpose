@@ -26,11 +26,11 @@ end
 
 T["without a subcommand prints usage"] = function()
   child.cmd("Logpose")
-  H.contains(child.notifications()[1].msg, "usage :Logpose {daily|init|meeting|project}")
+  H.contains(child.notifications()[1].msg, "usage :Logpose {archive|daily|init|meeting|project}")
 end
 
 T["built-in subcommands are registered"] = function()
-  eq(child.fn.getcompletion("Logpose ", "cmdline"), { "daily", "init", "meeting", "project" })
+  eq(child.fn.getcompletion("Logpose ", "cmdline"), { "archive", "daily", "init", "meeting", "project" })
   H.neq(child.fn.maparg("<Plug>(logpose-meeting)", "n"), "")
 end
 
@@ -58,6 +58,13 @@ T["dispatch"]["passes args, bang and range"] = function()
   eq(called.args, { "prev", "extra" })
   eq(called.bang, true)
   eq(called.range, 0)
+end
+
+T["dispatch"]["accepts a trailing ! on the subcommand"] = function()
+  register_dummy()
+  child.cmd("Logpose daily! prev")
+  eq(child.lua_get("_G.called.bang"), true)
+  eq(child.lua_get("_G.called.args"), { "prev" })
 end
 
 T["dispatch"]["reports unknown subcommands with the valid ones"] = function()
