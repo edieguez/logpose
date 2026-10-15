@@ -109,6 +109,10 @@ M.defaults = {
     --- Group :Logpose standup items by project (#project tags).
     group_by_project = true,
   },
+  retrieval = {
+    --- Every line under these `## ` headings is searchable (find decisions, section:…).
+    sections = { "decisions", "blockers", "risks", "open questions" },
+  },
   projects = {
     --- Use the git repo of the current buffer (or cwd) as the project.
     detect = true,
@@ -240,6 +244,8 @@ local function validate(opts)
   for _, k in ipairs({ "carry_forward", "mark_carried", "include_done", "group_by_project" }) do
     check("standup." .. k, opts.standup[k], "boolean")
   end
+  check("retrieval", opts.retrieval, "table")
+  check("retrieval.sections", opts.retrieval.sections, "table")
   check("meeting_subdir", opts.meeting_subdir, "string")
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")

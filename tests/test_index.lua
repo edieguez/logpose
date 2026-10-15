@@ -121,6 +121,55 @@ T["skips templates and dot-directories"] = function()
   eq(files, { "real.md" })
 end
 
+T["sections"] = function()
+  H.write(root .. "/meetings/2026-10-14 - retro.md", table.concat({
+    "---",
+    "date: 2026-10-14",
+    "---",
+    "# Retro",
+    "## Went well",
+    "- pairing",
+    "## Decisions",
+    "- Use Postgres for the queue",
+    "Keep sprints at two weeks",
+    "",
+    "- [ ] write ADR",
+    "### Details",
+    "- sub point",
+    "## Action items",
+    "- [ ] ship it #acme",
+  }, "\n") .. "\n")
+  H.write(root .. "/INBOX.md", "# INBOX\n## Blockers\n- waiting on infra\n## 2026-10-13\n- [ ] dated task\n")
+  local items = build()
+  local got = {}
+  for _, it in ipairs(items) do
+    if it.kind ~= "note" then
+      table.insert(got, { it.kind, it.text, it.section or false, it.section_title or false })
+    end
+  end
+  eq(got, {
+    { "line", "waiting on infra", "blockers", "Blockers" },
+    { "task", "dated task", false, false },
+    { "line", "Use Postgres for the queue", "decisions", "Decisions" },
+    { "line", "Keep sprints at two weeks", "decisions", "Decisions" },
+    { "task", "write ADR", "decisions", "Decisions" },
+    { "line", "sub point", "decisions", "Decisions" },
+    { "task", "ship it #acme", "action items", "Action items" },
+  })
+end
+
+T["retrieval sections are configurable"] = function()
+  child.lua(("require('logpose').setup({ root = %q, retrieval = { sections = { 'went well' } } })"):format(root))
+  H.write(root .. "/m.md", "# M\n## Went well\n- pairing\n## Decisions\n- nope\n")
+  local texts = {}
+  for _, it in ipairs(build()) do
+    if it.kind == "line" then
+      table.insert(texts, it.text)
+    end
+  end
+  eq(texts, { "pairing" })
+end
+
 T["tag_counts and projects"] = function()
   H.write(root .. "/INBOX.md", "# INBOX\n- [ ] a #perf\n- [ ] b #perf #ux\n")
   H.write(root .. "/m.md", "---\nproject: thesis\ntags: [perf]\n---\n# M\n")

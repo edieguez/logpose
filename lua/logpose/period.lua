@@ -62,6 +62,51 @@ function M.of(iso, opts)
   return M.week_of(iso, opts.week_start)
 end
 
+--- Resolve `week:<spec>` / `sprint:<spec>` relative to `today`.
+--- spec: current | -N | +N (periods back/forward) | YYYY-MM-DD (the period containing it) |
+--- N (sprint number, sprints only).
+---@param kind "week"|"sprint"
+---@param spec string
+---@param today string
+---@param opts? table period options (default: configured)
+---@return logpose.Period? period, string? err
+function M.resolve(kind, spec, today, opts)
+  opts = opts or config.get().period
+  if kind == "sprint" and not opts.sprint.anchor then
+    return nil, "logpose: sprint: needs `period.sprint.anchor` in setup()"
+  end
+  local function of(iso)
+    if kind == "sprint" then
+      return M.sprint_of(iso, opts.sprint)
+    end
+    return M.week_of(iso, opts.week_start)
+  end
+  local step = kind == "sprint" and opts.sprint.length_days or 7
+  spec = spec:lower()
+  if spec == "current" or spec == "this" then
+    return of(today)
+  end
+  if date.is_iso(spec) then
+    return of(spec)
+  end
+  local sign, n = spec:match("^([+-])(%d+)$")
+  if sign then
+    local offset = tonumber(n) * (sign == "-" and -1 or 1)
+    return of(date.add_days(of(today).start, offset * step))
+  end
+  local num = spec:match("^(%d+)$")
+  if num and kind == "sprint" then
+    local idx = tonumber(num) - opts.sprint.first_number
+    return of(date.add_days(opts.sprint.anchor, idx * step))
+  end
+  return nil,
+    ("logpose: %s: expects current, -N, +N, a date%s; got %q"):format(
+      kind,
+      kind == "sprint" and " or a sprint number" or "",
+      spec
+    )
+end
+
 --- Sprint name for `iso` when a sprint anchor is configured, else "".
 ---@param iso string
 ---@return string

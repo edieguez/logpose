@@ -7,7 +7,7 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
-M.SCOPES = { "notes", "daily", "meetings", "archives", "tasks", "tags", "projects" }
+M.SCOPES = { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects" }
 
 local SCOPE_FILTER = {
   notes = function(it)
@@ -25,6 +25,12 @@ local SCOPE_FILTER = {
   tasks = function(it)
     return it.kind == "task"
   end,
+  decisions = function(it)
+    return it.kind ~= "note" and it.section ~= nil and it.section:find("decision", 1, true) ~= nil
+  end,
+  blockers = function(it)
+    return it.kind ~= "note" and it.section ~= nil and it.section:find("blocker", 1, true) ~= nil
+  end,
 }
 
 --- One-line label for an item.
@@ -37,6 +43,9 @@ function M.display(it)
     return ("%s  %s  %s%s"):format(it.date or "----------", label, it.text, project)
   end
   local where = it.title or vim.fn.fnamemodify(it.file, ":t:r")
+  if it.section_title then
+    where = where .. " › " .. it.section_title
+  end
   if it.kind == "task" then
     return ("[%s] %s  · %s%s"):format(it.checked and "x" or " ", it.text, where, project)
   end
@@ -208,7 +217,10 @@ function M.complete(_, args)
   if #args == 0 then
     return M.SCOPES
   end
-  local out = { "open", "done", "since:", "until:" }
+  local out = { "open", "done", "since:", "until:", "sprint:current", "sprint:-1", "week:current", "week:-1" }
+  for _, name in ipairs(config.get().retrieval.sections) do
+    table.insert(out, "section:" .. name:gsub("%s", "-"))
+  end
   local root = config.resolve_root()
   if root then
     local items = index.build(root)

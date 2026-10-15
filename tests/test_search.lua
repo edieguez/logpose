@@ -115,20 +115,58 @@ T["find projects, then its notes and tasks"] = function()
   eq(#offered()[2].labels, 3)
 end
 
+T["find decisions and blockers, with relative dates"] = function()
+  H.write(
+    root .. "/meetings/acme/2026-10-07 - planning.md",
+    '---\ntype: planning\ndate: 2026-10-07\nproject: acme\ntitle: "Planning"\n---\n# Planning\n## Decisions\n- Drop IE support\n## Risks\n- infra delay\n'
+  )
+  H.write(
+    root .. "/meetings/acme/2026-10-14 - retro.md",
+    '---\ntype: retro\ndate: 2026-10-14\nproject: acme\ntitle: "Retro"\n---\n# Retro\n## Decisions\n- Use Postgres\n## Blockers\n- waiting on infra\n'
+  )
+  H.freeze(child, 2026, 10, 14)
+  select_picks()
+  child.cmd("Logpose find decisions project:acme")
+  eq(
+    offered()[1].labels,
+    { "Use Postgres  · Retro › Decisions  @acme", "Drop IE support  · Planning › Decisions  @acme" }
+  )
+  child.cmd("Logpose find decisions since:-3d")
+  eq(offered()[2].labels, { "Use Postgres  · Retro › Decisions  @acme" })
+  child.cmd("Logpose find blockers week:current")
+  eq(offered()[3].labels, { "waiting on infra  · Retro › Blockers  @acme" })
+  child.cmd("Logpose find tasks section:action")
+  H.contains(child.notifications()[#child.notifications()].msg, "no matches")
+  child.cmd("Logpose find notes section:risks")
+  H.contains(child.notifications()[#child.notifications()].msg, "no matches")
+end
+
+T["sprint: filters use the configured sprints"] = function()
+  setup("{ period = { sprint = { anchor = '2026-10-01', first_number = 42 } } }")
+  H.freeze(child, 2026, 10, 14)
+  select_picks()
+  child.cmd("Logpose find meetings sprint:current") -- sprint 42: 2026-10-01 – 2026-10-14
+  eq(#offered()[1].labels, 2)
+  child.cmd("Logpose find meetings sprint:-1")
+  H.contains(child.notifications()[1].msg, "no matches")
+  child.cmd("Logpose find meetings sprint:42")
+  eq(#offered()[2].labels, 2)
+end
+
 T["no matches says so"] = function()
   child.cmd("Logpose find tasks #nothing")
   H.contains(child.notifications()[1].msg, "no matches")
 end
 
 T["bad filters fail before searching"] = function()
-  child.cmd("Logpose find tasks since:yesterday")
-  H.contains(child.notifications()[1].msg, "needs a YYYY-MM-DD date")
+  child.cmd("Logpose find tasks since:someday")
+  H.contains(child.notifications()[1].msg, "needs a date")
 end
 
 T["completion"] = function()
   eq(
     child.fn.getcompletion("Logpose find ", "cmdline"),
-    { "notes", "daily", "meetings", "archives", "tasks", "tags", "projects" }
+    { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects" }
   )
   local c = child.fn.getcompletion("Logpose find tasks ", "cmdline")
   for _, want in ipairs({ "open", "done", "project:acme", "project:thesis", "#perf", "#ux", "type:retro" }) do

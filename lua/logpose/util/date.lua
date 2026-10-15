@@ -93,6 +93,34 @@ function M.diff_days(a, b)
   return math.floor((time_of(b) - time_of(a)) / 86400 + 0.5)
 end
 
+--- Resolve a date expression relative to `today`: YYYY-MM-DD, today, yesterday, tomorrow,
+--- +N/-N with d (days) or w (weeks), e.g. -7d, +2w. Returns nil if not a date.
+---@param expr string
+---@param today? string
+---@return string?
+function M.resolve(expr, today)
+  if type(expr) ~= "string" then
+    return nil
+  end
+  today = today or M.today()
+  local e = expr:lower()
+  if M.is_iso(e) then
+    return e
+  elseif e == "today" then
+    return today
+  elseif e == "yesterday" then
+    return M.add_days(today, -1)
+  elseif e == "tomorrow" then
+    return M.add_days(today, 1)
+  end
+  local sign, n, unit = e:match("^([+-])(%d+)([dw])$")
+  if sign then
+    local days = tonumber(n) * (unit == "w" and 7 or 1)
+    return M.add_days(today, sign == "-" and -days or days)
+  end
+  return nil
+end
+
 --- ISO weekday: Monday = 1 … Sunday = 7.
 ---@param iso string
 ---@return integer

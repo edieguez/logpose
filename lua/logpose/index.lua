@@ -21,6 +21,8 @@ local M = {}
 ---@field checked? boolean  tasks only
 ---@field title? string     note title (on every item of that note)
 ---@field series? string    meeting series (frontmatter; on every item of that note)
+---@field section? string   lowercased `## ` heading the item sits under (not date headings)
+---@field section_title? string  that heading as written
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
 ---@param line string
@@ -183,12 +185,26 @@ function M.index_lines(path, lines, root)
   }
   table.insert(items, note)
 
-  local section_date
+  local retrievable = {}
+  for _, name in ipairs(config.get().retrieval.sections) do
+    retrievable[name:lower()] = true
+  end
+
+  local section_date, section, section_title
   local note_tags = vim.list_extend({}, note.tags)
   for i = body, #lines do
     local line = lines[i]
+    local is_heading = line:match("^#+%s") ~= nil
     if line:match("^##%s") then
       section_date = markdown.heading_date(line)
+      if section_date then
+        section, section_title = nil, nil
+      else
+        section_title = vim.trim((line:gsub("^##%s+", "")))
+        section = section_title:lower()
+      end
+    elseif line:match("^#%s") then
+      section, section_title = nil, nil
     end
     local tags = M.tags_in(line)
     vim.list_extend(note_tags, tags)
@@ -210,19 +226,26 @@ function M.index_lines(path, lines, root)
         project = project,
         tags = tags,
         title = title,
+        section = section,
+        section_title = section_title,
       })
-    elseif #tags > 0 then
+    elseif not is_heading and vim.trim(line) ~= "" and (#tags > 0 or (section and retrievable[section])) then
+      -- Tagged lines, and every line under a retrievable section (Decisions, Blockers…).
+      local text = vim.trim(line):gsub("^[-*+]%s+", "")
       table.insert(items, {
         kind = "line",
         file = path,
         lnum = i,
-        text = vim.trim(line),
+        text = text,
         date = section_date or note_date,
         note_type = note_type,
         type = mtype,
+        series = series,
         project = project,
         tags = tags,
         title = title,
+        section = section,
+        section_title = section_title,
       })
     end
   end
