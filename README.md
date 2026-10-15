@@ -4,7 +4,8 @@ Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in N
 
 > **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
 > meeting notes, and weekly or sprint archiving. M2 (daily driver) is done too: capture/done,
-> search, action items and meeting series. Standup prep lands next.
+> search, action items and meeting series. M3 is under way: standup prep works; sprint reports
+> land next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -49,6 +50,7 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | `:Logpose find [scope] [filters]` | Search notes, tasks, tags and projects (see below). |
 | `:Logpose grep [text]` | Live grep in the journal (quickfix list without a picker plugin). |
 | `:Logpose actions [open\|mine\|overdue\|all] [filters]` | Action items from meeting notes in the quickfix list (or picker). |
+| `:Logpose standup [date]` | Yesterday / Today / Blockers of today's note, grouped by project, ready for the daily meeting. |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -105,6 +107,14 @@ meeting notes are filed per project:
   `- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]`. Recurring meetings are grouped per
   project.
 - `require("logpose").project()` returns the active project, e.g. for your statusline.
+
+### Standup prep
+
+A new daily note starts from your previous one (Friday's on a Monday): what you checked off
+under `## Today` goes to `## Yesterday`, and unfinished tasks move to the new `## Today` (marked
+`- [>]` in the old note so they're tracked once). With `standup = { include_done = true }`,
+Yesterday also lists that day's DONE entries. `:Logpose standup` then shows Yesterday, Today and
+Blockers in a scratch buffer, grouped by project tag, to read out in the daily meeting.
 
 ### Action items and recurring meetings
 
@@ -199,6 +209,10 @@ require("logpose").setup({
   me = nil,                              -- "@yourname", for :Logpose actions mine
   actions = { include_daily = false, unassigned_mine = true, output = "quickfix" }, -- or "picker"
   series = { carry_over = true, mark_carried = true },
+  standup = {
+    sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
+    carry_forward = true, mark_carried = true, include_done = false, group_by_project = true,
+  },
   projects = {
     detect = true,                       -- the git repo you're in is the project
     paths = {},                          -- { ["~/work/acme-api"] = "acme" }; longest match wins
