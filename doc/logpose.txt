@@ -1,0 +1,112 @@
+*logpose.txt*  Daily notes, meeting notes and sprint archives for Scrum/Kanban
+
+==============================================================================
+CONTENTS                                                    *logpose-contents*
+
+  1. Introduction ............................ |logpose-introduction|
+  2. Setup ................................... |logpose-setup|
+  3. Journal root ............................ |logpose-root|
+  4. Commands ................................ |logpose-commands|
+  5. Health .................................. |logpose-health|
+
+==============================================================================
+1. INTRODUCTION                                         *logpose-introduction*
+
+logpose.nvim manages a markdown journal: daily notes, typed meeting notes,
+an INBOX/DONE Kanban flow and weekly or sprint archives.
+
+Requires Neovim 0.10 or later.
+
+==============================================================================
+2. SETUP                                                       *logpose-setup*
+
+`setup()` is optional; commands work with the defaults.
+>lua
+  require("logpose").setup({
+    root = "~/path/to/journal",
+  })
+<
+Options ~
+
+  root           (string|nil)  Absolute path to the journal. `~` is expanded.
+                 Recommended, so commands work from any buffer.
+  root_markers   (string[])    Markers that identify a journal root when
+                 `root` is nil. Default: `{ ".llm-wiki-layout" }`.
+  dirs           (table)       Paths relative to the root: `daily`,
+                 `meetings`, `inbox`, `done`, `journal_entries`,
+                 `done_entries`, `templates`, `reports`.
+  affixes        (table)       Filename prefixes: `daily`, `week`,
+                 `done_week`.
+  link_style     ("wiki"|"markdown")  Link format. Default "wiki".
+  workdays       (integer[])   ISO weekdays (Monday = 1). Default Mon-Fri.
+                                                            *logpose-workdays*
+  picker         (string)      "auto", "snacks", "fzf_lua", "telescope" or
+                 "select". Default "auto".
+  link_base      (string)      Directory (relative to root) that wiki-link
+                 targets are relative to. Default "journal".
+  meeting_filename (string)    Meeting filename without `.md`. Variables:
+                 {date}, {time} (HHMM), {slug}, {type}. Must contain {slug}.
+                 Default "{date} - {slug}".
+  meeting_types  (table)       Meeting types by name. Fields: `label`,
+                 `template` (default "meeting"), `order`, and either `title`
+                 (fixed, no prompt) or `prompt` (asks; `title` may use
+                 {input}). Set a type to `false` to remove it.
+
+Unknown options produce a warning; invalid values raise an error.
+
+==============================================================================
+3. JOURNAL ROOT                                                 *logpose-root*
+
+The root is resolved in this order:
+
+  1. The configured `root`.
+  2. A marker above the current buffer's file.
+  3. A marker above the current working directory.
+
+A bare `journal/` directory is not a marker.
+
+==============================================================================
+4. COMMANDS                                                 *logpose-commands*
+
+                                                                    *:Logpose*
+:Logpose {subcommand} [args]
+    Run a logpose subcommand. <Tab> completes subcommands and arguments.
+    Each subcommand also has a `<Plug>(logpose-{subcommand})` mapping.
+    No keymaps are set by default.
+
+                                                              *:Logpose-daily*
+:Logpose daily [today|prev|next|{YYYY-MM-DD}]
+    Create (from the `daily` template) and open a daily note. `prev` and
+    `next` step by |logpose-workdays| from the daily note in the current
+    buffer, or from today. An existing note is opened, never overwritten.
+
+                                                            *:Logpose-meeting*
+:Logpose meeting [{type}] [{YYYY-MM-DD}]
+    Create a meeting note. Without {type}, choose from a list. Types with a
+    `prompt` ask for input (a title, or a person for `1on1`). The note gets
+    YAML frontmatter (type, date, title, attendees, series) and a link is
+    added under `## Meetings` in that day's daily note. If the daily note
+    has unsaved changes, the link is added to its buffer and left unsaved.
+
+    Same type and title on the same day opens the existing note. With
+    {time} in `meeting_filename`, you're asked whether to open the existing
+    note or create a new one.
+
+==============================================================================
+TEMPLATES                                                  *logpose-templates*
+
+Templates are looked up in `<root>/<dirs.templates>/<name>.md`, then in the
+plugin's `templates/` directory. Shipped: daily, meeting, planning,
+refinement, review, retro, 1on1.
+
+Variables: {date} {time} {weekday} {iso_week} {title} {type} {type_label}
+{series} {attendees}. Unknown variables are left as is. {cursor} marks where
+the cursor goes and is removed.
+
+==============================================================================
+5. HEALTH                                                     *logpose-health*
+
+`:checkhealth logpose` reports the Neovim version, the resolved journal root
+and how it was found, which journal paths exist and the picker in use.
+
+ vim:tw=78:ts=8:ft=help:norl:
