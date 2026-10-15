@@ -7,7 +7,7 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
-M.SCOPES = { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects" }
+M.SCOPES = { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects", "people" }
 
 local SCOPE_FILTER = {
   notes = function(it)
@@ -162,6 +162,28 @@ function M.find(root, scope, args)
     return
   end
 
+  if scope == "people" then
+    local people = index.people(items)
+    if #people == 0 then
+      vim.notify("logpose: no people found", vim.log.levels.INFO)
+      return
+    end
+    local entries = vim.tbl_map(function(p)
+      return { display = ("%s (%d)"):format(p.name, p.count), person = p.slug, name = p.name }
+    end, people)
+    picker.pick(entries, {
+      prompt = "People" .. suffix,
+      cwd = root,
+      on_choice = function(choice)
+        local involving = vim.tbl_filter(function(it)
+          return vim.tbl_contains(it.people or {}, choice.person)
+        end, items)
+        show(involving, choice.name, root)
+      end,
+    })
+    return
+  end
+
   if scope == "projects" then
     local names = M.projects(root, items)
     if #names == 0 then
@@ -229,6 +251,9 @@ function M.complete(_, args)
     end
     for _, c in ipairs(index.tag_counts(items)) do
       table.insert(out, "#" .. c.tag)
+    end
+    for _, p in ipairs(index.people(items)) do
+      table.insert(out, "person:" .. p.slug)
     end
   end
   for _, t in ipairs(require("logpose.notes.meeting").types()) do

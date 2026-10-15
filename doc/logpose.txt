@@ -211,7 +211,7 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
     fzf-lua or Telescope (see `picker`), else |vim.ui.select|.
 
     Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`,
-    `decisions`, `blockers` (lines under those `## ` headings),
+    `decisions`, `blockers` (lines under those `## ` headings), `people`,
     `tags` (choose a tag, then everything carrying it), `projects` (choose
     a project, then its notes and tasks).
 
@@ -225,6 +225,8 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
       `week:{spec}`, `sprint:{spec}`  current, -N, +N, a date, or a
                          sprint number (sprints need `period.sprint.anchor`)
       `section:{name}`   under a `## ` heading containing {name}
+      `person:{name}`, `@{name}`  involves the person (attendee, 1:1,
+                         @mention)
       other words        must all appear in the text
 
     Tags are inline `#words` (not headings, URL fragments or numbers such
