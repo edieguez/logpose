@@ -51,7 +51,7 @@ capture/done, sprint-aware archives and reports.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -550,33 +550,42 @@ lives in logpose, so every picker shows the same results.
 **Goal.** Action items from meetings don't get lost, and each recurring meeting starts from the
 previous one.
 
-### F5.1 Action items (`:Logpose actions [open|mine|overdue|all]`)
-- Scan meeting notes (and daily notes if `actions.include_daily = true`) for tasks.
-- Parse `@owner` and `due:YYYY-MM-DD`; `config.me = "@emmanuel"` defines `mine`
-  (unassigned items count as mine — configurable).
-- Default output is the **quickfix list** (`file:line: text`, sorted by due date, then file date);
-  `config.actions.output = "picker"` uses `pick_items`.
-- `overdue` = open with `due` < today.
-- Completing an item works with F3's `:Logpose done` from the quickfix-opened buffer.
+### F5.1 Action items (`actions.lua`, on the F4 index)
+- `:Logpose actions [open|mine|overdue|all] [filters…]` — tasks from meeting notes (plus daily
+  notes with `actions.include_daily = true`); same filters as `:Logpose find`.
+- Inline metadata: `@owner` (start of a word, so e-mail addresses don't count) and
+  `due:YYYY-MM-DD`. `me = "@emmanuel"` defines `mine`; unassigned items count as mine unless
+  `actions.unassigned_mine = false`. `overdue` = open with `due` before today.
+- Output: quickfix list (default; title `logpose actions: <mode> <filters>`) or the picker
+  (`actions.output = "picker"`). Order: open first, soonest due, then oldest meeting. Overdue
+  items are flagged.
+- Empty `- [ ]` placeholders from templates aren't tasks (index-wide).
+- Completing an item works with F3's `:Logpose done` from the opened buffer.
 
-### F5.2 Meeting series
-- On meeting creation (F1.3 hook): find the most recent earlier note with the same frontmatter
-  `series`. If found:
-  - set `{previous}` → link to it (shipped templates render `Previous: {previous}` under the title);
-  - add a `## Carried over` section with its **open** tasks, each suffixed with a link to the source.
-- `:Logpose meeting` title prompts offer completion from past titles of that type (custom
-  completion on `vim.ui.input` where supported; harmless where not).
+### F5.2 Meeting series (in `notes/meeting.lua`)
+- On creation, the previous note is the most recent earlier meeting with the same `series`
+  (frontmatter; project-scoped since F1.6). If found:
+  - `Previous: [[…|<title> <date>]]` is inserted right after the title heading;
+  - with `series.carry_over` (default), a `## Carried over` section follows with the previous
+    note's open tasks, each `- [ ] text (from [[…|<date>]])`; an older `(from …)` is replaced,
+    so an item carried several times keeps one, current, origin;
+  - with `series.mark_carried` (default), those tasks become `- [>] …` (migrated) in the previous
+    note, so `actions` and search don't list them twice. An unsaved previous note is edited in
+    its buffer.
+- Later: completion of past titles/people in the meeting prompt.
 
 **Acceptance criteria**
-- With two retros containing open items, `:Logpose actions` lists them in quickfix with correct
+- With retros containing open items, `:Logpose actions` lists them in quickfix with correct
   lines; `overdue` filters by due date.
-- Creating a second `1on1` with the same person links the previous one and carries its open
-  follow-ups; a 1:1 with a different person does not.
+- A second `1on1` with the same person links the previous one and carries its open follow-ups;
+  a 1:1 with a different person, or the same title in another project, does not.
 
 **Tests**
-- Task/metadata parsing: owner, due, both, neither, malformed due.
-- Series lookup: picks the most recent earlier note, ignores later dates and other series.
-- Carried-over rendering for both link styles.
+- Metadata parsing; modes, `me`/unassigned, filters, include_daily, picker output, ordering,
+  empty result, completion.
+- Series: link + carried section + cursor, `[>]` marking and no double listing, other person,
+  other project, carried twice, latest earlier note only, both options off, unsaved previous
+  note, markdown links.
 
 ---
 
@@ -660,7 +669,7 @@ previous one.
 | `:Logpose done` (normal / visual)         | F3 |
 | `:Logpose find [notes\|daily\|meetings\|archives\|tasks\|tags\|projects] [filters]` | F4 |
 | `:Logpose grep [text]`                    | F4 |
-| `:Logpose actions [open\|mine\|overdue\|all]` | F5 |
+| `:Logpose actions [open\|mine\|overdue\|all] [filters]` | F5 |
 | `:Logpose standup`                        | F6 |
 | `:Logpose report[!] [week\|sprint] [offset]` | F7 |
 | `:Logpose ticket [ID]`                    | F8 |

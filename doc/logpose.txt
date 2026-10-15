@@ -68,6 +68,14 @@ Options ~
                  (number of the anchor sprint, 1); `sprint.name`
                  ("sprint-{n}"). Sprints are counted from the anchor in
                  both directions.
+  me             (string|nil)  Your handle in action items, e.g. "@emmanuel".
+  actions        (table)       `include_daily` (false): also collect daily
+                 note tasks. `unassigned_mine` (true): items without an
+                 owner count for `mine`. `output`: "quickfix" (default) or
+                 "picker".
+  series         (table)       `carry_over` (true): carry the previous
+                 meeting's open tasks. `mark_carried` (true): mark them
+                 `- [>]` in the previous note.
   projects       (table)       `detect` (boolean, default true): the git
                  repo of the current buffer/cwd is the project. `paths`
                  (table): directory -> project name; longest match wins.
@@ -154,6 +162,21 @@ A bare `journal/` directory is not a marker.
     and logged in DONE with a link back to the note. Non-task lines are
     skipped. The current buffer is edited so |u| undoes it, then saved
     unless it already had unsaved changes.
+
+                                                            *:Logpose-actions*
+:Logpose actions [open|mine|overdue|all] [{filters}...]
+    Action items (tasks) from meeting notes, in the quickfix list (or the
+    picker, see `actions.output`). Default mode `open`. Tasks may carry
+    `@owner` and `due:YYYY-MM-DD`; `mine` matches `me` (and unassigned
+    items), `overdue` open items past their due date, `all` includes
+    closed ones. Filters as in |:Logpose-find|.
+
+                                                    *logpose-meeting-series*
+Meeting series ~
+A new meeting note whose `series` (type + title, or type + person for
+prompted types, per project) has an earlier note gets `Previous: [[…]]` under
+its title and a `## Carried over` section with that note's open tasks, which
+are then marked `- [>]` (migrated) in the earlier note. See `series`.
 
                                                                *:Logpose-find*
 :Logpose find [{scope}] [{filters}...]
