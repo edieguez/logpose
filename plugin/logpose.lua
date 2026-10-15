@@ -10,3 +10,4 @@ end
 
 -- Cheap: only the dispatcher loads at startup; feature modules load on use.
 require("logpose.commands").create()
+require("logpose.tickets").setup_autocmd()
