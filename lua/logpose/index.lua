@@ -23,6 +23,9 @@ local M = {}
 ---@field series? string    meeting series (frontmatter; on every item of that note)
 ---@field section? string   lowercased `## ` heading the item sits under (not date headings)
 ---@field section_title? string  that heading as written
+---@field people string[]   person slugs: @mentions (tasks/lines); attendees, `with:` and all
+---                         mentions (notes)
+---@field names? table<string, string>  person slug -> name as written (notes only)
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
 ---@param line string
@@ -36,6 +39,21 @@ function M.tags_in(line)
     end
   end
   return tags
+end
+
+--- @mentions in a line: list of { slug, name }. Must start a word (so e-mails don't count).
+---@param line string
+---@return { slug: string, name: string }[]
+function M.mentions_in(line)
+  local out = {}
+  for name in (" " .. line):gmatch("[%s%(%[,;]@([%w_][%w_%.%-]*)") do
+    name = name:gsub("[%.%-]+$", "")
+    local slug = require("logpose.util.text").slugify(name)
+    if slug ~= "" then
+      table.insert(out, { slug = slug, name = name })
+    end
+  end
+  return out
 end
 
 --- Minimal YAML frontmatter: `key: value` scalars and `[a, b]` lists.
@@ -169,6 +187,31 @@ function M.index_lines(path, lines, root)
   local mtype = type(fm.type) == "string" and fm.type ~= "" and fm.type or nil
   local series = type(fm.series) == "string" and fm.series ~= "" and fm.series or nil
 
+  -- People named in frontmatter: attendees (list or comma string) and `with:` (1:1s).
+  local names = {}
+  local note_people = {}
+  local function add_person(name)
+    name = vim.trim(name or "")
+    local slug = require("logpose.util.text").slugify(name)
+    if slug ~= "" then
+      names[slug] = names[slug] or name
+      table.insert(note_people, slug)
+    end
+  end
+  local attendees = fm.attendees
+  if type(attendees) == "string" then
+    for n in attendees:gmatch("[^,]+") do
+      add_person(n)
+    end
+  elseif type(attendees) == "table" then
+    for _, n in ipairs(attendees) do
+      add_person(n)
+    end
+  end
+  if type(fm.with) == "string" then
+    add_person(fm.with)
+  end
+
   local note = {
     kind = "note",
     file = path,
@@ -182,6 +225,8 @@ function M.index_lines(path, lines, root)
     project = project,
     tags = tag_list(fm.tags),
     fm_tags = tag_list(fm.tags),
+    people = {},
+    names = names,
   }
   table.insert(items, note)
 
@@ -208,6 +253,12 @@ function M.index_lines(path, lines, root)
     end
     local tags = M.tags_in(line)
     vim.list_extend(note_tags, tags)
+    local people = {}
+    for _, m in ipairs(M.mentions_in(line)) do
+      table.insert(people, m.slug)
+      names[m.slug] = names[m.slug] or m.name
+      table.insert(note_people, m.slug)
+    end
     local task = require("logpose.tasks").parse_task(line)
     if task and vim.trim(task.text) == "" then
       task = nil -- empty placeholder from a template ("- [ ] ")
@@ -225,11 +276,16 @@ function M.index_lines(path, lines, root)
         series = series,
         project = project,
         tags = tags,
+        people = people,
         title = title,
         section = section,
         section_title = section_title,
       })
-    elseif not is_heading and vim.trim(line) ~= "" and (#tags > 0 or (section and retrievable[section])) then
+    elseif
+      not is_heading
+      and vim.trim(line) ~= ""
+      and (#tags > 0 or #people > 0 or (section and retrievable[section]))
+    then
       -- Tagged lines, and every line under a retrievable section (Decisions, Blockers…).
       local text = vim.trim(line):gsub("^[-*+]%s+", "")
       table.insert(items, {
@@ -243,6 +299,7 @@ function M.index_lines(path, lines, root)
         series = series,
         project = project,
         tags = tags,
+        people = people,
         title = title,
         section = section,
         section_title = section_title,
@@ -250,6 +307,7 @@ function M.index_lines(path, lines, root)
     end
   end
   note.tags = unique(note_tags)
+  note.people = unique(note_people)
   return items
 end
 
@@ -316,6 +374,32 @@ function M.tag_counts(items)
       return a.count > b.count
     end
     return a.tag < b.tag
+  end)
+  return out
+end
+
+--- People with the number of items involving them (notes, tasks, lines), most first.
+---@param items logpose.Item[]
+---@return { slug: string, name: string, count: integer }[]
+function M.people(items)
+  local counts, names = {}, {}
+  for _, item in ipairs(items) do
+    for slug, name in pairs(item.names or {}) do
+      names[slug] = names[slug] or name
+    end
+    for _, slug in ipairs(item.people or {}) do
+      counts[slug] = (counts[slug] or 0) + 1
+    end
+  end
+  local out = {}
+  for slug, count in pairs(counts) do
+    table.insert(out, { slug = slug, name = names[slug] or slug, count = count })
+  end
+  table.sort(out, function(a, b)
+    if a.count ~= b.count then
+      return a.count > b.count
+    end
+    return a.slug < b.slug
   end)
   return out
 end

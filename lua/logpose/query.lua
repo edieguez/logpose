@@ -6,6 +6,7 @@
 ---   since:DATE  until:DATE   DATE = YYYY-MM-DD, today, yesterday, -7d, +2w…
 ---   week:SPEC  sprint:SPEC   SPEC = current, -1, +1, a date, or a sprint number
 ---   section:decisions      under a `## ` heading containing the text
+---   person:ana  @ana       involves the person (attendee, 1:1, @mention)
 ---   anything else          words that must all appear in the text
 local date = require("logpose.util.date")
 
@@ -19,6 +20,7 @@ local M = {}
 ---@field since? string
 ---@field until? string
 ---@field section? string
+---@field people string[]
 ---@field words string[]
 
 ---@param args string[]
@@ -26,7 +28,7 @@ local M = {}
 ---@return logpose.Query
 function M.parse(args, today)
   today = today or date.today()
-  local q = { tags = {}, words = {} }
+  local q = { tags = {}, words = {}, people = {} }
   for _, arg in ipairs(args) do
     local key, value = arg:match("^(%a+):(.+)$")
     key = key and key:lower()
@@ -48,8 +50,12 @@ function M.parse(args, today)
         error(err, 0)
       end
       q.since, q["until"] = p.start, p.finish
+    elseif key == "person" then
+      table.insert(q.people, require("logpose.util.text").slugify(value))
     elseif key == "section" then
       q.section = (value:lower():gsub("%-", " "))
+    elseif arg:match("^@.") then
+      table.insert(q.people, require("logpose.util.text").slugify(arg:sub(2)))
     elseif arg:match("^#.") then
       table.insert(q.tags, arg:sub(2):lower())
     elseif arg == "open" or arg == "done" then
@@ -81,6 +87,11 @@ function M.match(item, q)
   end
   for _, tag in ipairs(q.tags) do
     if not has(item.tags, tag) then
+      return false
+    end
+  end
+  for _, person in ipairs(q.people) do
+    if not has(item.people or {}, person) then
       return false
     end
   end

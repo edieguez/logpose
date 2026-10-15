@@ -40,13 +40,21 @@ M.defaults = {
   picker = "auto",
   --- Meeting note types. Set a type to `false` to remove it.
   --- Fields: label, template, order, and either `title` (fixed, no prompt) or `prompt`
-  --- (asks for input; `title` may then use `{input}`).
+  --- (asks for input; `title` may then use `{input}`). `person = true`: the answer is a person.
+  --- `ask_attendees = true`: also ask for attendees (comma separated, with completion).
   meeting_types = {
     planning = { label = "Sprint planning", template = "planning", title = "Sprint planning", order = 10 },
     refinement = { label = "Refinement", template = "refinement", title = "Refinement", order = 20 },
     review = { label = "Sprint review", template = "review", title = "Sprint review", order = 30 },
     retro = { label = "Retrospective", template = "retro", title = "Retro", order = 40 },
-    ["1on1"] = { label = "1:1", template = "1on1", prompt = "Person: ", title = "1:1 {input}", order = 50 },
+    ["1on1"] = {
+      label = "1:1",
+      template = "1on1",
+      prompt = "Person: ",
+      title = "1:1 {input}",
+      person = true, -- the answer is a person: stored as `with:` and an attendee
+      order = 50,
+    },
     adhoc = { label = "Ad-hoc", template = "meeting", prompt = "Meeting title: ", order = 60 },
   },
   --- Meeting filename (without .md). Variables: {date}, {time} (HHMM), {slug}, {type}.
@@ -263,6 +271,8 @@ local function validate(opts)
       check("meeting_types." .. name .. ".title", t.title, "string", true)
       check("meeting_types." .. name .. ".prompt", t.prompt, "string", true)
       check("meeting_types." .. name .. ".order", t.order, "number", true)
+      check("meeting_types." .. name .. ".person", t.person, "boolean", true)
+      check("meeting_types." .. name .. ".ask_attendees", t.ask_attendees, "boolean", true)
     end
   end
   check("workdays", opts.workdays, "table")
