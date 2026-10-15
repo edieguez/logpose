@@ -110,14 +110,16 @@ function M.complete(arglead, cmdline)
   return {}
 end
 
---- Built-in subcommands: name -> module exposing `command(opts)` and optionally `complete(arglead, args)`.
---- Modules load only when the subcommand runs or completes.
+--- Built-in subcommands: name -> module exposing `command(opts)` (or `fn`) and optionally
+--- `complete(arglead, args)`. Modules load only when the subcommand runs or completes.
 M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
   archive = { module = "logpose.archive", desc = "logpose: archive past weeks of INBOX/DONE" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
+  capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task to INBOX" },
+  done = { module = "logpose.tasks", fn = "done_command", desc = "logpose: mark tasks done", plug = { "n", "x" } },
 }
 
 --- Create `:Logpose` and register built-in subcommands. Called once from plugin/logpose.lua.
@@ -125,8 +127,9 @@ function M.create()
   for name, spec in pairs(M.builtin) do
     M.register(name, {
       desc = spec.desc,
+      plug = spec.plug,
       impl = function(opts)
-        require(spec.module).command(opts)
+        require(spec.module)[spec.fn or "command"](opts)
       end,
       complete = function(arglead, args)
         local mod = require(spec.module)
