@@ -36,8 +36,8 @@ capture/done, sprint-aware archives and reports.
 | F2 | Archive                          | Core      | F0         | new                                 |
 | F2.1 | Sprint archiving               | Core      | F2         | new (moved up from F7)              |
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
-| F4 | Navigation (pickers)             | High      | F1         | new                                 |
-| F5 | Action items & meeting series    | High      | F1, F4*    | new                                 |
+| F4 | Search: index, tags, projects, pickers | High | F1.6, F3 | new                            |
+| F5 | Action items & meeting series    | High      | F4         | new                                 |
 | F6 | Standup prep                     | Medium    | F1         | new                                 |
 | F7 | Reports                          | Medium    | F2.1, F5   | new                                 |
 | F8 | Ticket references                | Low       | F0, F4*    | new                                 |
@@ -51,7 +51,7 @@ capture/done, sprint-aware archives and reports.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -105,7 +105,10 @@ lua/logpose/
   notes/meeting.lua         -- F1 (+ F5 series hooks)
   archive.lua               -- F2
   tasks.lua                 -- F3
-  picker/init.lua           -- F4 adapter
+  index.lua                 -- F4 journal index (notes, tasks, tagged lines)
+  query.lua                 -- F4 filter language (project:, #tag, type:, open/done …)
+  search.lua                -- F4 :Logpose find / grep
+  picker/init.lua           -- F4 adapter (pick items, grep)
   picker/{snacks,fzf_lua,telescope,select}.lua
   actions.lua               -- F5
   standup.lua               -- F6
@@ -353,7 +356,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   (`acme/retro`) so recurring meetings never mix across projects. The daily-note link is
   prefixed with the project: `- acme: [[meetings/acme/2026-10-14 - retro|Retro]]`.
 - `require("logpose").project()` returns the active project (for statuslines).
-- Later features use it: F3 capture tags items `#acme`; F4 pickers, F5 actions and F7 reports
+- Later features use it: F3 capture tags items `#acme`; F4 search, F5 actions and F7 reports
   default to "all", with a `project` argument (`current` = active project).
 - Health shows the active project and how it was chosen.
 - Project names are slugs (`Acme API` → `acme-api`); `none`, `auto` and `clear` unpin.
@@ -489,29 +492,56 @@ archive file per week, with a preview + confirm step and safe writes.
 
 ---
 
-## F4 — Navigation / pickers (High)
+## F4 — Search: index, tags, projects, pickers (High)
 
-**Goal.** Find any note quickly, with whichever picker the owner has (LazyVim defaults to
-snacks.picker or fzf-lua; Telescope is optional).
+**Goal.** Find notes, tasks, tags and projects quickly, with whichever picker is installed
+(snacks.picker is LazyVim's default; fzf-lua and Telescope also supported). Search behaviour
+lives in logpose, so every picker shows the same results.
 
-**Design** (`picker/`)
-- Adapter API: `pick_files{ cwd, prompt }`, `grep{ cwd, prompt, default_text }`,
-  `pick_items{ items, format, on_choice, prompt }`.
-- Backend selection: `config.picker = "auto"` (default: snacks → fzf-lua → telescope →
-  select) or a forced name. `select` backend: `pick_files` lists files via `vim.fs.dir`;
-  `grep` falls back to `:vimgrep` into quickfix.
-- Subcommands: `:Logpose find daily|weekly|meetings|all`, `:Logpose grep [text]`,
-  `:Logpose find meetings <type>` (filters by frontmatter `type`; uses `pick_items`).
-  `weekly` covers both `journal_entries` and `done_entries`.
+**Design**
+- **Index** (`index.lua`): scans every `*.md` under the root (skipping dot-dirs and
+  `dirs.templates`) into plain items; F5 and F7 reuse it.
+  - Note item per file: `kind = "note"`, `file`, `lnum = 1`, `text` (frontmatter `title`, else
+    the first `# ` heading, else the filename), `date` (frontmatter `date`, else a date in the
+    filename), `note_type` (`daily`, `meeting`, `inbox`, `done`, `archive`, `other`, by location),
+    `type` (meeting type from frontmatter), `project` (frontmatter), `tags`.
+  - Task item per `- [ ]` / `- [x]` line: `kind = "task"`, `checked`, `text`, `lnum`, `date` (the
+    enclosing `## YYYY-MM-DD` section, else the note's date), the note's `project` and
+    `note_type`, inline `tags`.
+  - Line item per other line with an inline tag: `kind = "line"`.
+  - Tags: inline `#word` (letters, digits, `_`, `-`, `/`; not pure numbers; must start a word, so
+    headings and URLs fragments don't count) plus frontmatter `tags:` (`[a, b]` or `a, b`).
+    Compared case-insensitively. A note's tags include its frontmatter tags and inline tags.
+- **Query** (`query.lua`): `:Logpose find` arguments after the scope are filters, all ANDed:
+  `project:acme` (matches the item's project **or** a `#acme` tag), `#perf` / `tag:perf`,
+  `type:retro`, `open` / `done` (tasks), `since:YYYY-MM-DD`, `until:YYYY-MM-DD`; other words
+  must all appear in the text (case-insensitive).
+- **Picker adapter** (`picker/`): `pick(items, { prompt, on_choice })` with `display`, `file`,
+  `lnum` per item (file preview where supported), and `grep({ cwd, text })`.
+  Backend: `config.picker = "auto"` (snacks → fzf_lua → telescope → select) or forced.
+  `select` uses `vim.ui.select`; its grep fills the quickfix list via `:vimgrep`.
+  Default action opens the file at the line.
+- **Commands** (`search.lua`):
+  - `:Logpose find [scope] [filters…]` — scope `notes` (default), `daily`, `meetings`, `archives`,
+    `tasks`, `tags`, `projects`.
+  - `tags` lists every tag with its count; choosing one lists everything carrying it.
+  - `projects` lists projects (index + F1.6 known projects); choosing one lists its notes and tasks.
+  - Notes sort newest first; tasks too, open before done.
+  - `:Logpose grep [text]` — the backend's live grep in the journal (prompt when empty for `select`).
+  - Completion: scopes, then `project:<known>`, `#<known tag>`, `type:<meeting type>`, `open`, `done`.
 
 **Acceptance criteria**
-- Each subcommand works with each installed backend and with the `select` fallback.
-- `:Logpose find meetings retro` lists only retro notes, newest first.
+- `:Logpose find meetings project:acme` lists only acme meetings, newest first, in any backend.
+- `:Logpose find tasks open #perf` lists open tasks tagged `#perf` across INBOX and notes.
+- `:Logpose find tags` → choose `#perf` → its tasks, lines and notes.
 
 **Tests**
-- Backend detection order with mocked `package.loaded`.
-- Frontmatter type filter on fixture notes (including notes without frontmatter → excluded).
-- Picker UIs themselves are verified manually (checklist in the PR).
+- Index: note metadata (frontmatter, heading, filename date, location type), tasks with section
+  dates, tags (inline, frontmatter, exclusions, case), skipped dirs.
+- Query parsing and matching for every filter.
+- Picker: backend detection; each backend's call shape and confirm action with stub modules;
+  `select` end to end; grep fallbacks.
+- Commands: scopes, filters, tags → items, projects → items, sorting, completion.
 
 ---
 
@@ -628,7 +658,7 @@ previous one.
 | `:Logpose archive[!]`                     | F2, F2.1 |
 | `:Logpose capture [text]`                 | F3 |
 | `:Logpose done` (normal / visual)         | F3 |
-| `:Logpose find daily\|weekly\|meetings [type]\|all` | F4 |
+| `:Logpose find [notes\|daily\|meetings\|archives\|tasks\|tags\|projects] [filters]` | F4 |
 | `:Logpose grep [text]`                    | F4 |
 | `:Logpose actions [open\|mine\|overdue\|all]` | F5 |
 | `:Logpose standup`                        | F6 |
