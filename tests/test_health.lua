@@ -22,6 +22,18 @@ T["reports a configured root and its paths"] = function()
   H.contains(out, "vim.ui.select")
 end
 
+T["reports the archive period"] = function()
+  local journal = H.journal()
+  child.lua(("require('logpose').setup({ root = %q })"):format(journal))
+  H.contains(health(), "By week, starting Monday")
+  child.lua(
+    ("require('logpose').setup({ root = %q, period = { kind = 'sprint', sprint = { anchor = '2026-10-01', first_number = 42 } } })"):format(
+      journal
+    )
+  )
+  H.contains(health(), "By sprint (14 days): current is sprint-")
+end
+
 T["reports a root found from cwd"] = function()
   local journal = H.journal()
   child.cmd("cd " .. journal)
