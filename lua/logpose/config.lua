@@ -80,6 +80,23 @@ M.defaults = {
       name = "sprint-{n}",
     },
   },
+  --- Your handle in action items, e.g. "@emmanuel" (used by `:Logpose actions mine`).
+  ---@type string?
+  me = nil,
+  actions = {
+    --- Also collect tasks from daily notes (meetings only by default).
+    include_daily = false,
+    --- Items without an @owner count as yours for `mine`.
+    unassigned_mine = true,
+    ---@type "quickfix"|"picker"
+    output = "quickfix",
+  },
+  series = {
+    --- A new meeting in a series gets the previous one's open items under `## Carried over`.
+    carry_over = true,
+    --- Mark carried items in the previous note as `- [>]` so they aren't listed twice.
+    mark_carried = true,
+  },
   projects = {
     --- Use the git repo of the current buffer (or cwd) as the project.
     detect = true,
@@ -89,7 +106,7 @@ M.defaults = {
 }
 
 --- Keys whose default is nil (so they're known even though absent from `defaults`).
-M.optional_keys = { root = true, ["period.sprint.anchor"] = true }
+M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
 M.open_keys = { meeting_types = true, ["projects.paths"] = true }
@@ -190,6 +207,19 @@ local function validate(opts)
     error("logpose: `period.sprint.first_number` must be an integer", 0)
   end
   check("period.sprint.name", sprint.name, "string")
+  check("me", opts.me, "string", true)
+  check("actions", opts.actions, "table")
+  check("actions.include_daily", opts.actions.include_daily, "boolean")
+  check("actions.unassigned_mine", opts.actions.unassigned_mine, "boolean")
+  if opts.actions.output ~= "quickfix" and opts.actions.output ~= "picker" then
+    error(
+      ('logpose: `actions.output` must be "quickfix" or "picker", got %s'):format(vim.inspect(opts.actions.output)),
+      0
+    )
+  end
+  check("series", opts.series, "table")
+  check("series.carry_over", opts.series.carry_over, "boolean")
+  check("series.mark_carried", opts.series.mark_carried, "boolean")
   check("meeting_subdir", opts.meeting_subdir, "string")
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")
