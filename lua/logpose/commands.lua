@@ -119,6 +119,7 @@ M.builtin = {
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
+  standup = { module = "logpose.standup", complete = false, desc = "logpose: show today's standup" },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task to INBOX" },
   find = { module = "logpose.search", fn = "find_command", desc = "logpose: find notes, tasks, tags, projects" },
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },

@@ -97,6 +97,18 @@ M.defaults = {
     --- Mark carried items in the previous note as `- [>]` so they aren't listed twice.
     mark_carried = true,
   },
+  standup = {
+    --- Daily-note section names.
+    sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
+    --- A new daily note gets the previous one's open Today tasks.
+    carry_forward = true,
+    --- ...and marks them `- [>]` in the previous note so they're tracked once.
+    mark_carried = true,
+    --- Also list what was closed in DONE.md on the previous day under Yesterday.
+    include_done = false,
+    --- Group :Logpose standup items by project (#project tags).
+    group_by_project = true,
+  },
   projects = {
     --- Use the git repo of the current buffer (or cwd) as the project.
     detect = true,
@@ -220,6 +232,14 @@ local function validate(opts)
   check("series", opts.series, "table")
   check("series.carry_over", opts.series.carry_over, "boolean")
   check("series.mark_carried", opts.series.mark_carried, "boolean")
+  check("standup", opts.standup, "table")
+  check("standup.sections", opts.standup.sections, "table")
+  for _, k in ipairs({ "yesterday", "today", "blockers" }) do
+    check("standup.sections." .. k, opts.standup.sections[k], "string")
+  end
+  for _, k in ipairs({ "carry_forward", "mark_carried", "include_done", "group_by_project" }) do
+    check("standup." .. k, opts.standup[k], "boolean")
+  end
   check("meeting_subdir", opts.meeting_subdir, "string")
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")

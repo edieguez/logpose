@@ -55,11 +55,16 @@ function M.ensure(iso, root)
     return path, false
   end
   local rendered = template.render(template.load("daily", root), template.vars(iso))
-  local ok, err = fs.write_file(path, rendered.text)
+  -- Standup prep: start from the previous daily note.
+  local text, cursor, after_write = require("logpose.standup").prepare(root, iso, rendered.text, rendered.cursor)
+  local ok, err = fs.write_file(path, text)
   if not ok then
     error(err, 0)
   end
-  return path, true, rendered.cursor
+  if after_write then
+    after_write()
+  end
+  return path, true, cursor
 end
 
 --- Create (if needed) and open the daily note for `iso`.
