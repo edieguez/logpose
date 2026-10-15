@@ -111,6 +111,12 @@ T["filters work like :Logpose find"] = function()
   eq(#qf(), 1)
 end
 
+T["relative date filters"] = function()
+  child.cmd("Logpose actions open since:-3d")
+  eq(#qf(), 1) -- only the 2026-10-12 advisor meeting is within 3 days
+  H.contains(qf()[1], "read paper")
+end
+
 T["include_daily adds daily-note tasks"] = function()
   setup("{ actions = { include_daily = true } }")
   child.cmd("Logpose actions")

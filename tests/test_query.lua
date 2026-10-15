@@ -33,8 +33,37 @@ end
 
 T["parse rejects bad dates"] = function()
   MiniTest.expect.error(function()
-    query.parse({ "since:yesterday" })
-  end, "since: needs a YYYY%-MM%-DD date")
+    query.parse({ "since:someday" })
+  end, "since: needs a date")
+end
+
+T["relative dates"] = function()
+  local q = query.parse({ "since:-7d", "until:yesterday" }, "2026-10-14")
+  eq({ q.since, q["until"] }, { "2026-10-07", "2026-10-13" })
+  eq(query.parse({ "since:today" }, "2026-10-14").since, "2026-10-14")
+  eq(query.parse({ "until:+2w" }, "2026-10-14")["until"], "2026-10-28")
+  eq(query.parse({ "since:2026-01-01" }, "2026-10-14").since, "2026-01-01")
+end
+
+T["week: and sprint: expand to a date range"] = function()
+  local q = query.parse({ "week:current" }, "2026-10-14")
+  eq({ q.since, q["until"] }, { "2026-10-12", "2026-10-18" })
+  q = query.parse({ "week:-1" }, "2026-10-14")
+  eq({ q.since, q["until"] }, { "2026-10-05", "2026-10-11" })
+  MiniTest.expect.error(function()
+    query.parse({ "sprint:current" }, "2026-10-14")
+  end, "needs `period.sprint.anchor`")
+  MiniTest.expect.error(function()
+    query.parse({ "week:soon" }, "2026-10-14")
+  end, "week: expects current")
+end
+
+T["section filter"] = function()
+  local q = query.parse({ "section:open-questions" })
+  eq(q.section, "open questions")
+  eq(query.match({ kind = "line", text = "x", tags = {}, section = "open questions" }, q), true)
+  eq(query.match({ kind = "line", text = "x", tags = {}, section = "decisions" }, q), false)
+  eq(query.match({ kind = "line", text = "x", tags = {} }, q), false)
 end
 
 local task = {
