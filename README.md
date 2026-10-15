@@ -140,7 +140,9 @@ they're only tracked once. Turn either off with `series = { carry_over = false }
 installed, and falls back to `vim.ui.select`. Logpose builds the results itself, so every picker
 shows the same thing.
 
-Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`, `tags`, `projects`.
+Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`, `decisions`, `blockers`,
+`tags`, `projects`. Every line under a `## Decisions`, `## Blockers`, `## Risks` or
+`## Open questions` heading is searchable, tagged or not (`retrieval.sections`).
 Filters, all combined with AND (with completion):
 
 | Filter | Matches |
@@ -149,10 +151,13 @@ Filters, all combined with AND (with completion):
 | `#perf` / `tag:perf` | items carrying the tag |
 | `type:retro` | meetings of that type |
 | `open` / `done` | tasks by state |
-| `since:2026-10-01` / `until:2026-10-14` | by date |
+| `since:2026-10-01` / `until:-1d` | by date: `YYYY-MM-DD`, `today`, `yesterday`, `-7d`, `+2w` |
+| `week:current` / `sprint:-1` / `sprint:42` | a whole week or sprint (`current`, `-N`, `+N`, a date, a sprint number) |
+| `section:decisions` | lines and tasks under a matching `## ` heading |
 | other words | must all appear in the text |
 
 ```vim
+:Logpose find decisions project:acme sprint:current
 :Logpose find meetings project:acme
 :Logpose find tasks open #perf
 :Logpose find tags          " pick a tag, then everything tagged with it
@@ -213,6 +218,7 @@ require("logpose").setup({
     sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
     carry_forward = true, mark_carried = true, include_done = false, group_by_project = true,
   },
+  retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
   projects = {
     detect = true,                       -- the git repo you're in is the project
     paths = {},                          -- { ["~/work/acme-api"] = "acme" }; longest match wins
