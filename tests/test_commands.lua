@@ -26,11 +26,11 @@ end
 
 T["without a subcommand prints usage"] = function()
   child.cmd("Logpose")
-  H.contains(child.notifications()[1].msg, "usage :Logpose {daily|init|meeting}")
+  H.contains(child.notifications()[1].msg, "usage :Logpose {daily|init|meeting|project}")
 end
 
 T["built-in subcommands are registered"] = function()
-  eq(child.fn.getcompletion("Logpose ", "cmdline"), { "daily", "init", "meeting" })
+  eq(child.fn.getcompletion("Logpose ", "cmdline"), { "daily", "init", "meeting", "project" })
   H.neq(child.fn.maparg("<Plug>(logpose-meeting)", "n"), "")
 end
 
