@@ -38,6 +38,12 @@ capture/done, sprint-aware archives and reports.
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
 | F4 | Search: index, tags, projects, pickers | High | F1.6, F3 | new                            |
 | F5 | Action items & meeting series    | High      | F4         | new                                 |
+| O1 | Sections & relative dates      | High      | F4         | new                                 |
+| O2 | Inbox triage                   | High      | F3, O1     | new                                 |
+| O3 | People                         | High      | F4, F5     | new                                 |
+| O4 | Topic notes & backlinks        | Medium    | F4         | new                                 |
+| O5 | Saved views                    | Medium    | F4         | new                                 |
+| O6 | Maintenance: rename, index cache | Low     | F4         | new                                 |
 | F6 | Standup prep                     | Medium    | F1         | new                                 |
 | F7 | Reports                          | Medium    | F2.1, F5   | new                                 |
 | F8 | Ticket references                | Low       | F0, F4*    | new                                 |
@@ -48,10 +54,14 @@ capture/done, sprint-aware archives and reports.
 - **M1 (F0–F2.1): Core journal.** Onboarding, projects, daily and meeting notes, and weekly or
   sprint archiving.
 - **M2 (F3–F5): Daily driver.** Capture, complete, find, and follow up on meeting action items.
-- **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
+- **M2.5 (O1–O6): Organize & retrieve.** Capturing is half the job; this milestone covers the
+  other half: processing the INBOX, section- and person-aware retrieval, evergreen notes and
+  links, saved views, and keeping tags/projects tidy.
+- **M3 (F6–F8): Scrum layer.** Standup prefill, period reports with a review section, ticket links.
+  (F6 shipped before M2.5; F7 and F8 follow it.)
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, then O1… and F7/F8 in build order); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -621,6 +631,132 @@ previous one.
 
 ---
 
+## M2.5 — Organize & retrieve
+
+Design rule for the whole milestone: structure lives in the plain markdown (frontmatter, tags,
+headings, `[[links]]`, `@mentions`) and the index reads it; no hidden database.
+
+## O1 — Sections & relative dates (High)
+
+**Goal.** Ask for "decisions on acme this sprint" or "blockers last week" directly.
+
+**Design**
+- Index (F4): every task/line item records `section` — the nearest `## ` heading above it
+  (lowercased; date headings are not sections). Tagged-line items stay; additionally, every
+  non-empty line under a **retrievable section** becomes a `line` item even without tags.
+  Retrievable sections: `retrieval.sections = { "decisions", "blockers", "risks", "open questions" }`.
+- Query (F4): `section:decisions` (substring, case-insensitive) and scopes `find decisions`,
+  `find blockers` (shorthand for `section:<name>` over lines and tasks).
+- Relative dates in every date filter and wherever a date is accepted:
+  `today`, `yesterday`, `-7d` / `+3d`, `-2w`; period filters `week:current|-1|+1` and
+  `sprint:current|-1|<n>` (expands to that period's start..finish via F2.1; `sprint:<n>` needs a
+  sprint anchor).
+- Display shows the section for lines: `Decision text  · Retro › Decisions`.
+
+**Acceptance criteria**
+- `:Logpose find decisions project:acme sprint:current` lists decisions from acme meetings in
+  the current sprint, newest first.
+- `:Logpose actions overdue since:-14d` works.
+
+**Tests**
+- Section tracking (nested headings, date headings, frontmatter), retrievable sections without
+  tags, relative date parsing (each form, invalid forms), week/sprint expansion incl. no anchor.
+
+## O2 — Inbox triage (High)
+
+**Goal.** Process INBOX item by item instead of letting it grow.
+
+**Design** (`triage.lua`)
+- `:Logpose triage [filters]` walks open INBOX tasks, oldest first. For each, a picker/select
+  of actions (one keypress where the backend allows):
+  - `project` — add `#project` (known projects + new);
+  - `tag` — add tags; `due` — add `due:` (relative dates from O1 accepted); `owner` — add `@owner`;
+  - `move` — move the line into a note (pick a meeting/topic/project note; appended under
+    `## Action items`, or `## Notes` if missing) and remove it from INBOX;
+  - `done` — as F3; `someday` — move under `## Someday` in INBOX (created if missing);
+    `drop` — delete the line (asks once per session to confirm drops);
+  - `skip`, `quit`.
+- Edits use the buffer API when INBOX is open (undoable), otherwise safe writes (§3).
+- Ends with a summary: processed / moved / done / dropped / remaining.
+
+**Acceptance criteria**
+- Triaging three items (project, move, drop) leaves INBOX and the target note as expected;
+  `u` in an open INBOX buffer restores the last change.
+
+**Tests**
+- Each action, oldest-first order, filters, someday creation, quit midway, unsaved INBOX buffer.
+
+## O3 — People (High)
+
+**Goal.** "Everything involving Ana": 1:1s, meetings she attended, items she owns, mentions.
+
+**Design** (`people.lua`, index additions)
+- Index: notes get `people` from frontmatter `attendees:` and, for prompted types like `1on1`,
+  the prompt answer (stored as frontmatter `with: Ana` from now on); tasks/lines get people from
+  `@mentions`. People are slugs (`ana`, `bob-smith`); display keeps the original spelling.
+- Query: `person:ana` / `@ana` filter matches any of the above.
+- `:Logpose find people` lists people with counts → choose one → their notes, tasks and lines,
+  open action items first.
+- Meeting creation: `attendees` prompt for types with `ask_attendees = true` (comma-separated,
+  completion from known people); `1on1` fills `attendees: [Ana]` automatically.
+- Meeting prompts complete past inputs (people for 1:1s, titles for ad-hoc) via
+  `customlist` completion (the F5.2 leftover).
+
+**Acceptance criteria**
+- After a 1:1 with Ana, a retro she attended and a task `@ana`, `:Logpose find people` → Ana
+  lists all three.
+
+**Tests**
+- People extraction (attendees, with:, mentions), slugging, filter, people scope, attendee
+  prompt and completion.
+
+## O4 — Topic notes & backlinks (Medium)
+
+**Goal.** A home for knowledge that isn't tied to a day: project pages, how-tos, decision
+records, and the links between notes.
+
+**Design** (`notes/topic.lua`, `links.lua`)
+- `dirs.notes = "notes"`, `dirs.projects = "projects"`.
+- `:Logpose note [title]` creates/opens `notes/<slug>.md` (frontmatter `title`, `created`,
+  `project` when active, `tags: []`; template `note`). `:Logpose project-page [name]` opens
+  `projects/<name>.md` (template `project`: overview, links, decisions) — the hub for a project.
+- Index learns links: `[[target|label]]` and relative markdown links → `links` on each note.
+- `:Logpose backlinks` (current note) lists notes and lines linking to it; `:Logpose links`
+  lists outgoing links.
+- Completion source for `[[` (blink.cmp and nvim-cmp adapters; optional, auto-registered when
+  available) offering note titles → inserts a wiki or markdown link per `link_style`.
+
+**Acceptance criteria**
+- From a project page, `:Logpose backlinks` lists the meetings and daily notes that link to it.
+
+**Tests**
+- Link parsing (wiki with/without label, markdown, relative paths), backlink resolution,
+  note/project-page creation, completion source items.
+
+## O5 — Saved views (Medium)
+
+**Design**
+- `views = { acme = "tasks open project:acme", decisions = "decisions sprint:current" }`.
+- `:Logpose view [name]` runs `:Logpose find <view>` (no name → pick a view). Views can be
+  used as `<Plug>`-style keymaps: `<cmd>Logpose view acme<cr>`.
+
+**Tests**
+- Expansion, unknown view, completion.
+
+## O6 — Maintenance (Low)
+
+**Design**
+- `:Logpose rename-tag old new` and `:Logpose rename-project old new` (tags, frontmatter
+  `project:`, meeting subfolder) with a preview + confirm like the archive; never touches
+  unsaved buffers.
+- Index cache keyed by file path + mtime + size, kept in memory per session; invalidated on
+  `BufWritePost` inside the journal.
+
+**Tests**
+- Renames across inline tags, frontmatter, folders; preview/cancel; cache hit/miss/invalidation.
+
+---
+
 ## F7 — Reports (Medium)
 
 **Goal.** Summaries per week or sprint (periods from F2.1) for reviews, retros and status updates.
@@ -633,9 +769,13 @@ previous one.
   - open action items created in the period (reusing F5).
   `:Logpose report! …` also writes it to `<dirs.reports>/<period key>.md`.
 - Optional `project` argument limits the report to one project (F1.6).
+- **Review section** (M2.5): decisions made in the period (O1); open tasks older than
+  `review.stale_days` (14); INBOX items older than a period; captures without a project; overdue
+  actions per project and person (O3).
 
 **Acceptance criteria**
-- `:Logpose report sprint -1` summarises the previous sprint correctly on fixture data.
+- `:Logpose report sprint -1` summarises the previous sprint correctly on fixture data, including
+  the review section.
 
 **Tests**
 - Report assembly on fixtures for weeks and sprints, offsets, project filter.
@@ -681,6 +821,12 @@ previous one.
 | `:Logpose standup [date]`                 | F6 |
 | `:Logpose report[!] [week\|sprint] [offset]` | F7 |
 | `:Logpose ticket [ID]`                    | F8 |
+| `:Logpose find decisions\|blockers\|people …` | O1, O3 |
+| `:Logpose triage [filters]`               | O2 |
+| `:Logpose note [title]` / `project-page [name]` | O4 |
+| `:Logpose backlinks` / `links`            | O4 |
+| `:Logpose view [name]`                    | O5 |
+| `:Logpose rename-tag` / `rename-project`  | O6 |
 
 ## 6. Definition of done (every feature)
 
