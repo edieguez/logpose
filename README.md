@@ -46,6 +46,7 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | `:Logpose project [name\|none]` | Pin the active project (or `none` to go back to auto-detection). No argument: pick from a list. |
 | `:Logpose archive[!]` | Move past weeks of `INBOX.md`/`DONE.md` into weekly archive files. Shows a preview and asks first; `!` skips it. |
 | `:Logpose capture [text]` | Add `- [ ] text` under today in `INBOX.md` (tagged `#project` when one is active). No text: prompt. |
+| `:Logpose triage [filters]` | Process open INBOX tasks one at a time, oldest first: project, tag, due, owner, move into a note, done, someday, drop, skip. |
 | `:Logpose done` | Mark the task on the current line (or a range / visual selection) done: from INBOX it moves to `DONE.md`; in a meeting or daily note it's checked off and logged in DONE with a link. |
 | `:Logpose find [scope] [filters]` | Search notes, tasks, tags and projects (see below). |
 | `:Logpose grep [text]` | Live grep in the journal (quickfix list without a picker plugin). |
@@ -70,6 +71,15 @@ vim.keymap.set("n", "<leader>jf", "<Plug>(logpose-find)", { desc = "Find notes" 
 vim.keymap.set("n", "<leader>jt", "<cmd>Logpose find tasks open<cr>", { desc = "Open tasks" })
 vim.keymap.set("n", "<leader>j/", "<Plug>(logpose-grep)", { desc = "Grep journal" })
 ```
+
+### Triage
+
+`:Logpose triage` walks your open INBOX tasks, oldest first. For each one, pick an action:
+`project` / `tag` / `due` (accepts `+3d`, `tomorrow`…) / `owner` edit the item and keep it on
+screen; `move` puts it under `## Action items` (or `## Notes`) of a note you pick; `done` logs it
+in DONE; `someday` parks it under `## Someday`; `drop` deletes it (confirmed once per session);
+`skip` and `quit`. Filters narrow the queue: `:Logpose triage #acme`. If INBOX is open, edits go
+through the buffer, so `u` undoes them.
 
 ### Archiving
 

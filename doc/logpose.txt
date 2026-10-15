@@ -160,6 +160,14 @@ A bare `journal/` directory is not a marker.
     project, ` #project` is appended. Without {text}, prompts. An exact
     duplicate in today's section is skipped.
 
+                                                             *:Logpose-triage*
+:Logpose triage [{filters}...]
+    Process open INBOX tasks one at a time, oldest first (items under
+    `## Someday` are skipped). Actions: project, tag, due (relative dates
+    accepted), owner (these keep the item), move (into a note's `## Action
+    items` or `## Notes`), done, someday, drop (confirmed once per session),
+    skip, quit. Filters as in |:Logpose-find|. Ends with a summary.
+
                                                                *:Logpose-done*
 :[range]Logpose done
     Mark the task on the current line (or every task in [range]) done.
