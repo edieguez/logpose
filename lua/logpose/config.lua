@@ -21,6 +21,8 @@ M.defaults = {
     done_entries = "done-entries",
     templates = "templates",
     reports = "reports",
+    notes = "notes",
+    projects = "projects",
   },
   affixes = {
     daily = "daily-",
