@@ -119,6 +119,8 @@ M.builtin = {
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task to INBOX" },
+  find = { module = "logpose.search", fn = "find_command", desc = "logpose: find notes, tasks, tags, projects" },
+  grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
   done = { module = "logpose.tasks", fn = "done_command", desc = "logpose: mark tasks done", plug = { "n", "x" } },
 }
 
@@ -132,6 +134,9 @@ function M.create()
         require(spec.module)[spec.fn or "command"](opts)
       end,
       complete = function(arglead, args)
+        if spec.complete == false then
+          return {}
+        end
         local mod = require(spec.module)
         return mod.complete and mod.complete(arglead, args) or {}
       end,
