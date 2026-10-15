@@ -119,6 +119,7 @@ end
 ---@field jobs logpose.ArchiveJob[]
 ---@field writes { path: string, content: string }[]  archive files first, then sources
 ---@field moves integer    number of sections moved
+---@field tasks { from: string, to: string, key: string }[]  done task files to move
 
 --- Work out what to move, entirely in memory. Nothing is written.
 ---@param root string
@@ -126,7 +127,21 @@ end
 ---@return logpose.ArchivePlan
 function M.plan(root, today)
   local current = period.of(today)
-  local plan = { current = current, jobs = {}, writes = {}, moves = 0 }
+  local plan = { current = current, jobs = {}, writes = {}, moves = 0, tasks = {} }
+  -- Done task files from earlier periods go to tasks/archive/<period>/.
+  local taskfile = require("logpose.taskfile")
+  local done_status = config.get().board.done
+  for _, t in ipairs(taskfile.list(root)) do
+    if t.status == done_status and t.done and date.is_iso(t.done) then
+      local p = period.of(t.done)
+      if p.start < current.start then
+        local affixes = config.get().affixes
+        local key = (p.kind == "sprint" and affixes.sprint or affixes.week) .. p.key
+        local to = fs.join(taskfile.dir(root), "archive", key, vim.fs.basename(t.path))
+        table.insert(plan.tasks, { from = t.path, to = to, key = key })
+      end
+    end
+  end
   local source_writes = {}
   local configured_order = config.get().section_order
 
@@ -208,6 +223,9 @@ function M.execute(plan)
   local paths = vim.tbl_map(function(w)
     return w.path
   end, plan.writes)
+  for _, t in ipairs(plan.tasks or {}) do
+    table.insert(paths, t.from)
+  end
   local ok, err = fs.check_writable(paths)
   if not ok then
     error(err, 0)
@@ -218,6 +236,25 @@ function M.execute(plan)
       error(write_err .. " (archive stopped; running it again is safe)", 0)
     end
   end
+  for _, t in ipairs(plan.tasks or {}) do
+    fs.mkdir_p(vim.fs.dirname(t.to))
+    if fs.exists(t.to) then
+      error(("logpose: %s already exists (archive stopped)"):format(t.to), 0)
+    end
+    local moved, merr = (vim.uv or vim.loop).fs_rename(t.from, t.to)
+    if not moved then
+      error(("logpose: cannot move %s: %s"):format(t.from, merr), 0)
+    end
+    -- A buffer showing the task follows it to the archive.
+    local buf = fs.find_buf(t.from)
+    if buf then
+      vim.api.nvim_buf_call(buf, function()
+        vim.cmd("silent! file " .. vim.fn.fnameescape(t.to))
+        vim.cmd("silent! edit!")
+      end)
+    end
+  end
+  require("logpose.index").clear_cache()
 end
 
 ---@param plan logpose.ArchivePlan
@@ -239,6 +276,23 @@ function M.describe(plan, root)
         lines,
         ("  → %s (%s): %s"):format(rel(dest.path), dest.exists and "merge" or "new", table.concat(dates, ", "))
       )
+    end
+    table.insert(lines, "")
+  end
+  if #(plan.tasks or {}) > 0 then
+    local keys, by_key = {}, {}
+    for _, t in ipairs(plan.tasks) do
+      if not by_key[t.key] then
+        by_key[t.key] = {}
+        table.insert(keys, t.key)
+      end
+      table.insert(by_key[t.key], vim.fs.basename(t.from))
+    end
+    table.sort(keys)
+    table.insert(lines, "Done tasks")
+    for _, key in ipairs(keys) do
+      local dir = rel(fs.join(require("logpose.taskfile").dir(root), "archive", key))
+      table.insert(lines, ("  → %s/: %s"):format(dir, table.concat(by_key[key], ", ")))
     end
     table.insert(lines, "")
   end
@@ -267,22 +321,24 @@ end
 ---@param plan logpose.ArchivePlan
 local function report(plan)
   local files = #plan.writes - #plan.jobs
-  vim.notify(
-    ("logpose: archived %d section%s into %d file%s"):format(
-      plan.moves,
-      plan.moves == 1 and "" or "s",
-      files,
-      files == 1 and "" or "s"
-    ),
-    vim.log.levels.INFO
-  )
+  local parts = {}
+  if plan.moves > 0 then
+    table.insert(
+      parts,
+      ("%d section%s into %d file%s"):format(plan.moves, plan.moves == 1 and "" or "s", files, files == 1 and "" or "s")
+    )
+  end
+  if #plan.tasks > 0 then
+    table.insert(parts, ("%d done task%s"):format(#plan.tasks, #plan.tasks == 1 and "" or "s"))
+  end
+  vim.notify("logpose: archived " .. table.concat(parts, " and "), vim.log.levels.INFO)
 end
 
 ---@param opts logpose.CommandOpts
 function M.command(opts)
   config.with_root(ui.safely(function(root)
     local plan = M.plan(root, date.today())
-    if plan.moves == 0 then
+    if plan.moves == 0 and #plan.tasks == 0 then
       vim.notify(
         ("logpose: nothing to archive; every section is in the current %s"):format(plan.current.kind),
         vim.log.levels.INFO

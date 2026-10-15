@@ -34,8 +34,7 @@ end
 T[":Logpose init <dir> scaffolds a new journal and saves it"] = function()
   local dir = H.tmpdir() .. "/journal"
   child.cmd("Logpose init " .. dir)
-  eq(ls(dir), { ".logpose", "DONE.md", "INBOX.md", "daily", "meetings" })
-  eq(H.read(dir .. "/INBOX.md"), "# INBOX\n")
+  eq(ls(dir), { ".logpose", "daily", "meetings", "tasks" })
   eq(resolve(), { dir, "saved" })
   H.contains(child.notifications()[1].msg, "created a journal at")
 end
@@ -54,6 +53,14 @@ T["an existing journal only gets the marker"] = function()
   eq(ls(dir), { ".logpose", "notes" })
   eq(H.read(dir .. "/notes/old.md"), "keep\n")
   H.contains(child.notifications()[1].msg, "using")
+end
+
+T["with tasks.mode = inbox, init creates INBOX/DONE"] = function()
+  child.lua("require('logpose').setup({ tasks = { mode = 'inbox' } })")
+  local dir = H.tmpdir() .. "/journal"
+  child.cmd("Logpose init " .. dir)
+  eq(ls(dir), { ".logpose", "DONE.md", "INBOX.md", "daily", "meetings" })
+  eq(H.read(dir .. "/INBOX.md"), "# INBOX\n")
 end
 
 T["existing INBOX/DONE are never overwritten"] = function()
@@ -99,13 +106,13 @@ end
 
 T["respects custom dirs and markers"] = function()
   child.lua(
-    "require('logpose').setup({ root_markers = { '.journal' }, dirs = { daily = 'journal/daily', inbox = 'journal/INBOX.md' } })"
+    "require('logpose').setup({ root_markers = { '.journal' }, dirs = { daily = 'journal/daily', tasks = 'journal/tasks' } })"
   )
   local dir = H.tmpdir() .. "/j"
   child.cmd("Logpose init " .. dir)
   eq(vim.fn.filereadable(dir .. "/.journal"), 1)
   eq(vim.fn.isdirectory(dir .. "/journal/daily"), 1)
-  eq(vim.fn.filereadable(dir .. "/journal/INBOX.md"), 1)
+  eq(vim.fn.isdirectory(dir .. "/journal/tasks"), 1)
 end
 
 T["warns when setup({ root }) points elsewhere"] = function()

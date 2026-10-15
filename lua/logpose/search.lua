@@ -27,7 +27,7 @@ local SCOPE_FILTER = {
     return it.kind == "note" and it.note_type == "archive"
   end,
   tasks = function(it)
-    return it.kind == "task"
+    return it.kind == "task" or (it.kind == "note" and it.note_type == "task" and not it.archived)
   end,
   decisions = function(it)
     return it.kind ~= "note" and it.section ~= nil and it.section:find("decision", 1, true) ~= nil
@@ -42,6 +42,12 @@ local SCOPE_FILTER = {
 ---@return string
 function M.display(it)
   local project = it.project and ("  @" .. it.project) or ""
+  if it.kind == "note" and it.note_type == "task" then
+    local status = require("logpose.taskfile").label(it.status or "")
+    local due = it.due and ("  due " .. it.due) or ""
+    local blocked = it.blocked and "  ⛔" or ""
+    return ("[%s] %s%s%s%s"):format(status, it.text, blocked, due, project)
+  end
   if it.kind == "note" then
     local label = it.type and (it.note_type .. "/" .. it.type) or it.note_type
     return ("%s  %s  %s%s"):format(it.date or "----------", label, it.text, project)
@@ -56,13 +62,26 @@ function M.display(it)
   return ("%s  · %s%s"):format(it.text, where, project)
 end
 
+--- Whether a task (checkbox or task file) is closed; nil for anything else.
+---@param it logpose.Item
+---@return boolean?
+function M.is_closed(it)
+  if it.kind == "task" then
+    return it.checked == true
+  end
+  if it.kind == "note" and it.note_type == "task" then
+    return it.status == config.get().board.done
+  end
+end
+
 --- Newest first; for tasks, open before done.
 ---@param items logpose.Item[]
 ---@return logpose.Item[]
 function M.sort(items)
   table.sort(items, function(a, b)
-    if a.kind == "task" and b.kind == "task" and a.checked ~= b.checked then
-      return not a.checked
+    local ca, cb = M.is_closed(a), M.is_closed(b)
+    if ca ~= nil and cb ~= nil and ca ~= cb then
+      return not ca
     end
     local da, db = a.date or "", b.date or ""
     if da ~= db then
@@ -300,7 +319,8 @@ function M.complete(_, args)
   if #args == 0 then
     return M.SCOPES
   end
-  local out = { "open", "done", "since:", "until:", "sprint:current", "sprint:-1", "week:current", "week:-1" }
+  local out =
+    { "open", "done", "blocked", "since:", "until:", "sprint:current", "sprint:-1", "week:current", "week:-1" }
   for _, name in ipairs(config.get().retrieval.sections) do
     table.insert(out, "section:" .. name:gsub("%s", "-"))
   end
@@ -319,6 +339,9 @@ function M.complete(_, args)
   end
   for _, t in ipairs(require("logpose.notes.meeting").types()) do
     table.insert(out, "type:" .. t.key)
+  end
+  for _, c in ipairs(config.get().board.columns) do
+    table.insert(out, "status:" .. c.key)
   end
   return out
 end

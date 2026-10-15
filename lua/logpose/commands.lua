@@ -152,10 +152,18 @@ M.builtin = {
     complete_fn = "complete_projects",
     desc = "logpose: rename a project everywhere",
   },
-  capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task to INBOX" },
+  capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: capture a task" },
   find = { module = "logpose.search", fn = "find_command", desc = "logpose: find notes, tasks, tags, projects" },
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
   done = { module = "logpose.tasks", fn = "done_command", desc = "logpose: mark tasks done", plug = { "n", "x" } },
+  board = { module = "logpose.board", desc = "logpose: Kanban board of task files" },
+  migrate = { module = "logpose.migrate", complete = false, desc = "logpose: turn INBOX items into task files" },
+  promote = {
+    module = "logpose.migrate",
+    fn = "promote_command",
+    complete = false,
+    desc = "logpose: turn the checkbox under the cursor into a task file",
+  },
 }
 
 --- Create `:Logpose` and register built-in subcommands. Called once from plugin/logpose.lua.

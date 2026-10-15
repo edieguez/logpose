@@ -10,7 +10,7 @@ local T = MiniTest.new_set({
       child.setup()
       root = H.journal()
       child.cmd("cd " .. H.tmpdir()) -- no project
-      child.lua(("require('logpose').setup({ root = %q })"):format(root))
+      child.lua(("require('logpose').setup({ root = %q, tasks = { mode = 'inbox' } })"):format(root))
       H.freeze(child, 2026, 10, 14)
     end,
     post_once = child.stop,
