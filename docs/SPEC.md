@@ -51,7 +51,7 @@ capture/done, sprint-aware archives and reports.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -464,26 +464,28 @@ archive file per week, with a preview + confirm step and safe writes.
 
 **Design** (`tasks.lua`)
 - `:Logpose capture [text]` — no text → `vim.ui.input`. Appends `- [ ] text` under today's
-  `## <today>` section in `INBOX.md`, creating the section if missing. **Insert new date sections
-  where the existing files put them** (check whether INBOX/DONE are newest-first or oldest-first
-  and match it; make it configurable as `section_order` if the two files differ).
-- `:Logpose done` (normal mode: current line; visual mode: each task line in range):
-  - In `INBOX.md`: remove the line(s), add them as `- [x] …` under today's section in `DONE.md`.
-  - In any other journal file (e.g. a meeting note): check it off in place and append it to DONE
-    with a link back to the source note.
-  - Non-task lines are skipped with a notice.
-- Writes to INBOX/DONE follow the §3 rules; edits to the *current* buffer go through the buffer
-  API so undo works.
+  `## <today>` section in `INBOX.md` (file and section created if missing; sections placed per
+  `section_order`, shared with the archive). With an active project (F1.6) the item gets
+  ` #project` unless the text already has it. An exact duplicate in today's section is skipped.
+- `:Logpose done` (current line, a `:range`, or visual mode via `<Plug>(logpose-done)`):
+  - In `INBOX.md`: remove the task line(s), add them as `- [x] …` under today's section in `DONE.md`.
+  - In any other journal file (meeting, daily…): check it off in place and add
+    `- [x] text ([[link|note]])` to DONE. Already-checked items are reported, not re-logged.
+  - Non-task lines are skipped with a notice; `DONE.md` itself and files outside the journal are refused.
+- Writes to INBOX/DONE follow the §3 rules (an unsaved INBOX/DONE buffer gets the edit in the
+  buffer instead). Edits to the *current* buffer go through the buffer API so `u` undoes them,
+  then the buffer is saved — unless it already had unsaved edits, which are never saved for you.
 
 **Acceptance criteria**
-- `:Logpose capture Fix flaky test` from a work repo adds the task under today in INBOX.
+- `:Logpose capture Fix flaky test` from a work repo adds the task under today in INBOX, tagged.
 - `:Logpose done` on an INBOX task moves it to DONE under today; `u` in INBOX restores the line.
 - `:Logpose done` on an action item in a meeting note checks it and logs it in DONE with a link.
 
 **Tests**
-- Section creation (no section yet / section exists), ordering per `section_order`.
-- Visual range with mixed task and non-task lines.
-- Back-link generation for both link styles.
+- Task parsing; capture: new file/section, existing section, newest/oldest-first, project tag,
+  prompt/cancel, duplicate, unsaved and clean INBOX buffers.
+- Done: INBOX move, undo, range and visual `<Plug>` with non-task lines, meeting note link,
+  already checked, buffer with prior unsaved edits, newest-first DONE, refusals, nothing to do.
 
 ---
 
