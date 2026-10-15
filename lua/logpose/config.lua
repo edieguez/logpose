@@ -26,6 +26,9 @@ M.defaults = {
     daily = "daily-",
     week = "week-",
     done_week = "done-week-",
+    --- Prefixes for sprint archives (the sprint name follows, e.g. sprint-42.md, done-sprint-42.md).
+    sprint = "",
+    done_sprint = "done-",
   },
   ---@type "wiki"|"markdown"
   link_style = "wiki",
@@ -55,9 +58,27 @@ M.defaults = {
   --- (falling back to oldest first), or force "newest_first" / "oldest_first".
   section_order = "auto",
   archive = {
-    --- Title of a new archive file. {period} is the period key (the week's Monday).
-    journal_title = "# Journal: week of {period}",
-    done_title = "# Done: week of {period}",
+    --- Title of a new archive file. {period} is the period key (the week's start date or the
+    --- sprint name); {period_label} reads "week of 2026-10-05" or "sprint-42 (2026-10-01 – 2026-10-14)".
+    journal_title = "# Journal: {period_label}",
+    done_title = "# Done: {period_label}",
+  },
+  --- How the archive groups dated sections.
+  period = {
+    ---@type "week"|"sprint"
+    kind = "week",
+    --- ISO weekday weeks start on (Mon = 1 … Sun = 7).
+    week_start = 1,
+    sprint = {
+      --- Start date (YYYY-MM-DD) of any one sprint. Required for kind = "sprint"; also enables {sprint}.
+      ---@type string?
+      anchor = nil,
+      length_days = 14,
+      --- Number of the sprint that starts on `anchor`.
+      first_number = 1,
+      --- Sprint name; {n} is its number.
+      name = "sprint-{n}",
+    },
   },
   projects = {
     --- Use the git repo of the current buffer (or cwd) as the project.
@@ -66,6 +87,9 @@ M.defaults = {
     paths = {},
   },
 }
+
+--- Keys whose default is nil (so they're known even though absent from `defaults`).
+M.optional_keys = { root = true, ["period.sprint.anchor"] = true }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
 M.open_keys = { meeting_types = true, ["projects.paths"] = true }
@@ -94,7 +118,7 @@ local function warn_unknown(defaults, opts, prefix, warnings)
   for k, v in pairs(opts) do
     local path = prefix == "" and tostring(k) or (prefix .. "." .. tostring(k))
     local d = defaults[k]
-    if d == nil and not (prefix == "" and k == "root") then
+    if d == nil and not M.optional_keys[path] then
       table.insert(warnings, path)
     elseif type(d) == "table" and not is_list(d) and type(v) == "table" and not M.open_keys[path] then
       warn_unknown(d, v, path, warnings)
@@ -142,6 +166,30 @@ local function validate(opts)
   check("archive", opts.archive, "table")
   check("archive.journal_title", opts.archive.journal_title, "string")
   check("archive.done_title", opts.archive.done_title, "string")
+  check("period", opts.period, "table")
+  if opts.period.kind ~= "week" and opts.period.kind ~= "sprint" then
+    error(('logpose: `period.kind` must be "week" or "sprint", got %s'):format(vim.inspect(opts.period.kind)), 0)
+  end
+  local ws = opts.period.week_start
+  if type(ws) ~= "number" or ws < 1 or ws > 7 or ws % 1 ~= 0 then
+    error(("logpose: `period.week_start` must be an integer 1-7 (Mon=1), got %s"):format(vim.inspect(ws)), 0)
+  end
+  local sprint = opts.period.sprint
+  check("period.sprint", sprint, "table")
+  if sprint.anchor ~= nil and not require("logpose.util.date").is_iso(sprint.anchor) then
+    error(("logpose: `period.sprint.anchor` must be a YYYY-MM-DD date, got %s"):format(vim.inspect(sprint.anchor)), 0)
+  end
+  if opts.period.kind == "sprint" and sprint.anchor == nil then
+    error('logpose: `period.sprint.anchor` is required when `period.kind = "sprint"`', 0)
+  end
+  local len = sprint.length_days
+  if type(len) ~= "number" or len < 1 or len % 1 ~= 0 then
+    error(("logpose: `period.sprint.length_days` must be a positive integer, got %s"):format(vim.inspect(len)), 0)
+  end
+  if type(sprint.first_number) ~= "number" or sprint.first_number % 1 ~= 0 then
+    error("logpose: `period.sprint.first_number` must be an integer", 0)
+  end
+  check("period.sprint.name", sprint.name, "string")
   check("meeting_subdir", opts.meeting_subdir, "string")
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")

@@ -51,4 +51,21 @@ function M.slugify(s)
   return slug
 end
 
+--- Substitute `{name}` variables. Unknown variables are left as they are.
+--- Uses a function replacement, so `%` in values is safe.
+---@param s string
+---@param vars table<string, any>
+---@return string
+function M.substitute(s, vars)
+  return (
+    s:gsub("{([%w_]+)}", function(key)
+      local v = vars[key]
+      if v == nil then
+        return nil -- keep the original text
+      end
+      return tostring(v)
+    end)
+  )
+end
+
 return M

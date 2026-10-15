@@ -42,27 +42,13 @@ function M.vars(iso, extra)
     time = date.now_hhmm():gsub("^(%d%d)(%d%d)$", "%1:%2"),
     weekday = date.weekday_name(iso),
     iso_week = date.iso_week(iso),
-    sprint = "",
+    sprint = require("logpose.period").sprint_name(iso),
   }
   return vim.tbl_extend("force", vars, extra or {})
 end
 
---- Substitute `{name}` variables. Unknown variables are left as they are.
---- Uses a function replacement, so `%` in values is safe.
----@param s string
----@param vars table<string, string>
----@return string
-function M.substitute(s, vars)
-  return (
-    s:gsub("{([%w_]+)}", function(key)
-      local v = vars[key]
-      if v == nil then
-        return nil -- keep the original text
-      end
-      return tostring(v)
-    end)
-  )
-end
+--- Substitute `{name}` variables (see `util.text.substitute`).
+M.substitute = require("logpose.util.text").substitute
 
 ---@class logpose.Rendered
 ---@field text string
