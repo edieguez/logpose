@@ -60,10 +60,11 @@ capture/done, sprint-aware archives and reports.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports with a review section, ticket links.
   (F6 shipped before M2.5; F7 and F8 followed it.) Done as of 0.17.0.
 - **Last: T1 local usage telemetry**, once there are features to measure. Done in 0.18.0.
+- **B1 Kanban board & task files**, from the first week of real use (0.20.0).
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -836,6 +837,84 @@ Strictly local: nothing ever leaves the machine.
 
 ---
 
+## B1 — Kanban board & task files (High)
+
+**Goal.** Fix the problems found in real use: open work was invisible (nothing opened INBOX),
+finishing a task depended on cursor position, and a one-line checkbox can't hold the context
+a real task has. Tasks become files and the board becomes the place you see and move them.
+
+**Task files** (`taskfile.lua`)
+- One file per task: `tasks/<slug>.md` (`dirs.tasks`; `-2`, `-3`… on collisions), from the
+  `task` template. Frontmatter, in this order: `title`, `status`, `project`, `tags`, `due`,
+  `blocked` (empty, or the reason), `created`, `started`, `done`, `order` (optional).
+  The body is free markdown (context, links, checklists) ending in a `## Log` section.
+- Status is a board column key. Moving a task updates `status`, sets `started` the first time
+  it reaches `board.start` and `done` when it reaches `board.done` (cleared if it leaves),
+  and appends `- YYYY-MM-DD HH:MM: TODO → In progress` to `## Log`. Blocking appends
+  `blocked: <reason>` / `unblocked`. Writes follow §3 (an unsaved buffer gets the edit).
+- `tasks.mode = "files"` (default) or `"inbox"` (the F3/O2 INBOX/DONE flow, unchanged).
+
+**Board** (`board.lua`): `:Logpose board [filters]`
+- A scratch buffer (`filetype=logpose-board`) in the current window. Default columns:
+  Backlog · TODO · In progress · Follow-up · Done (`board.columns`, a list of `{ key, label }`).
+  Columns sit side by side; when a column would be narrower than `board.min_column_width`
+  (24) they stack vertically.
+- Cards show the title (up to two lines), a `⛔ <reason>` line when blocked, and
+  `project · #tags · due MM-DD` (overdue due dates highlighted). Order in a column: `order`,
+  then due date, then created. Done shows tasks finished in the current period
+  (`board.done_window = "period"`, or a number of days). Archived tasks never show.
+- Scope: the active project's tasks (project field or `#project` tag); all tasks when there
+  is none. Filters use the `find` language (`#perf`, `due` via `until:`, `@ana`…).
+- Keys: `h`/`l` column, `j`/`k` card (the cursor and mouse also select);
+  `H`/`L` (or `<`/`>`) move the card one column; `1`–`9` move it to that column; `x` done;
+  `b` block/unblock (asks for a reason); `J`/`K` reorder within the column; `a` add a card to
+  the focused column; `<CR>` open the task file (coming back re-renders the board);
+  `/` filter, `p` project/all, `r` refresh, `q` close, `?` help. Moves are counted in usage
+  stats as `board move`/`board done`/`board block`.
+
+**Commands in files mode**
+- `capture [text]` creates a task in `tasks.capture_status` (Backlog) with the active project;
+  `capture!` also opens it to add context.
+- `done`: in a task file, moves it to Done; on a checkbox elsewhere, checks it off in place.
+  (In INBOX.md it still moves the line to DONE.md.)
+- `triage` opens the board on the Backlog column.
+- `:Logpose migrate[!]` turns open INBOX tasks into task files (Backlog; `due:` → `due`,
+  `#tags` → `tags`, a tag naming a known project → `project`, the section date → `created`;
+  `## Someday` items get tag `someday`) and removes them from INBOX. Preview first; `!` skips
+  it. DONE.md stays as history.
+- `:Logpose promote` on a checkbox line (meeting, daily, any note) creates a task file in
+  `tasks.promote_status` (TODO) with the note's project and a `From:` link, and turns the line
+  into a link to it.
+
+**Everything else reads task files**
+- Index: files under `dirs.tasks` are notes of type `task` with `status`, `blocked`, `due`,
+  `created`, `done_date`. `find tasks` lists them with checkbox tasks; new filters
+  `status:<key>` and `blocked`; `open`/`done` work on them.
+- Standup adds a **Board** part: done on the previous workday, in progress now, blocked
+  (under Blockers).
+- Report: tasks done in the period go under Done; the review lists blocked tasks and tasks in
+  progress since before `review.stale_days`.
+- Archive also moves done tasks from earlier periods into `tasks/archive/<period>/`.
+- Health shows the task count per column.
+
+**Acceptance criteria**
+- `:Logpose capture fix flaky test` from a work repo creates a Backlog task for that project;
+  `:Logpose board` shows it; `L` twice puts it In progress with `started` set and a log line;
+  `x` moves it to Done; the next day's standup lists it under Yesterday.
+- `b` with "waiting on ana" marks the card ⛔ and puts it under Blockers in the standup.
+- `:Logpose migrate` turns three INBOX items into task files and empties those lines.
+
+**Tests**
+- Task file creation (slugs, collisions, template, frontmatter), status moves (timestamps,
+  log, unsaved buffer), block/unblock, reorder.
+- Board: layout side by side and stacked, focus by keys and cursor, moves, add, filter,
+  scope toggle, done window, re-render on return, help.
+- capture/done/triage in both modes, migrate (fields, Someday, preview, `!`), promote.
+- Index fields and `status:`/`blocked` filters; standup Board part; report sections;
+  archive of done tasks; health.
+
+---
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -860,6 +939,8 @@ Strictly local: nothing ever leaves the machine.
 | `:Logpose view [name]`                    | O5 |
 | `:Logpose rename-tag` / `rename-project`  | O6 |
 | `:Logpose stats[!] [days]`                | T1 |
+| `:Logpose board [filters]`                | B1 |
+| `:Logpose migrate[!]` / `promote`          | B1 |
 
 ## 6. Definition of done (every feature)
 

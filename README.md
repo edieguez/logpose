@@ -1,7 +1,7 @@
 # logpose.nvim
 
 A markdown journal for developers who work in Scrum/Kanban, inside Neovim: daily notes and
-standup prep, typed meeting notes with carried-over action items, an INBOX/DONE Kanban flow,
+standup prep, typed meeting notes with carried-over action items, a Kanban board of task files,
 sprint archives and reports, and search across notes, tasks, tags, projects and people.
 
 Everything is plain markdown in a folder you choose. Structure lives in the files themselves
@@ -11,7 +11,7 @@ database.
 - [Requirements](#requirements) · [Installation](#installation) · [Getting started](#getting-started)
 - [A day with logpose](#a-day-with-logpose) · [Commands](#commands)
 - Features: [Daily notes & standup](#daily-notes-and-standup) · [Meetings](#meetings) ·
-  [Projects](#projects) · [Capture, done, triage](#capture-done-and-triage) ·
+  [Projects](#projects) · [Tasks & the board](#tasks-and-the-board) ·
   [Search](#search) · [Action items](#action-items) · [People](#people) ·
   [Topic notes & links](#topic-notes-project-pages-and-links) · [Archiving & sprints](#archiving-and-sprints) ·
   [Reports](#reports) · [Tickets](#tickets) · [Saved views](#saved-views) ·
@@ -47,7 +47,7 @@ For local development, use `dir = "~/Projects/logpose"` instead of the repo name
 ## Getting started
 
 Run `:Logpose init` and pick a directory (default `~/journal`). Logpose creates `daily/`,
-`meetings/`, `INBOX.md`, `DONE.md` and a `.logpose` marker, and remembers the folder, so every
+`meetings/`, `tasks/` and a `.logpose` marker, and remembers the folder, so every
 command works from any buffer with no configuration. Pointing it at a folder that already has
 notes only adds the marker. Skip this step and the first command that needs a journal offers to
 create one, then carries on. Run `:Logpose init` again to switch journals.
@@ -61,12 +61,12 @@ and the picker in use.
 :Logpose daily              " today's note: yesterday's done items and open tasks already in place
 :Logpose standup            " Yesterday / Today / Blockers, grouped by project, for the daily meeting
 :Logpose meeting retro      " meeting note for the active project; last retro's open items carried over
-:Logpose capture Fix flaky test        " → INBOX, tagged #project
-:Logpose done               " on a task: INBOX → DONE, or check off a meeting action item
-:Logpose triage             " end of day: give every INBOX item a home
+:Logpose capture Fix flaky test        " → a task file in Backlog, for the active project
+:Logpose board              " what's pending: L moves a card right, x finishes it, <CR> opens it
+:Logpose promote            " on a meeting action item: make it a task with its own context
 :Logpose actions overdue    " what's slipping
 :Logpose report sprint -1   " sprint review / retro prep
-:Logpose archive            " move past sprints out of INBOX and DONE
+:Logpose archive            " file away last sprint's done tasks
 ```
 
 ## Commands
@@ -81,9 +81,12 @@ Every command is a subcommand of `:Logpose` with `<Tab>` completion, and has a
 | `standup [DATE]` | Yesterday / Today / Blockers of the daily note in a scratch buffer, grouped by project. |
 | `meeting [type] [DATE]` | New meeting note (picker without a type). `DATE` backfills. |
 | `project [name\|none]` | Pin the active project, or go back to auto-detection. |
-| `capture [text]` | Add `- [ ] text` under today in INBOX, tagged with the active project. |
-| `done` | Mark the task on the line / range / visual selection done. |
-| `triage [filters]` | Process open INBOX items one at a time. |
+| `board [filters]` | The Kanban board of task files. |
+| `capture[!] [text]` | New task file in Backlog for the active project (`!` opens it). |
+| `done` | In a task file: move it to Done. On checkboxes: check them off. |
+| `promote` | Turn the checkbox under the cursor into a task file it links to. |
+| `migrate[!]` | Turn open INBOX items into task files (preview first). |
+| `triage [filters]` | Open the board on Backlog. |
 | `find [scope] [filters]` | Search notes, tasks, decisions, blockers, tags, projects, people. |
 | `grep [text]` | Live grep in the journal. |
 | `view [name]` | Run a saved search. |
@@ -91,7 +94,7 @@ Every command is a subcommand of `:Logpose` with `<Tab>` completion, and has a
 | `note [title]` | Create/open a topic note in `notes/`. |
 | `project-page [name]` | Create/open a project page in `projects/`. |
 | `backlinks` / `links` | Notes linking to the current one / links going out of it. |
-| `archive[!]` | Move past weeks or sprints out of INBOX and DONE (preview first; `!` skips it). |
+| `archive[!]` | File away done tasks (and INBOX/DONE sections) from past weeks or sprints. |
 | `report[!] [week\|sprint] [offset] [filters]` | Week or sprint summary with a review section (`!` saves it). |
 | `ticket [ID]` | Every line mentioning a ticket (default: the one under the cursor). |
 | `rename-tag[!] old new` | Rename a tag everywhere (preview first). |
@@ -111,6 +114,8 @@ from your most recent earlier note (Friday's on a Monday):
 
 Existing notes are never changed. `:Logpose standup` then shows Yesterday / Today / Blockers in a
 scratch buffer, grouped by project tag (`### acme`, `### thesis`, `### other`), ready to read out.
+The board feeds it too: tasks finished since the previous workday go under Yesterday, tasks In
+progress under Today, and blocked tasks (with the reason) under Blockers.
 
 Section names are configurable (`standup.sections = { yesterday = "Ayer", today = "Hoy", blockers = "Bloqueos" }`).
 
@@ -147,17 +152,70 @@ the daily-note link is prefixed (`- acme-api: [[…|Retro]]`), captures get `#ac
 series never mix across projects. `meeting_subdir = ""` keeps all meetings in one folder.
 `require("logpose").project()` returns the active project, e.g. for your statusline.
 
-## Capture, done and triage
+## Tasks and the board
 
-- `:Logpose capture [text]` adds `- [ ] text` under today's `## YYYY-MM-DD` section in INBOX
-  (created as needed, in the file's date order), from any buffer.
-- `:Logpose done` works on the current line, a `:range` or a visual selection
-  (`<Plug>(logpose-done)`). In INBOX the task moves to today's section in DONE; in any other note
-  it's checked off in place and logged in DONE with a link back. `u` undoes the edit.
-- `:Logpose triage [filters]` walks open INBOX tasks, oldest first. For each: `project`, `tag`,
-  `due` (`+3d`, `tomorrow`…), `owner` (these keep the item on screen), `move` (into a note's
-  `## Action items` or `## Notes`), `done`, `someday` (parked under `## Someday`), `drop`
-  (confirmed once per session), `skip`, `quit`.
+Every task is a markdown file in `tasks/`, so it can hold the context a one-line checkbox can't:
+links, notes, a checklist, decisions. The frontmatter tracks where it is:
+
+```markdown
+---
+title: "Fix flaky test"
+status: in-progress
+project: acme
+tags: [perf]
+due: 2026-10-20
+blocked: waiting on ana
+created: 2026-10-15
+started: 2026-10-16
+done:
+---
+# Fix flaky test
+
+Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
+
+## Log
+- 2026-10-15 09:05: created in Backlog
+- 2026-10-16 09:10: TODO → In progress
+- 2026-10-16 15:02: blocked: waiting on ana
+```
+
+You never edit `status` by hand: logpose moves it, sets `started` and `done`, and appends to
+the `## Log`.
+
+**The board.** `:Logpose board [filters]` shows the tasks as columns:
+**Backlog → TODO → In progress → Follow-up → Done**. Cards show the title, `⛔ reason` when
+blocked, and `project · #tags · due MM-DD` (overdue in a warning colour). In a project's repo
+you see that project's tasks; inside the journal, all of them.
+
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `h` `l` | previous / next column | `j` `k` | previous / next card |
+| `H` `L` (`<` `>`) | move the card left / right | `1`–`9` | move it to column N |
+| `x` | done | `b` | block (asks why) / unblock |
+| `J` `K` | move the card down / up | `a` | add a card to this column |
+| `<CR>` | open the task file | `/` | filter (`find` filters) |
+| `p` | this project / all | `r` `q` `?` | refresh, close, help |
+
+The cursor and the mouse select cards too. Coming back to the board (`<C-o>`, `:b#`) redraws
+it. Done shows what finished in the current week or sprint; older done tasks are filed away
+by `:Logpose archive`. Narrow windows stack the columns vertically.
+
+**Getting tasks in.**
+- `:Logpose capture fix flaky test #perf due:2026-10-20` creates a Backlog task from anywhere,
+  for the active project; tags and `due:` go into the frontmatter. `capture!` opens it.
+- `a` on the board adds a card to the focused column.
+- `:Logpose promote` on a checkbox in a meeting or daily note creates a TODO task with the
+  note's project and a `From:` link back, and turns the line into a link to the task.
+- `:Logpose migrate` turns your open INBOX.md items into task files (indented lines under an
+  item become its body; `## Someday` items get `#someday`), then removes them from INBOX.
+  DONE.md stays as history.
+
+**Getting tasks out.** On the board `L`/`x`; in a task file, `:Logpose done`. Small
+checkboxes inside notes still work: `:Logpose done` checks them off.
+
+Columns are configurable (`board.columns`), and so are the columns that set `started` and
+`done` (`board.start`, `board.done`). Prefer the old single-file flow? `tasks = { mode = "inbox" }`
+brings back INBOX.md/DONE.md for `capture`, `done` and the one-item-at-a-time `triage`.
 
 Files with unsaved changes are never overwritten: logpose edits the buffer instead, or refuses.
 
@@ -185,7 +243,8 @@ Scopes: `notes` (default), `daily`, `meetings`, `topics`, `archives`, `tasks`, `
 | `#perf` / `tag:perf` | tagged items |
 | `person:ana` / `@ana` | items involving the person (attendee, 1:1, @mention) |
 | `type:retro` | meetings of that type |
-| `open` / `done` | tasks by state |
+| `open` / `done` | tasks by state (checkboxes and task files) |
+| `status:in-progress` / `blocked` | task files by column; blocked ones |
 | `since:DATE` / `until:DATE` | `YYYY-MM-DD`, `today`, `yesterday`, `-7d`, `+2w` |
 | `week:current` / `sprint:-1` / `sprint:42` | a whole week or sprint |
 | `section:decisions` | lines under a matching `## ` heading |
@@ -236,10 +295,10 @@ her action items.
 
 ## Archiving and sprints
 
-`INBOX.md` and `DONE.md` hold `## YYYY-MM-DD` sections. `:Logpose archive` moves every section
-from before the current period into `journal-entries/` (from INBOX) and `done-entries/` (from
-DONE), one file per period, merging into files that already exist. Current sections, the title
-and non-date sections (`## Someday`) stay. It shows a preview and asks first; running it again is
+`:Logpose archive` files away everything from before the current period: done task files move
+to `tasks/archive/<period>/` (reports still count them), and, if you have them, `INBOX.md` /
+`DONE.md` sections move into `journal-entries/` and `done-entries/`, one file per period,
+merging into files that already exist. It shows a preview and asks first; running it again is
 always safe.
 
 Periods are Monday weeks by default. For sprints, give logpose the start date of any one sprint
@@ -260,10 +319,10 @@ weekly archives aligned with Thursday sprints instead, use `period = { week_star
 
 `:Logpose report [week|sprint] [offset] [filters]` summarises a period (default: the current one
 of your configured kind; `-1` is the previous, a date picks the period containing it) in a
-scratch buffer: DONE items by date, meetings by type, decisions, and open action items. A
-**review** section lists what needs attention now: overdue actions per project, stale open tasks
-(older than `review.stale_days`), INBOX items from before the period, and INBOX items without a
-project. Filters limit it, e.g. `:Logpose report sprint -1 project:acme`. `report!` saves it to
+scratch buffer: tasks done by date, meetings by type, decisions, and open action items. A
+**review** section lists what needs attention now: overdue actions per project, blocked tasks,
+tasks in progress for longer than `review.stale_days`, stale open checkboxes, and (if you
+still use INBOX.md) INBOX items from before the period or without a project. Filters limit it, e.g. `:Logpose report sprint -1 project:acme`. `report!` saves it to
 `reports/<period>.md`.
 
 ## Tickets
@@ -319,7 +378,7 @@ require("logpose").setup({
   root = nil,                            -- journal path; overrides the one saved by :Logpose init
   root_markers = { ".logpose" },
   dirs = {                               -- relative to the root
-    daily = "daily", meetings = "meetings", notes = "notes", projects = "projects",
+    daily = "daily", meetings = "meetings", notes = "notes", projects = "projects", tasks = "tasks",
     inbox = "INBOX.md", done = "DONE.md",
     journal_entries = "journal-entries", done_entries = "done-entries",
     templates = "templates", reports = "reports",
@@ -358,6 +417,24 @@ require("logpose").setup({
   tickets = { pattern = "%u[%u%d]+%-%d+", url = nil },
   telemetry = { enabled = false, retention_days = 180 },
   views = {},
+  tasks = {
+    mode = "files",                      -- or "inbox": the INBOX.md/DONE.md checkbox flow
+    capture_status = "backlog",          -- column for :Logpose capture
+    promote_status = "todo",             -- column for :Logpose promote
+  },
+  board = {
+    columns = {
+      { key = "backlog", label = "Backlog" },
+      { key = "todo", label = "TODO" },
+      { key = "in-progress", label = "In progress" },
+      { key = "follow-up", label = "Follow-up" },
+      { key = "done", label = "Done" },
+    },
+    start = "in-progress",               -- reaching it sets `started:`
+    done = "done",                       -- reaching it sets `done:`
+    done_window = "period",              -- Done shows this week/sprint, or a number of days
+    min_column_width = 24,               -- narrower than this, columns stack
+  },
   search = { live = true },              -- the picker prompt re-runs the query as you type
   retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
   projects = {
@@ -392,8 +469,9 @@ above the current directory → the journal saved by `:Logpose init`.
 ```
 ~/journal/
 ├── .logpose
-├── INBOX.md                  # ## YYYY-MM-DD sections of - [ ] tasks, ## Someday
-├── DONE.md                   # ## YYYY-MM-DD sections of - [x] tasks
+├── tasks/
+│   ├── fix-flaky-test.md     # one file per task
+│   └── archive/sprint-42/    # done tasks of past periods
 ├── daily/daily-2026-10-14.md
 ├── meetings/
 │   ├── acme-api/2026-10-14 - retro.md
@@ -406,7 +484,9 @@ above the current directory → the journal saved by `:Logpose init`.
 └── templates/                # your overrides
 ```
 
-Task states: `- [ ]` open, `- [x]` done, `- [>]` migrated (carried to a newer note).
+Checkboxes in notes: `- [ ]` open, `- [x]` done, `- [>]` migrated (carried to a newer note).
+With `tasks = { mode = "inbox" }`, `INBOX.md` and `DONE.md` hold `## YYYY-MM-DD` sections of
+checkboxes instead of `tasks/`.
 
 ## Keymaps
 
@@ -417,9 +497,10 @@ local map = vim.keymap.set
 map("n", "<leader>jd", "<Plug>(logpose-daily)", { desc = "Daily note" })
 map("n", "<leader>js", "<Plug>(logpose-standup)", { desc = "Standup" })
 map("n", "<leader>jm", "<Plug>(logpose-meeting)", { desc = "Meeting note" })
-map("n", "<leader>jc", "<Plug>(logpose-capture)", { desc = "Capture to INBOX" })
+map("n", "<leader>jk", "<Plug>(logpose-board)", { desc = "Board" })
+map("n", "<leader>jc", "<Plug>(logpose-capture)", { desc = "Capture a task" })
 map({ "n", "x" }, "<leader>jx", "<Plug>(logpose-done)", { desc = "Mark done" })
-map("n", "<leader>ji", "<Plug>(logpose-triage)", { desc = "Triage INBOX" })
+map("n", "<leader>jp", "<Plug>(logpose-promote)", { desc = "Promote to task file" })
 map("n", "<leader>jf", "<Plug>(logpose-find)", { desc = "Find notes" })
 map("n", "<leader>jt", "<cmd>Logpose find tasks open<cr>", { desc = "Open tasks" })
 map("n", "<leader>ja", "<Plug>(logpose-actions)", { desc = "Action items" })
