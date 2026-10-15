@@ -70,6 +70,7 @@ end
 ---@field slug string
 ---@field series string
 ---@field date string
+---@field project? string
 ---@field path string
 ---@field content string
 ---@field cursor integer[]
@@ -79,8 +80,9 @@ end
 ---@param key string meeting type
 ---@param input? string answer to the type's prompt
 ---@param iso string
+---@param project? string active project
 ---@return logpose.MeetingNote
-function M.build(root, key, input, iso)
+function M.build(root, key, input, iso, project)
   local spec = get_type(key)
   local title
   if spec.title then
@@ -104,6 +106,9 @@ function M.build(root, key, input, iso)
       series = key .. "-" .. s
     end
   end
+  if project then
+    series = project .. "/" .. series -- recurring meetings never mix across projects
+  end
 
   local vars = template.vars(iso, {
     title = title,
@@ -112,28 +117,42 @@ function M.build(root, key, input, iso)
     attendees = "",
     series = series,
     previous = "",
+    project = project or "",
   })
   local rendered = template.render(template.load(spec.template or "meeting", root), vars)
 
-  local frontmatter = {
-    "---",
-    "type: " .. key,
-    "date: " .. iso,
-    "title: " .. yaml_string(title),
-    "attendees: []",
-    "series: " .. series,
-    "---",
-  }
+  local frontmatter = { "---", "type: " .. key, "date: " .. iso }
+  if project then
+    table.insert(frontmatter, "project: " .. project)
+  end
+  vim.list_extend(frontmatter, { "title: " .. yaml_string(title), "attendees: []", "series: " .. series, "---" })
   return {
     key = key,
     title = title,
     slug = slug,
     series = series,
     date = iso,
-    path = fs.join(config.path("meetings", root), M.filename(iso, slug, key)),
+    project = project,
+    path = fs.join(M.dir(root, project), M.filename(iso, slug, key)),
     content = table.concat(frontmatter, "\n") .. "\n" .. rendered.text,
     cursor = { rendered.cursor[1] + #frontmatter, rendered.cursor[2] },
   }
+end
+
+--- Directory for meeting notes of `project` (see `meeting_subdir`).
+---@param root string
+---@param project? string
+---@return string
+function M.dir(root, project)
+  local base = config.path("meetings", root)
+  local sub = template.substitute(config.get().meeting_subdir, { project = project or "" })
+  local parts = vim.tbl_filter(function(p)
+    return p ~= "" and p ~= "." and p ~= ".."
+  end, vim.split(sub, "/", { plain = true }))
+  if #parts == 0 then
+    return base
+  end
+  return fs.join(base, unpack(parts))
 end
 
 --- Existing notes for the same date/slug/type when the filename includes {time}.
@@ -144,7 +163,7 @@ function M.find_same(root, note)
   local sentinel = "\1TIME\1"
   local name = M.filename(note.date, note.slug, note.key, sentinel)
   local pattern = "^" .. vim.pesc(name):gsub(vim.pesc(vim.pesc(sentinel)), "%%d%%d%%d%%d") .. "$"
-  local dir = config.path("meetings", root)
+  local dir = vim.fs.dirname(note.path)
   local found = {}
   if fs.is_dir(dir) then
     for entry, kind in vim.fs.dir(dir) do
@@ -158,11 +177,11 @@ function M.find_same(root, note)
 end
 
 --- Insert `item` at the end of the `## <heading>` section (created at the end if missing).
---- Returns nil when a line in that section already contains `marker`.
+--- Returns nil when a line in that section matches `marker` (plain substring or predicate).
 ---@param lines string[]
 ---@param heading string
 ---@param item string
----@param marker string
+---@param marker string|fun(line: string): boolean
 ---@return string[]?
 function M.insert_under_heading(lines, heading, item, marker)
   local out = vim.list_extend({}, lines)
@@ -194,7 +213,13 @@ function M.insert_under_heading(lines, heading, item, marker)
   end
   local last = h
   for i = h + 1, stop - 1 do
-    if out[i]:find(marker, 1, true) then
+    local dup
+    if type(marker) == "function" then
+      dup = marker(out[i])
+    else
+      dup = out[i]:find(marker, 1, true) ~= nil
+    end
+    if dup then
       return nil
     end
     if out[i] ~= "" then
@@ -214,8 +239,23 @@ end
 ---@return "file"|"buffer"|nil changed
 function M.link_in_daily(root, note)
   local daily_path = daily.ensure(note.date, root)
-  local item = "- " .. link.make(daily_path, note.path, note.title, root)
-  local marker = vim.fn.fnamemodify(note.path, ":t:r")
+  local prefix = note.project and (note.project .. ": ") or ""
+  local item = "- " .. prefix .. link.make(daily_path, note.path, note.title, root)
+  local target = link.target(daily_path, note.path, root)
+  -- Exact target match, so "retro" doesn't match "retro-2" or another project's "retro".
+  local function marker(line)
+    for _, form in ipairs({
+      "[[" .. target .. "|",
+      "[[" .. target .. "]]",
+      "(" .. target .. ")",
+      "(<" .. target .. ">)",
+    }) do
+      if line:find(form, 1, true) then
+        return true
+      end
+    end
+    return false
+  end
   local ok, err, changed = fs.update_lines(daily_path, function(lines)
     return M.insert_under_heading(lines, "Meetings", item, marker)
   end)
@@ -260,8 +300,9 @@ end
 ---@param key string
 ---@param input? string
 ---@param iso string
-function M.create(root, key, input, iso)
-  local note = M.build(root, key, input, iso)
+---@param project? string
+function M.create(root, key, input, iso, project)
+  local note = M.build(root, key, input, iso, project)
   if fs.exists(note.path) then
     open(note.path)
     return
@@ -292,10 +333,11 @@ end
 ---@param root string
 ---@param key string
 ---@param iso string
-function M.start(root, key, iso)
+---@param project? string
+function M.start(root, key, iso, project)
   local spec = get_type(key)
   if not spec.prompt then
-    M.create(root, key, nil, iso)
+    M.create(root, key, nil, iso, project)
     return
   end
   vim.ui.input(
@@ -306,7 +348,7 @@ function M.start(root, key, iso)
         vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
         return
       end
-      M.create(root, key, input, iso)
+      M.create(root, key, input, iso, project)
     end)
   )
 end
@@ -330,8 +372,9 @@ function M.command(opts)
   end
 
   config.with_root(safely(function(root)
+    local project = require("logpose.project").resolve(root)
     if key then
-      M.start(root, key, iso)
+      M.start(root, key, iso, project)
       return
     end
     vim.ui.select(
@@ -344,7 +387,7 @@ function M.command(opts)
       },
       safely(function(choice)
         if choice then
-          M.start(root, choice.key, iso)
+          M.start(root, choice.key, iso, project)
         end
       end)
     )

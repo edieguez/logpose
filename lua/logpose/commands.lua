@@ -111,6 +111,7 @@ M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
+  project = { module = "logpose.project", desc = "logpose: set the active project" },
 }
 
 --- Create `:Logpose` and register built-in subcommands. Called once from plugin/logpose.lua.

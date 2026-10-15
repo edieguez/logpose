@@ -41,6 +41,10 @@ function M.check()
     h.info("Run :Logpose init (or set `root`) so commands work from any buffer, e.g. a work repo.")
   end
 
+  h.start("logpose: project")
+  local project = require("logpose.project")
+  h.info((project.describe(project.resolve(root)):gsub("^%l", string.upper)))
+
   h.start("logpose: journal paths")
   local keys = vim.tbl_keys(config.get().dirs)
   table.sort(keys)

@@ -29,6 +29,22 @@ function M.relpath(from_dir, to)
   return #out > 0 and table.concat(out, "/") or "."
 end
 
+--- The link target written into `source` for `target`: a wiki path (relative to `link_base`,
+--- no .md) or a markdown relative path.
+---@param source string
+---@param target string
+---@param root string
+---@param style? "wiki"|"markdown"
+---@return string
+function M.target(source, target, root, style)
+  style = style or config.get().link_style
+  if style == "markdown" then
+    return M.relpath(vim.fs.dirname(source), target)
+  end
+  local base = vim.fs.joinpath(root, config.get().link_base)
+  return (M.relpath(base, target):gsub("%.md$", ""))
+end
+
 --- Link to `target` from the note at `source` (absolute paths).
 ---@param source string file the link is written into
 ---@param target string file being linked
@@ -38,15 +54,13 @@ end
 ---@return string
 function M.make(source, target, label, root, style)
   style = style or config.get().link_style
+  local rel = M.target(source, target, root, style)
   if style == "markdown" then
-    local rel = M.relpath(vim.fs.dirname(source), target)
     if rel:find("[%s()<>]") then
       rel = "<" .. rel .. ">"
     end
     return ("[%s](%s)"):format(label, rel)
   end
-  local base = vim.fs.joinpath(root, config.get().link_base)
-  local rel = M.relpath(base, target):gsub("%.md$", "")
   if label == "" or label == rel then
     return ("[[%s]]"):format(rel)
   end

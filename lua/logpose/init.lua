@@ -7,4 +7,10 @@ function M.setup(opts)
   require("logpose.config").setup(opts)
 end
 
+--- Active project for the current buffer/cwd, or nil (handy for statuslines).
+---@return string?
+function M.project()
+  return require("logpose.project").current()
+end
+
 return M
