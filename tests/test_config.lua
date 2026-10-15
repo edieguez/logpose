@@ -54,6 +54,32 @@ T["setup"]["rejects invalid values"] = function()
   end, "dirs.daily")
 end
 
+T["setup"]["validates period options"] = function()
+  MiniTest.expect.error(function()
+    child.lua([[require("logpose").setup({ period = { kind = "sprint" } })]])
+  end, "anchor` is required")
+  MiniTest.expect.error(function()
+    child.lua([[require("logpose").setup({ period = { sprint = { anchor = "2026-02-30" } } })]])
+  end, "YYYY%-MM%-DD")
+  MiniTest.expect.error(function()
+    child.lua([[require("logpose").setup({ period = { sprint = { anchor = "2026-10-01", length_days = 0 } } })]])
+  end, "length_days")
+  MiniTest.expect.error(function()
+    child.lua([[require("logpose").setup({ period = { week_start = 8 } })]])
+  end, "week_start")
+  MiniTest.expect.error(function()
+    child.lua([[require("logpose").setup({ period = { kind = "month" } })]])
+  end, "period.kind")
+end
+
+T["setup"]["accepts a sprint anchor without warnings"] = function()
+  child.lua(
+    [[require("logpose").setup({ period = { kind = "sprint", sprint = { anchor = "2026-10-01", first_number = 42 } } })]]
+  )
+  eq(#child.notifications(), 0)
+  eq(child.lua_get("require('logpose.config').get().period.sprint.length_days"), 14)
+end
+
 T["resolve_root"] = MiniTest.new_set()
 
 T["resolve_root"]["uses the configured root first"] = function()

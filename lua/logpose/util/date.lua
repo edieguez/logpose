@@ -85,6 +85,14 @@ function M.add_days(iso, n)
   return to_iso(noon(y, m, d + n))
 end
 
+--- Whole days from `a` to `b` (negative if `b` is earlier).
+---@param a string
+---@param b string
+---@return integer
+function M.diff_days(a, b)
+  return math.floor((time_of(b) - time_of(a)) / 86400 + 0.5)
+end
+
 --- ISO weekday: Monday = 1 … Sunday = 7.
 ---@param iso string
 ---@return integer

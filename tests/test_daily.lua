@@ -88,6 +88,19 @@ T["uses a template from the journal"] = function()
   eq(child.api.nvim_win_get_cursor(0), { 2, 0 })
 end
 
+T["{sprint} names the current sprint when an anchor is set"] = function()
+  H.write(root .. "/templates/daily.md", "# {date} {sprint}\n")
+  child.cmd("Logpose daily")
+  eq(H.read(daily_path("2026-10-14")), "# 2026-10-14 \n")
+  child.lua(
+    ("require('logpose').setup({ root = %q, period = { sprint = { anchor = '2026-10-01', first_number = 42 } } })"):format(
+      root
+    )
+  )
+  child.cmd("Logpose daily next")
+  eq(H.read(daily_path("2026-10-15")), "# 2026-10-15 sprint-43\n")
+end
+
 T["honours configured dirs and affixes"] = function()
   child.lua(
     ("require('logpose').setup({ root = %q, dirs = { daily = 'notes' }, affixes = { daily = 'd-' } })"):format(root)
