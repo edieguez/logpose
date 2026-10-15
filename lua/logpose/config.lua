@@ -51,6 +51,14 @@ M.defaults = {
   --- Subdirectory of `dirs.meetings` for meeting notes. `{project}` is the active project
   --- (empty when there is none); "" keeps every note directly in `dirs.meetings`.
   meeting_subdir = "{project}",
+  --- Order of `## YYYY-MM-DD` sections when logpose inserts one: "auto" follows the file
+  --- (falling back to oldest first), or force "newest_first" / "oldest_first".
+  section_order = "auto",
+  archive = {
+    --- Title of a new archive file. {period} is the period key (the week's Monday).
+    journal_title = "# Journal: week of {period}",
+    done_title = "# Done: week of {period}",
+  },
   projects = {
     --- Use the git repo of the current buffer (or cwd) as the project.
     detect = true,
@@ -123,6 +131,17 @@ local function validate(opts)
   if not opts.meeting_filename:find("{slug}", 1, true) then
     error("logpose: `meeting_filename` must contain {slug}", 0)
   end
+  if not vim.tbl_contains({ "auto", "newest_first", "oldest_first" }, opts.section_order) then
+    error(
+      ('logpose: `section_order` must be "auto", "newest_first" or "oldest_first", got %s'):format(
+        vim.inspect(opts.section_order)
+      ),
+      0
+    )
+  end
+  check("archive", opts.archive, "table")
+  check("archive.journal_title", opts.archive.journal_title, "string")
+  check("archive.done_title", opts.archive.done_title, "string")
   check("meeting_subdir", opts.meeting_subdir, "string")
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")
