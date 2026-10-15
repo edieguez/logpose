@@ -48,10 +48,19 @@ M.defaults = {
   },
   --- Meeting filename (without .md). Variables: {date}, {time} (HHMM), {slug}, {type}.
   meeting_filename = "{date} - {slug}",
+  --- Subdirectory of `dirs.meetings` for meeting notes. `{project}` is the active project
+  --- (empty when there is none); "" keeps every note directly in `dirs.meetings`.
+  meeting_subdir = "{project}",
+  projects = {
+    --- Use the git repo of the current buffer (or cwd) as the project.
+    detect = true,
+    --- Directory -> project name, e.g. { ["~/work/acme-api"] = "acme" }. Longest match wins.
+    paths = {},
+  },
 }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
-M.open_keys = { meeting_types = true }
+M.open_keys = { meeting_types = true, ["projects.paths"] = true }
 
 ---@type logpose.Config?
 M.options = nil
@@ -113,6 +122,14 @@ local function validate(opts)
   check("meeting_filename", opts.meeting_filename, "string")
   if not opts.meeting_filename:find("{slug}", 1, true) then
     error("logpose: `meeting_filename` must contain {slug}", 0)
+  end
+  check("meeting_subdir", opts.meeting_subdir, "string")
+  check("projects", opts.projects, "table")
+  check("projects.detect", opts.projects.detect, "boolean")
+  check("projects.paths", opts.projects.paths, "table")
+  for dir, name in pairs(opts.projects.paths) do
+    check("projects.paths key", dir, "string")
+    check(("projects.paths[%q]"):format(tostring(dir)), name, "string")
   end
   check("meeting_types", opts.meeting_types, "table")
   for name, t in pairs(opts.meeting_types) do

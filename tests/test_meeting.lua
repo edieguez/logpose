@@ -9,6 +9,7 @@ local T = MiniTest.new_set({
     pre_case = function()
       child.setup()
       root = H.journal()
+      child.cmd("cd " .. H.tmpdir()) -- outside any git repo: no project
       child.lua(("require('logpose').setup({ root = %q })"):format(root))
       H.freeze(child, 2026, 10, 14, 10, 30)
     end,
