@@ -1,0 +1,4 @@
+/deps/
+doc/tags
+*.logpose-*.tmp
+.DS_Store
