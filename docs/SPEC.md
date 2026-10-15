@@ -59,6 +59,7 @@ capture/done, sprint-aware archives and reports.
   links, saved views, and keeping tags/projects tidy.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports with a review section, ticket links.
   (F6 shipped before M2.5; F7 and F8 follow it.)
+- **Last: T1 local usage telemetry**, once there are features to measure.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, then O1… and F7/F8 in build order); fixes bump the patch;
@@ -662,6 +663,9 @@ headings, `[[links]]`, `@mentions`) and the index reads it; no hidden database.
 - Section tracking (nested headings, date headings, frontmatter), retrievable sections without
   tags, relative date parsing (each form, invalid forms), week/sprint expansion incl. no anchor.
 
+*Implementation notes:* `### ` sub-headings stay in their `## ` section; `section:` accepts
+dashes for spaces (`section:open-questions`).
+
 ## O2 — Inbox triage (High)
 
 **Goal.** Process INBOX item by item instead of letting it grow.
@@ -804,6 +808,33 @@ records, and the links between notes.
 
 ---
 
+## T1 — Local usage telemetry (Low, last)
+
+**Goal.** Know which features are actually used, to decide what to polish, simplify or drop.
+Strictly local: nothing ever leaves the machine.
+
+**Design** (`telemetry.lua`)
+- Opt-in: `telemetry = { enabled = true }` (off by default, so other users are never counted
+  without knowing); documented in the README and health.
+- Recorded per event: subcommand (and scope/mode for `find`, `actions`, `report`), date, and
+  whether it succeeded. No note content, paths, titles, tags or arguments beyond the
+  scope/mode keyword.
+- Storage: `stdpath("data")/logpose/usage.json` — counts per command per day, kept for
+  `telemetry.retention_days` (180), written at most once per minute and on `VimLeavePre`.
+- `:Logpose stats [days]` shows a scratch buffer: commands by use count, trend (last 7 vs
+  previous 7 days), never-used commands, and per-scope breakdowns. `:Logpose stats!` resets.
+- Health reports whether telemetry is on and where the file is.
+
+**Acceptance criteria**
+- After using `daily` 3× and `find tasks` 2×, `:Logpose stats` shows those counts; with
+  telemetry off nothing is written.
+
+**Tests**
+- Recording, privacy (no args/paths stored), retention pruning, throttled writes, stats view,
+  reset, disabled mode.
+
+---
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -827,6 +858,7 @@ records, and the links between notes.
 | `:Logpose backlinks` / `links`            | O4 |
 | `:Logpose view [name]`                    | O5 |
 | `:Logpose rename-tag` / `rename-project`  | O6 |
+| `:Logpose stats[!] [days]`                | T1 |
 
 ## 6. Definition of done (every feature)
 
