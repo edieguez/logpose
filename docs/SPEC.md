@@ -58,11 +58,12 @@ capture/done, sprint-aware archives and reports.
   other half: processing the INBOX, section- and person-aware retrieval, evergreen notes and
   links, saved views, and keeping tags/projects tidy.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports with a review section, ticket links.
-  (F6 shipped before M2.5; F7 and F8 follow it.)
-- **Last: T1 local usage telemetry**, once there are features to measure.
+  (F6 shipped before M2.5; F7 and F8 followed it.) Done as of 0.17.0.
+- **Last: T1 local usage telemetry**, once there are features to measure. Done in 0.18.0.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, then O1… and F7/F8 in build order); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
+0.17.0 = F8, 0.18.0 = T1); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---

@@ -13,7 +13,9 @@ CONTENTS                                                    *logpose-contents*
 1. INTRODUCTION                                         *logpose-introduction*
 
 logpose.nvim manages a markdown journal: daily notes, typed meeting notes,
-an INBOX/DONE Kanban flow and weekly or sprint archives.
+an INBOX/DONE Kanban flow, weekly or sprint archives and reports, topic
+notes with backlinks, and search across notes, tasks, tags, projects and
+people.
 
 Requires Neovim 0.10 or later.
 
@@ -33,8 +35,8 @@ Options ~
   root_markers   (string[])    Markers that identify a journal root when
                  `root` is nil. Default: `{ ".logpose" }`.
   dirs           (table)       Paths relative to the root: `daily`,
-                 `meetings`, `inbox`, `done`, `journal_entries`,
-                 `done_entries`, `templates`, `reports`.
+                 `meetings`, `notes`, `projects`, `inbox`, `done`,
+                 `journal_entries`, `done_entries`, `templates`, `reports`.
   affixes        (table)       Filename prefixes: `daily`, `week`,
                  `done_week`, `sprint` (""), `done_sprint` ("done-").
   link_style     ("wiki"|"markdown")  Link format. Default "wiki".
@@ -50,7 +52,9 @@ Options ~
   meeting_types  (table)       Meeting types by name. Fields: `label`,
                  `template` (default "meeting"), `order`, and either `title`
                  (fixed, no prompt) or `prompt` (asks; `title` may use
-                 {input}). Set a type to `false` to remove it.
+                 {input}). `person = true`: the input is a person (completed
+                 from known people). `ask_attendees = true`: also ask for
+                 attendees. Set a type to `false` to remove it.
   meeting_subdir (string)      Subdirectory of `dirs.meetings` for meeting
                  notes; `{project}` is the active project. "" keeps all
                  notes in one folder. Default "{project}".
@@ -80,6 +84,15 @@ Options ~
                  blockers headings), `carry_forward` (true), `mark_carried`
                  (true), `include_done` (false), `group_by_project` (true).
                  See |logpose-standup|.
+  review         (table)       `stale_days` (14): open tasks older than this
+                 are listed as stale in |:Logpose-report|.
+  tickets        (table)       `pattern`: Lua pattern of ticket IDs
+                 (default "%u[%u%d]+%-%d+", e.g. PROJ-123). `url`: URL with
+                 {id}; when set, `gx` on a ticket in a journal note opens it.
+  telemetry      (table)       `enabled` (false): count command use locally.
+                 `retention_days` (180). See |:Logpose-stats|.
+  views          (table)       Saved searches: name -> `find` arguments, e.g.
+                 `{ acme = "tasks open project:acme" }`. See |:Logpose-view|.
   retrieval      (table)       `sections`: headings whose every line is
                  searchable. Default decisions, blockers, risks, open
                  questions.
@@ -210,7 +223,8 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
     Search the journal and open the choice at its line. Uses snacks.picker,
     fzf-lua or Telescope (see `picker`), else |vim.ui.select|.
 
-    Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`,
+    Scopes: `notes` (default), `daily`, `meetings`, `topics`, `archives`,
+    `tasks`,
     `decisions`, `blockers` (lines under those `## ` headings), `people`,
     `tags` (choose a tag, then everything carrying it), `projects` (choose
     a project, then its notes and tasks).
@@ -250,12 +264,77 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
 
     `require("logpose").project()` returns the active project.
 
+                                                               *:Logpose-view*
+:Logpose view [{name}]
+    Run the saved search {name} from `views` (choose one without {name}).
+
+                                                               *:Logpose-note*
+:Logpose note [{title}]
+    Create (from the `note` template) or open `dirs.notes/{slug}.md`, a
+    topic note not tied to a day. Prompts without {title}.
+
+                                                       *:Logpose-project-page*
+:Logpose project-page [{name}]
+    Create (from the `project` template) or open `dirs.projects/{name}.md`.
+    Defaults to the active project; otherwise choose one.
+
+                                                          *:Logpose-backlinks*
+:Logpose backlinks
+    Notes and lines linking to the current note. Wiki links (also short
+    `[[name]]`) and relative markdown links are understood.
+
+                                                              *:Logpose-links*
+:Logpose links
+    Links going out of the current note; missing targets are flagged.
+
+                                                         *logpose-completion*
+Link completion ~
+Typing `[[` in a journal note completes note links in `link_style`.
+nvim-cmp: the `logpose` source is registered by `setup()`; add
+`{ name = "logpose" }` to your markdown sources. blink.cmp: add the provider
+`logpose = { name = "logpose", module = "logpose.completion.blink" }` and
+`"logpose"` to your markdown sources.
+
+                                                         *:Logpose-rename-tag*
+:Logpose rename-tag[!] {old} {new}
+    Rename inline `#old` tags and frontmatter `tags:` entries everywhere
+    (whole tags only). Shows a preview and asks first; [!] skips it. Files
+    with unsaved changes are never touched.
+
+                                                     *:Logpose-rename-project*
+:Logpose rename-project[!] {old} {new}
+    Rename a project: `project:` frontmatter, `#old` tags, series names,
+    `meetings/{old}/` and `projects/{old}.md` (moved), and links into
+    them. Preview and [!] as for |:Logpose-rename-tag|.
+
+                                                             *:Logpose-report*
+:Logpose report[!] [week|sprint] [{offset}|{date}] [{filters}...]
+    Summary of a period (default: the current one of `period.kind`; `-1`
+    the previous; a date the period containing it) in a scratch buffer:
+    DONE items, meetings, decisions, open action items, and a review
+    section (overdue actions, stale tasks, aging and unassigned INBOX
+    items). Filters as in |:Logpose-find|. With [!] it is saved to
+    `dirs.reports/{period}.md`.
+
+                                                             *:Logpose-ticket*
+:Logpose ticket [{id}]
+    Every line in the journal mentioning ticket {id} (default: the one
+    under the cursor), whole word, in the quickfix list or picker.
+
+                                                              *:Logpose-stats*
+:Logpose stats[!] [{days}]
+    Local usage stats when `telemetry.enabled` is set: uses per command
+    (and scope for find, actions, report, daily), the last 7 days against
+    the previous 7, errors, and unused commands. [!] resets them. Data
+    lives in `stdpath("data")/logpose/usage.json` and holds only command
+    names, keywords and daily counts.
+
 ==============================================================================
 TEMPLATES                                                  *logpose-templates*
 
 Templates are looked up in `<root>/<dirs.templates>/<name>.md`, then in the
 plugin's `templates/` directory. Shipped: daily, meeting, planning,
-refinement, review, retro, 1on1.
+refinement, review, retro, 1on1, note, project.
 
 Variables: {date} {time} {weekday} {iso_week} {title} {type} {type_label}
 {series} {attendees} {project} {sprint}. Unknown variables are left as is. {cursor} marks where
@@ -265,6 +344,7 @@ the cursor goes and is removed.
 5. HEALTH                                                     *logpose-health*
 
 `:checkhealth logpose` reports the Neovim version, the resolved journal root
-and how it was found, which journal paths exist and the picker in use.
+and how it was found, the active project, the archive period, which
+journal paths exist, the picker in use and whether usage stats are on.
 
  vim:tw=78:ts=8:ft=help:norl:
