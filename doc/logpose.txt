@@ -138,6 +138,23 @@ A bare `journal/` directory is not a marker.
     with [!] it isn't. Nothing is written if any affected file has unsaved
     changes.
 
+                                                            *:Logpose-capture*
+:Logpose capture [{text}]
+    Add `- [ ] {text}` under today's `## YYYY-MM-DD` section of `dirs.inbox`
+    (created if needed, placed per `section_order`). With an active
+    project, ` #project` is appended. Without {text}, prompts. An exact
+    duplicate in today's section is skipped.
+
+                                                               *:Logpose-done*
+:[range]Logpose done
+    Mark the task on the current line (or every task in [range]) done.
+    `<Plug>(logpose-done)` also works in visual mode.
+    In `dirs.inbox` the task is removed and added as `- [x] …` under today
+    in `dirs.done`. In any other journal note it's checked off in place
+    and logged in DONE with a link back to the note. Non-task lines are
+    skipped. The current buffer is edited so |u| undoes it, then saved
+    unless it already had unsaved changes.
+
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
     Pin the active project ({name} is slugified), or `none` to go back to

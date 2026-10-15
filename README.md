@@ -3,7 +3,7 @@
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
 > **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
-> meeting notes, and weekly or sprint archiving. The Kanban flow (capture/done) lands next.
+> meeting notes, and weekly or sprint archiving. M2 is under way: capture/done work; pickers land next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -43,6 +43,8 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | `:Logpose init [dir]` | Choose or create the journal directory and remember it. |
 | `:Logpose project [name\|none]` | Pin the active project (or `none` to go back to auto-detection). No argument: pick from a list. |
 | `:Logpose archive[!]` | Move past weeks of `INBOX.md`/`DONE.md` into weekly archive files. Shows a preview and asks first; `!` skips it. |
+| `:Logpose capture [text]` | Add `- [ ] text` under today in `INBOX.md` (tagged `#project` when one is active). No text: prompt. |
+| `:Logpose done` | Mark the task on the current line (or a range / visual selection) done: from INBOX it moves to `DONE.md`; in a meeting or daily note it's checked off and logged in DONE with a link. |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -56,6 +58,8 @@ Every subcommand has a `<Plug>` mapping. Example keymaps:
 ```lua
 vim.keymap.set("n", "<leader>jd", "<Plug>(logpose-daily)", { desc = "Daily note" })
 vim.keymap.set("n", "<leader>jm", "<Plug>(logpose-meeting)", { desc = "Meeting note" })
+vim.keymap.set("n", "<leader>jc", "<Plug>(logpose-capture)", { desc = "Capture to INBOX" })
+vim.keymap.set({ "n", "x" }, "<leader>jx", "<Plug>(logpose-done)", { desc = "Mark done" })
 ```
 
 ### Archiving
