@@ -54,6 +54,11 @@ Options ~
   meeting_subdir (string)      Subdirectory of `dirs.meetings` for meeting
                  notes; `{project}` is the active project. "" keeps all
                  notes in one folder. Default "{project}".
+  section_order  (string)      Order of `## YYYY-MM-DD` sections when logpose
+                 inserts one: "auto" (follow the file), "newest_first" or
+                 "oldest_first". Default "auto".
+  archive        (table)       `journal_title`, `done_title`: title of a new
+                 archive file; {period} is the week's Monday.
   projects       (table)       `detect` (boolean, default true): the git
                  repo of the current buffer/cwd is the project. `paths`
                  (table): directory -> project name; longest match wins.
@@ -82,6 +87,8 @@ A bare `journal/` directory is not a marker.
 :Logpose {subcommand} [args]
     Run a logpose subcommand. <Tab> completes subcommands and arguments.
     Each subcommand also has a `<Plug>(logpose-{subcommand})` mapping.
+    A bang can go on the command or the subcommand: `:Logpose! archive` and
+    `:Logpose archive!` are the same.
     No keymaps are set by default.
 
                                                                *:Logpose-init*
@@ -108,6 +115,18 @@ A bare `journal/` directory is not a marker.
     Same type and title on the same day opens the existing note. With
     {time} in `meeting_filename`, you're asked whether to open the existing
     note or create a new one.
+
+                                                            *:Logpose-archive*
+:Logpose archive[!]
+    Move `## YYYY-MM-DD` sections from before the current week out of
+    `dirs.inbox` and `dirs.done` into one file per week in
+    `dirs.journal_entries` and `dirs.done_entries` (`affixes.week`,
+    `affixes.done_week` + the week's Monday). Existing week files are merged
+    into: new dates are inserted in order, same dates get the body appended
+    (unless it's already there, so re-running is safe). The preamble,
+    current-week and non-date sections stay. A preview is shown first;
+    with [!] it isn't. Nothing is written if any affected file has unsaved
+    changes.
 
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
