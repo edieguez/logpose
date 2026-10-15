@@ -164,10 +164,19 @@ T["bad filters fail before searching"] = function()
 end
 
 T["completion"] = function()
-  eq(
-    child.fn.getcompletion("Logpose find ", "cmdline"),
-    { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects", "people" }
-  )
+  eq(child.fn.getcompletion("Logpose find ", "cmdline"), {
+    "notes",
+    "daily",
+    "meetings",
+    "topics",
+    "archives",
+    "tasks",
+    "decisions",
+    "blockers",
+    "tags",
+    "projects",
+    "people",
+  })
   local c = child.fn.getcompletion("Logpose find tasks ", "cmdline")
   for _, want in ipairs({ "open", "done", "project:acme", "project:thesis", "#perf", "#ux", "type:retro" }) do
     eq(vim.tbl_contains(c, want), true)

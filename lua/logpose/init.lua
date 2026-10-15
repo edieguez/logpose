@@ -5,6 +5,7 @@ local M = {}
 ---@param opts? table
 function M.setup(opts)
   require("logpose.config").setup(opts)
+  require("logpose.completion.cmp").register() -- no-op without nvim-cmp
 end
 
 --- Active project for the current buffer/cwd, or nil (handy for statuslines).

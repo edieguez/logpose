@@ -7,7 +7,8 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
-M.SCOPES = { "notes", "daily", "meetings", "archives", "tasks", "decisions", "blockers", "tags", "projects", "people" }
+M.SCOPES =
+  { "notes", "daily", "meetings", "topics", "archives", "tasks", "decisions", "blockers", "tags", "projects", "people" }
 
 local SCOPE_FILTER = {
   notes = function(it)
@@ -18,6 +19,9 @@ local SCOPE_FILTER = {
   end,
   meetings = function(it)
     return it.kind == "note" and it.note_type == "meeting"
+  end,
+  topics = function(it)
+    return it.kind == "note" and (it.note_type == "topic" or it.note_type == "project")
   end,
   archives = function(it)
     return it.kind == "note" and it.note_type == "archive"
