@@ -72,6 +72,14 @@ local function add_items(path, title, items)
   return changed, added
 end
 
+--- Log `items` (already formatted lines) under today's section in DONE.md.
+---@param root string
+---@param items string[]
+---@return "file"|"buffer"|nil changed, integer added
+function M.log_done(root, items)
+  return add_items(config.path("done", root), "# DONE", items)
+end
+
 --- Capture `text` into INBOX under today's date, tagged with the active project.
 ---@param text string
 ---@param root string
