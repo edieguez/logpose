@@ -114,6 +114,7 @@ end
 --- `complete(arglead, args)`. Modules load only when the subcommand runs or completes.
 M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
+  actions = { module = "logpose.actions", desc = "logpose: list meeting action items" },
   archive = { module = "logpose.archive", desc = "logpose: archive past weeks of INBOX/DONE" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },

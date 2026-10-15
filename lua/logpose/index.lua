@@ -20,6 +20,7 @@ local M = {}
 ---@field fm_tags? string[] notes only: tags from frontmatter
 ---@field checked? boolean  tasks only
 ---@field title? string     note title (on every item of that note)
+---@field series? string    meeting series (frontmatter; on every item of that note)
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
 ---@param line string
@@ -164,6 +165,7 @@ function M.index_lines(path, lines, root)
   end
   local project = type(fm.project) == "string" and fm.project ~= "" and fm.project:lower() or nil
   local mtype = type(fm.type) == "string" and fm.type ~= "" and fm.type or nil
+  local series = type(fm.series) == "string" and fm.series ~= "" and fm.series or nil
 
   local note = {
     kind = "note",
@@ -174,6 +176,7 @@ function M.index_lines(path, lines, root)
     date = note_date,
     note_type = note_type,
     type = mtype,
+    series = series,
     project = project,
     tags = tag_list(fm.tags),
     fm_tags = tag_list(fm.tags),
@@ -190,6 +193,9 @@ function M.index_lines(path, lines, root)
     local tags = M.tags_in(line)
     vim.list_extend(note_tags, tags)
     local task = require("logpose.tasks").parse_task(line)
+    if task and vim.trim(task.text) == "" then
+      task = nil -- empty placeholder from a template ("- [ ] ")
+    end
     if task then
       table.insert(items, {
         kind = "task",
@@ -200,6 +206,7 @@ function M.index_lines(path, lines, root)
         date = section_date or note_date,
         note_type = note_type,
         type = mtype,
+        series = series,
         project = project,
         tags = tags,
         title = title,
