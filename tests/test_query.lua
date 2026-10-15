@@ -120,4 +120,13 @@ T["match"]["words search text and note title"] = function()
   eq(m(task, { "flaky", "nope" }), false)
 end
 
+T["lenient parse skips half-typed and invalid filters"] = function()
+  local q, skipped =
+    query.parse({ "project:", "#", "@", "since:2026-1", "sprint:", "#perf", "open", "flaky" }, "2026-10-14", true)
+  eq(q, { tags = { "perf" }, words = { "flaky" }, people = {}, state = "open" })
+  eq(#skipped, 5)
+  eq(query.split("  #perf   open "), { "#perf", "open" })
+  eq(query.split(""), {})
+end
+
 return T

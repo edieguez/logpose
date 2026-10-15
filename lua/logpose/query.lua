@@ -25,14 +25,25 @@ local M = {}
 
 ---@param args string[]
 ---@param today? string defaults to today
----@return logpose.Query
-function M.parse(args, today)
+---@param lenient? boolean skip invalid or half-typed filters instead of raising (live search)
+---@return logpose.Query q, string[] skipped
+function M.parse(args, today, lenient)
   today = today or date.today()
   local q = { tags = {}, words = {}, people = {} }
+  local skipped = {}
+  local function fail(msg)
+    if not lenient then
+      error(msg, 0)
+    end
+    table.insert(skipped, msg)
+  end
   for _, arg in ipairs(args) do
     local key, value = arg:match("^(%a+):(.+)$")
     key = key and key:lower()
-    if key == "project" or key == "p" then
+    if lenient and (arg:match("^%a+:$") or arg == "#" or arg == "@") then
+      -- still typing: `project:`, `#`, `@`
+      table.insert(skipped, arg)
+    elseif key == "project" or key == "p" then
       q.project = value:lower()
     elseif key == "tag" then
       table.insert(q.tags, (value:gsub("^#", "")):lower())
@@ -41,15 +52,17 @@ function M.parse(args, today)
     elseif key == "since" or key == "until" then
       local d = date.resolve(value, today)
       if not d then
-        error(("logpose: %s: needs a date (YYYY-MM-DD, today, -7d…), got %q"):format(key, value), 0)
+        fail(("logpose: %s: needs a date (YYYY-MM-DD, today, -7d…), got %q"):format(key, value))
+      else
+        q[key] = d
       end
-      q[key] = d
     elseif key == "week" or key == "sprint" then
       local p, err = require("logpose.period").resolve(key, value, today)
       if not p then
-        error(err, 0)
+        fail(err)
+      else
+        q.since, q["until"] = p.start, p.finish
       end
-      q.since, q["until"] = p.start, p.finish
     elseif key == "person" then
       table.insert(q.people, require("logpose.util.text").slugify(value))
     elseif key == "section" then
@@ -64,7 +77,14 @@ function M.parse(args, today)
       table.insert(q.words, arg:lower())
     end
   end
-  return q
+  return q, skipped
+end
+
+--- Split a typed query into arguments.
+---@param text string
+---@return string[]
+function M.split(text)
+  return vim.split(vim.trim(text or ""), "%s+", { trimempty = true })
 end
 
 ---@param list string[]

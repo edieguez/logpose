@@ -196,18 +196,19 @@ end
 
 T["backends"] = MiniTest.new_set()
 
-T["backends"]["snacks gets items with file positions and confirms"] = function()
-  setup("{ picker = 'snacks' }")
+T["backends"]["snacks: fixed results with file previews"] = function()
+  setup("{ picker = 'snacks', search = { live = false } }")
   child.lua([[package.loaded["snacks"] = { picker = {
     pick = function(o)
-      _G.o = { title = o.title, preview = o.preview, n = #o.items, first = o.items[1].text, file = o.items[1].file, pos = o.items[1].pos }
+      _G.o = { title = o.title, preview = o.preview, n = #o.items, first = o.items[1].text,
+        item_preview = o.items[1].preview, pos = o.items[1].pos }
       o.confirm({ close = function() _G.closed = true end }, o.items[2])
     end,
     grep = function(o) _G.grep = o end,
   } }]])
   child.cmd("Logpose find tasks #perf")
   local o = child.lua_get("_G.o")
-  eq({ o.title, o.preview, o.n, o.pos }, { "Tasks #perf", "file", 3, { 9, 0 } })
+  eq({ o.title, o.preview, o.item_preview, o.n, o.pos }, { "Tasks #perf", "preview", "file", 3, { 9, 0 } })
   eq(o.first, "[ ] follow up #perf  · Retro  @acme")
   eq(child.lua_get("_G.closed"), true)
   eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "INBOX.md")
@@ -215,8 +216,53 @@ T["backends"]["snacks gets items with file positions and confirms"] = function()
   eq(child.lua_get("_G.grep"), { cwd = root, dirs = { root }, search = "flaky" })
 end
 
-T["backends"]["fzf-lua gets file:line entries relative to the journal"] = function()
-  setup("{ picker = 'fzf_lua' }")
+T["backends"]["snacks: live search re-filters as the prompt changes"] = function()
+  setup("{ picker = 'snacks' }")
+  child.lua([[package.loaded["snacks"] = { picker = {
+    pick = function(o)
+      local function run(text)
+        return vim.tbl_map(function(e) return e.text end, o.finder({}, { filter = { search = text } }))
+      end
+      _G.o = { title = o.title, live = o.live, search = o.search, preview = o.preview,
+        initial = run(o.search), typed = run("#perf open project:"), narrowed = run("#perf open flaky"),
+        bad = run("since:2026-1") }
+      local items = o.finder({}, { filter = { search = "flaky" } })
+      o.confirm({ close = function() end }, items[1])
+    end,
+  } }]])
+  child.cmd("Logpose find tasks #perf")
+  local o = child.lua_get("_G.o")
+  eq({ o.title, o.live, o.search, o.preview }, { "Tasks", true, "#perf ", "preview" })
+  eq(#o.initial, 3)
+  -- `project:` is still being typed: ignored, not an error and not a word to match
+  eq(o.typed, { "[ ] follow up #perf  · Retro  @acme", "[ ] fix flaky test #perf #acme  · INBOX" })
+  eq(o.narrowed, { "[ ] fix flaky test #perf #acme  · INBOX" })
+  eq(#o.bad, 4) -- an unfinished date is skipped: every task
+  eq(child.notifications(), {})
+  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+end
+
+T["backends"]["snacks: tag list previews what each tag leads to"] = function()
+  setup("{ picker = 'snacks' }")
+  child.lua([[package.loaded["snacks"] = { picker = {
+    pick = function(o)
+      if o.items then
+        _G.list = { preview = o.preview, first = o.items[1].text, text = o.items[1].preview.text }
+        o.confirm({ close = function() end }, o.items[1])
+      else
+        _G.second = { title = o.title, n = #o.finder({}, { filter = { search = "" } }) }
+      end
+    end,
+  } }]])
+  child.cmd("Logpose find tags")
+  local list = child.lua_get("_G.list")
+  eq({ list.preview, list.first }, { "preview", "#perf (3)" })
+  H.contains(list.text, "- [ ] fix flaky test #perf #acme  · INBOX")
+  eq(child.lua_get("_G.second"), { title = "#perf", n = 3 })
+end
+
+T["backends"]["fzf-lua: fixed results as file:line entries"] = function()
+  setup("{ picker = 'fzf_lua', search = { live = false } }")
   child.lua([[package.loaded["fzf-lua"] = {
     fzf_exec = function(entries, o)
       _G.entries, _G.o = entries, { cwd = o.cwd, previewer = o.previewer, prompt = o.prompt }
@@ -232,37 +278,88 @@ T["backends"]["fzf-lua gets file:line entries relative to the journal"] = functi
   eq(child.lua_get("_G.grep"), { cwd = root, search = "flaky" })
 end
 
-T["backends"]["telescope gets entries with filename and lnum"] = function()
-  setup("{ picker = 'telescope' }")
-  child.lua([[
-    local selected
-    package.loaded["telescope"] = {}
-    package.loaded["telescope.finders"] = { new_table = function(t) return t end }
-    package.loaded["telescope.config"] = { values = { generic_sorter = function() return "sorter" end, grep_previewer = function() return "previewer" end } }
-    package.loaded["telescope.actions.state"] = { get_selected_entry = function() return selected end }
-    local replaced
-    package.loaded["telescope.actions"] = {
-      select_default = { replace = function(_, fn) replaced = fn end },
-      close = function() _G.closed = true end,
-    }
-    package.loaded["telescope.pickers"] = { new = function(_, spec)
-      return { find = function()
-        _G.spec = { title = spec.prompt_title, previewer = spec.previewer }
-        spec.attach_mappings(1)
-        selected = spec.finder.entry_maker(spec.finder.results[3])
-        _G.entry = { display = selected.display, filename = selected.filename ~= nil, lnum = selected.lnum }
-        replaced()
-      end }
-    end }
-    package.loaded["telescope.builtin"] = { live_grep = function(o) _G.grep = o end }
-  ]])
+T["backends"]["fzf-lua: live search reloads entries"] = function()
+  setup("{ picker = 'fzf_lua' }")
+  child.lua([[package.loaded["fzf-lua"] = {
+    fzf_live = function(fn, o)
+      _G.o = { query = o.query, previewer = o.previewer, prompt = o.prompt }
+      _G.initial = #fn({ o.query })
+      local entries = fn({ "#perf flaky" })
+      _G.entries = entries
+      o.actions.default({ entries[1] })
+    end,
+  }]])
   child.cmd("Logpose find tasks #perf")
-  eq(child.lua_get("_G.spec"), { title = "Tasks #perf", previewer = "previewer" })
+  eq(child.lua_get("_G.o"), { query = "#perf ", previewer = "builtin", prompt = "Tasks> " })
+  eq(child.lua_get("_G.initial"), 3)
+  eq(child.lua_get("_G.entries"), { "INBOX.md:4: [ ] fix flaky test #perf #acme  · INBOX" })
+  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+end
+
+T["backends"]["fzf-lua: list entries preview their text"] = function()
+  setup("{ picker = 'fzf_lua' }")
+  child.lua([[package.loaded["fzf-lua"] = {
+    fzf_exec = function(entries, o)
+      _G.first, _G.previewer = entries[1], o.previewer
+      _G.text = o.preview({ entries[1] })
+    end,
+  }]])
+  child.cmd("Logpose find projects")
+  eq(child.lua_get("_G.first"), "acme (3)")
+  eq(child.lua_get("_G.previewer"), vim.NIL)
+  H.contains(child.lua_get("_G.text"), "- 2026-10-14  meeting/retro  Retro  @acme")
+end
+
+local telescope_stub = [[
+  local selected
+  package.loaded["telescope"] = {}
+  package.loaded["telescope.finders"] = {
+    new_table = function(t) return t end,
+    new_dynamic = function(t) t.dynamic = true; return t end,
+  }
+  package.loaded["telescope.sorters"] = { empty = function() return "empty" end }
+  package.loaded["telescope.config"] = { values = { generic_sorter = function() return "sorter" end, grep_previewer = function() return "previewer" end } }
+  package.loaded["telescope.actions.state"] = { get_selected_entry = function() return selected end }
+  local replaced
+  package.loaded["telescope.actions"] = {
+    select_default = { replace = function(_, fn) replaced = fn end },
+    close = function() _G.closed = true end,
+  }
+  package.loaded["telescope.pickers"] = { new = function(_, spec)
+    return { find = function()
+      local results = spec.finder.dynamic and spec.finder.fn("#perf ship") or spec.finder.results
+      _G.spec = { title = spec.prompt_title, previewer = spec.previewer, sorter = spec.sorter,
+        default_text = spec.default_text, n = #results }
+      spec.attach_mappings(1)
+      selected = spec.finder.entry_maker(results[#results])
+      _G.entry = { display = selected.display, filename = selected.filename ~= nil, lnum = selected.lnum }
+      replaced()
+    end }
+  end }
+  package.loaded["telescope.builtin"] = { live_grep = function(o) _G.grep = o end }
+]]
+
+T["backends"]["telescope: fixed results with filename and lnum"] = function()
+  setup("{ picker = 'telescope', search = { live = false } }")
+  child.lua(telescope_stub)
+  child.cmd("Logpose find tasks #perf")
+  eq(child.lua_get("_G.spec"), { title = "Tasks #perf", previewer = "previewer", sorter = "sorter", n = 3 })
   eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · INBOX", filename = true, lnum = 5 })
   eq(child.lua_get("_G.closed"), true)
   eq(child.api.nvim_win_get_cursor(0)[1], 5)
   child.cmd("Logpose grep flaky")
   eq(child.lua_get("_G.grep"), { cwd = root, default_text = "flaky" })
+end
+
+T["backends"]["telescope: live search through a dynamic finder"] = function()
+  setup("{ picker = 'telescope' }")
+  child.lua(telescope_stub)
+  child.cmd("Logpose find tasks #perf")
+  eq(
+    child.lua_get("_G.spec"),
+    { title = "Tasks", previewer = "previewer", sorter = "empty", default_text = "#perf ", n = 1 }
+  )
+  eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · INBOX", filename = true, lnum = 5 })
 end
 
 T["backends"]["auto prefers snacks, then fzf-lua, then telescope"] = function()

@@ -84,15 +84,59 @@ local function to_pick(items)
   end, items)
 end
 
+--- Items matching a typed query; invalid or half-typed filters are ignored while typing.
+---@param items logpose.Item[] sorted
+---@param text string
+---@return logpose.Item[]
+function M.live_filter(items, text)
+  local q = query.parse(query.split(text), nil, true)
+  return query.filter(items, q)
+end
+
+--- Show `items` in the picker. With `search.live`, the prompt starts as `initial` and re-filters
+--- them with the query language as you type; otherwise `initial` is applied once.
 ---@param items logpose.Item[]
 ---@param prompt string
 ---@param root string
-local function show(items, prompt, root)
+---@param initial? string[] filters
+local function show(items, prompt, root, initial)
+  items = M.sort(items)
+  local text = table.concat(initial or {}, " ")
+  if config.get().search.live and picker.supports_live() then
+    picker.live({
+      prompt = prompt,
+      cwd = root,
+      query = text == "" and "" or (text .. " "),
+      items = function(typed)
+        return to_pick(M.live_filter(items, typed))
+      end,
+    })
+    return
+  end
+  if text ~= "" then
+    items = query.filter(items, query.parse(initial))
+    prompt = prompt .. " " .. text
+  end
   if #items == 0 then
     vim.notify("logpose: no matches", vim.log.levels.INFO)
     return
   end
-  picker.pick(to_pick(M.sort(items)), { prompt = prompt, cwd = root })
+  picker.pick(to_pick(items), { prompt = prompt, cwd = root })
+end
+
+--- Preview text for a list entry: the first items it leads to.
+---@param items logpose.Item[]
+---@return string
+local function list_preview(items)
+  items = M.sort(vim.list_extend({}, items))
+  local lines = {}
+  for i = 1, math.min(#items, 50) do
+    lines[i] = "- " .. M.display(items[i])
+  end
+  if #items > 50 then
+    table.insert(lines, ("… and %d more"):format(#items - 50))
+  end
+  return table.concat(lines, "\n")
 end
 
 --- Items carrying `tag`: tasks and lines with it, notes tagging it in frontmatter.
@@ -143,8 +187,8 @@ end
 ---@param scope string
 ---@param args string[] filters
 function M.find(root, scope, args)
-  local q = query.parse(args)
-  local items = query.filter(index.build(root), q)
+  local all = index.build(root)
+  local items = query.filter(all, query.parse(args))
   local suffix = #args > 0 and (" " .. table.concat(args, " ")) or ""
 
   if scope == "tags" then
@@ -154,7 +198,11 @@ function M.find(root, scope, args)
       return
     end
     local entries = vim.tbl_map(function(c)
-      return { display = ("#%s (%d)"):format(c.tag, c.count), tag = c.tag }
+      return {
+        display = ("#%s (%d)"):format(c.tag, c.count),
+        tag = c.tag,
+        preview = list_preview(M.with_tag(items, c.tag)),
+      }
     end, counts)
     picker.pick(entries, {
       prompt = "Tags" .. suffix,
@@ -173,7 +221,14 @@ function M.find(root, scope, args)
       return
     end
     local entries = vim.tbl_map(function(p)
-      return { display = ("%s (%d)"):format(p.name, p.count), person = p.slug, name = p.name }
+      return {
+        display = ("%s (%d)"):format(p.name, p.count),
+        person = p.slug,
+        name = p.name,
+        preview = list_preview(vim.tbl_filter(function(it)
+          return vim.tbl_contains(it.people or {}, p.slug)
+        end, items)),
+      }
     end, people)
     picker.pick(entries, {
       prompt = "People" .. suffix,
@@ -195,7 +250,8 @@ function M.find(root, scope, args)
       return
     end
     local entries = vim.tbl_map(function(name)
-      return { display = ("%s (%d)"):format(name, #M.of_project(items, name)), project = name }
+      local of = M.of_project(items, name)
+      return { display = ("%s (%d)"):format(name, #of), project = name, preview = list_preview(of) }
     end, names)
     picker.pick(entries, {
       prompt = "Projects" .. suffix,
@@ -212,7 +268,8 @@ function M.find(root, scope, args)
     error(("logpose: unknown scope %q. Valid: %s"):format(scope, table.concat(M.SCOPES, ", ")), 0)
   end
   local label = scope:sub(1, 1):upper() .. scope:sub(2)
-  show(vim.tbl_filter(keep, items), label .. suffix, root)
+  -- The filters go into the prompt (live) or are applied once, so start from the whole scope.
+  show(vim.tbl_filter(keep, all), label, root, args)
 end
 
 ---@param opts logpose.CommandOpts

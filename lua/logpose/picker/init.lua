@@ -1,6 +1,8 @@
 --- Picker adapter. logpose builds and filters the items; a backend only displays them.
----   pick(items, { prompt, on_choice })   items: { display, file?, lnum?, ... }
+---   pick(items, { prompt, on_choice })   items: { display, file?, lnum?, preview?, ... }
+---   live({ prompt, query, items, on_choice })  items(text) is re-run as the prompt changes
 ---   grep({ cwd, text })                  live grep in a directory
+--- File items preview the file at `lnum`; other items preview their `preview` text.
 local M = {}
 
 M.backends = { "snacks", "fzf_lua", "telescope", "select" }
@@ -64,6 +66,7 @@ end
 ---@field display string
 ---@field file? string
 ---@field lnum? integer
+---@field preview? string  preview text for items without a file
 
 ---@class logpose.PickOpts
 ---@field prompt string
@@ -75,6 +78,33 @@ end
 function M.pick(items, opts)
   opts = vim.tbl_extend("keep", opts, { on_choice = M.open })
   backend().pick(items, opts)
+end
+
+---@class logpose.LiveOpts: logpose.PickOpts
+---@field query string  initial prompt text
+---@field items fun(text: string): logpose.PickItem[]
+
+--- Whether the configured backend can re-run a search as you type.
+---@return boolean
+function M.supports_live()
+  return backend().live ~= nil
+end
+
+--- A picker whose results are recomputed from the prompt text on every change.
+--- Backends without live support get one static pick of `items(query)`.
+---@param opts logpose.LiveOpts
+function M.live(opts)
+  opts = vim.tbl_extend("keep", opts, { on_choice = M.open })
+  local b = backend()
+  if b.live then
+    return b.live(opts)
+  end
+  local items = opts.items(opts.query)
+  if #items == 0 then
+    vim.notify("logpose: no matches", vim.log.levels.INFO)
+    return
+  end
+  b.pick(items, opts)
 end
 
 ---@param opts { cwd: string, text?: string }

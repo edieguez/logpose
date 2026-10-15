@@ -93,6 +93,9 @@ Options ~
                  `retention_days` (180). See |:Logpose-stats|.
   views          (table)       Saved searches: name -> `find` arguments, e.g.
                  `{ acme = "tasks open project:acme" }`. See |:Logpose-view|.
+  search         (table)       `live` (true): with snacks, fzf-lua or
+                 Telescope the picker prompt holds the query and results update
+                 as you type. false: fixed results, fuzzy-filtered.
   retrieval      (table)       `sections`: headings whose every line is
                  searchable. Default decisions, blockers, risks, open
                  questions.
@@ -221,7 +224,13 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
                                                                *:Logpose-find*
 :Logpose find [{scope}] [{filters}...]
     Search the journal and open the choice at its line. Uses snacks.picker,
-    fzf-lua or Telescope (see `picker`), else |vim.ui.select|.
+    fzf-lua or Telescope (see `picker`), else |vim.ui.select|. Results
+    preview the file at the line; `tags`, `projects` and `people` entries
+    preview what they lead to.
+
+    With `search.live`, the picker prompt starts with {filters} and the
+    results are recomputed as you edit it. Unfinished filters (`project:`,
+    `since:2026-1`) are ignored until complete.
 
     Scopes: `notes` (default), `daily`, `meetings`, `topics`, `archives`,
     `tasks`,
