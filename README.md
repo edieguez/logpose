@@ -2,7 +2,8 @@
 
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
-> **Status: early development.** Onboarding, projects, daily and meeting notes work; archiving lands next.
+> **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
+> meeting notes, and archiving. The Kanban flow (capture/done) lands next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -41,6 +42,7 @@ carries on. Run `:Logpose init` again any time to switch journals.
 |---|---|
 | `:Logpose init [dir]` | Choose or create the journal directory and remember it. |
 | `:Logpose project [name\|none]` | Pin the active project (or `none` to go back to auto-detection). No argument: pick from a list. |
+| `:Logpose archive[!]` | Move past weeks of `INBOX.md`/`DONE.md` into weekly archive files. Shows a preview and asks first; `!` skips it. |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -55,6 +57,14 @@ Every subcommand has a `<Plug>` mapping. Example keymaps:
 vim.keymap.set("n", "<leader>jd", "<Plug>(logpose-daily)", { desc = "Daily note" })
 vim.keymap.set("n", "<leader>jm", "<Plug>(logpose-meeting)", { desc = "Meeting note" })
 ```
+
+### Archiving
+
+`INBOX.md` and `DONE.md` hold `## YYYY-MM-DD` sections. `:Logpose archive` moves every section
+from before the current week into `journal-entries/week-<monday>.md` (from INBOX) and
+`done-entries/done-week-<monday>.md` (from DONE), merging into week files that already exist.
+Current-week sections, the title and any non-date sections (`## Someday`) stay put. If either
+file has unsaved changes, nothing is written. Running it again is always safe.
 
 ### Projects
 
@@ -103,6 +113,12 @@ require("logpose").setup({
   picker = "auto",                       -- "snacks" | "fzf_lua" | "telescope" | "select"
   meeting_filename = "{date} - {slug}",  -- may add {time} (HHMM) for several same-title meetings a day
   meeting_subdir = "{project}",          -- meetings/<project>/; "" keeps all meetings in one folder
+  section_order = "auto",               -- order of ## YYYY-MM-DD sections: follow the file, or force
+                                         -- "newest_first" / "oldest_first"
+  archive = {
+    journal_title = "# Journal: week of {period}",
+    done_title = "# Done: week of {period}",
+  },
   projects = {
     detect = true,                       -- the git repo you're in is the project
     paths = {},                          -- { ["~/work/acme-api"] = "acme" }; longest match wins

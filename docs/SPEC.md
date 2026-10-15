@@ -8,39 +8,32 @@
 > each feature lists its scope, design, acceptance criteria, and tests. Do not start a feature
 > before its dependencies pass their tests.
 >
-> Settled decisions: **pure Lua**, **Neovim ≥ 0.10**, the Python scripts in `bin/` are the
-> **reference implementation** for anything they already do (port faithfully, then verify parity).
+> Settled decisions: **pure Lua**, **Neovim ≥ 0.10**. This spec is the source of truth for
+> behaviour; the scripts that inspired it are not part of the project.
 
 ---
 
 ## 1. Context
 
-The journal repo (`C1-llm-journal`) is a personal markdown journal/wiki. Three Python helpers
-live under `bin/`:
-
-- `bin/new-daily-note.py` — create `journal/daily/daily-YYYY-MM-DD.md` from a header template.
-- `bin/new-meeting-note.py` — prompt for a title, create `journal/meetings/YYYY-MM-DD - <slug>.md`.
-- `bin/archive-journal.py` — move past-week `## YYYY-MM-DD` sections out of `INBOX.md`/`DONE.md`
-  into `journal/journal-entries/week-<monday>.md` and `journal/done-entries/done-week-<monday>.md`,
-  merging into an existing week file if present.
+The plugin started from three personal helper scripts for a markdown journal: create a daily
+note, create a meeting note, and archive past weeks of `INBOX.md`/`DONE.md` into weekly files.
+Those scripts are not shared; their behaviour is captured in F1 and F2 below.
 
 The owner is a software developer working in Scrum/Kanban with a daily standup and many other
-meetings (planning, refinement, review, retro, 1:1s, ad-hoc). The plugin turns these scripts into
-editor actions and adds the meeting- and sprint-oriented workflow around them: typed meeting
-notes, action-item tracking, standup prep, Kanban capture/done, sprint-aware archives and reports.
-
-**Read all three Python scripts before starting F1/F2.** The archiver holds the only non-trivial
-logic (week grouping + same-date body merge).
+meetings (planning, refinement, review, retro, 1:1s, ad-hoc), across several projects. The plugin
+turns those actions into editor commands and adds the meeting- and sprint-oriented workflow
+around them: typed meeting notes, projects, action-item tracking, standup prep, Kanban
+capture/done, sprint-aware archives and reports.
 
 ## 2. Feature roadmap
 
 | #  | Feature                          | Priority  | Depends on | Replaces / adds                     |
 |----|----------------------------------|-----------|------------|-------------------------------------|
 | F0 | Foundation                       | Core      | —          | scaffold, config, root, tests, CI   |
-| F1 | Daily & meeting notes            | Core      | F0         | replaces `new-daily-note.py`, `new-meeting-note.py` |
+| F1 | Daily & meeting notes            | Core      | F0         | new                                 |
 | F1.5 | Onboarding (`init`, first run) | Core      | F1         | new                                 |
 | F1.6 | Projects                       | Core      | F1.5       | new                                 |
-| F2 | Archive                          | Core      | F0         | replaces `archive-journal.py`       |
+| F2 | Archive                          | Core      | F0         | new                                 |
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
 | F4 | Navigation (pickers)             | High      | F1         | new                                 |
 | F5 | Action items & meeting series    | High      | F1, F4*    | new                                 |
@@ -51,8 +44,8 @@ logic (week grouping + same-date body merge).
 \* soft dependency: works with the `vim.ui.select` fallback, better with F4.
 
 **Milestones**
-- **M1 (F0–F2, incl. F1.5–F1.6): Python scripts retired.** Everything `bin/` does is in the plugin, with parity
-  verified. Owner decides whether to delete `bin/` or keep it as a cron fallback.
+- **M1 (F0–F2, incl. F1.5–F1.6): Core journal.** Onboarding, projects, daily and meeting notes,
+  and weekly archiving.
 - **M2 (F3–F5): Daily driver.** Capture, complete, find, and follow up on meeting action items.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, sprint archives/reports, ticket links.
 
@@ -72,7 +65,7 @@ No keymaps are set by default; suggested ones go in the README.
 arithmetic goes through `util/date.lua`, anchored at **12:00 local time** to avoid DST bugs.
 
 **Journal files** (default layout, relative to the journal root; every path is configurable via
-`dirs`, so an existing journal such as `C1-llm-journal` keeps its `journal/…` layout in config).
+`dirs`, so an existing journal keeps its own layout in config).
 - `INBOX.md` / `DONE.md`: a title, then sections headed `## YYYY-MM-DD`, each holding items.
 - Daily notes: `daily/daily-YYYY-MM-DD.md`.
 - Meeting notes: `meetings/YYYY-MM-DD - <slug>.md`.
@@ -249,7 +242,7 @@ two note scripts.
   **All creation logic runs inside the async callbacks.** Empty/nil input → `vim.notify` and abort.
 - Slug from the final title; empty slug → `type` name as fallback.
 - **Existing-note rules:**
-  - Format without `{time}`: path exists → open it, never overwrite (parity with Python).
+  - Format without `{time}`: path exists → open it, never overwrite.
   - Format with `{time}`: if a note with the same date and slug exists, `vim.ui.select`
     "Open existing" / "Create new"; otherwise create.
 - Written notes start with frontmatter, then the template body:
@@ -295,8 +288,8 @@ the link to the buffer (left unsaved) instead of refusing.
 - Template rendering: all variables, a title containing `%` and `{`, `{cursor}` removal and position.
 - Filename generation with and without `{time}`; empty-slug fallback.
 - Daily link insertion: heading missing, heading present, link already present (idempotent).
-- Parity: generated daily/meeting file names and headers match the Python scripts for the same
-  date and title (ASCII titles; accented titles intentionally differ — document it).
+- Daily header `# {date} daily notes`; meeting header `# {date} - {title} meeting notes`;
+  filename `{date} - {slug}.md` (accented titles transliterated).
 
 ---
 
@@ -380,38 +373,45 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 
 ## F2 — Archive (Core)
 
-**Goal.** Port `archive-journal.py` with a preview + confirm step and safe writes. Replaces the
-script.
+**Goal.** Move `## YYYY-MM-DD` sections from past weeks out of `INBOX.md`/`DONE.md` into one
+archive file per week, with a preview + confirm step and safe writes.
 
 **Design** (`archive.lua`, using `markdown.lua`)
-- Faithful port of `parse(lines)`, `render(title, sections)`, `merge(existing, new)`
-  (concatenate same-date bodies) and the grouping function. Route grouping through a
-  **period function** — `period_of(iso) -> { key, start }` — that defaults to "Monday of week".
-  F7 plugs sprints in here without touching the archive logic.
-- Jobs: `inbox → journal_entries/week-<key>.md`, `done → done_entries/done-week-<key>.md`.
-  Sections in the current period stay in the source files.
-- `:Logpose archive` → build a plan → show it in a scratch split (read-only, `q` closes) listing,
-  per job, each section date → destination file, and whether that file is new or merged →
-  `vim.ui.select { "Archive", "Cancel" }`. `:Logpose archive!` skips the confirm.
-- Execute: check buffer safety for **every** file first (all-or-nothing), then write the period
-  files (merged) and finally rewrite `INBOX.md`/`DONE.md` with the kept sections. Atomic writes.
-- Nothing to archive → notify and stop; no files touched.
+- `markdown.lua` parses a file into blocks: preamble (before the first `## `), date sections
+  (`## YYYY-MM-DD` + body) and other `## ` sections. `parse → render` is lossless.
+- Grouping goes through a **period function** — `period_of(iso) -> { key, start }` — that
+  defaults to "Monday of week". F7 plugs sprints in here without touching the archive logic.
+- Jobs: `inbox → journal_entries/<affixes.week><key>.md`, `done → done_entries/<affixes.done_week><key>.md`.
+  Date sections in the current (or a future) period stay; preamble and non-date sections stay.
+- New archive files start with `archive.journal_title` / `archive.done_title`
+  (`# Journal: week of {period}`, `# Done: week of {period}`).
+- Merging into an archive file: a new date is inserted in date order (`section_order`: "auto"
+  follows the file, then the source, else oldest first); an existing date gets the moved body
+  appended — unless every line is already there (so re-running after an interrupted archive
+  never duplicates).
+- `:Logpose archive` → build a plan in memory → show it in a scratch split (`logpose://archive-preview`,
+  `q` closes) listing, per source, destination file (new/merge) and section dates →
+  `vim.ui.select { "Archive", "Cancel" }`. On confirm, re-plan (files may have changed) and
+  execute. `:Logpose archive!` (or `:Logpose! archive`) skips the preview.
+- Execute: check buffer safety for **every** file first (all-or-nothing), write the archive files,
+  then rewrite `INBOX.md`/`DONE.md` without the moved sections (no trailing blank lines left).
+  Atomic writes; clean open buffers reload.
+- Nothing to archive (or no INBOX/DONE) → notify and stop; no files touched.
 
 **Acceptance criteria**
-- On the same journal state, the preview lists exactly the moves `python3 bin/archive-journal.py
-  --dry-run` prints.
-- After confirming, the resulting files are byte-identical to what the Python script produces.
+- Past-week sections end up in the right weekly files, current-week sections stay.
 - A second run reports nothing to archive.
 - With `INBOX.md` open and modified, the archive aborts and names the file; nothing is written.
 
-**Tests (golden fixtures)**
-- Build fixture journals (`tests/fixtures/archive/<case>/before/`), run the **Python script** on a
-  copy once to produce `after/`, and commit both. Plugin output must equal `after/`.
-- Cases: single week, multiple weeks, merge into an existing week file with a same-date section,
-  current week only (no-op), empty file, sections across a year boundary.
-- Unit: `parse → render` round-trip is lossless.
+**Tests (fixtures inline in `tests/test_archive.lua`)**
+- Single and multiple weeks, DONE.md, merge into an existing week file (new and same-date
+  sections), newest-first files and forced `section_order`, year boundary, preamble and non-date
+  sections kept, trailing blank lines, everything archived, nothing to archive, missing files,
+  second run, interrupted run, unsaved buffer, buffer reload, preview content, cancel, custom
+  dirs/affixes/titles.
+- Unit: `parse → render` round-trip is lossless; block classification; order detection.
 
-**Milestone M1** after F2: update the README with a migration note; owner decides about `bin/`.
+**Milestone M1** after F2.
 
 ---
 
@@ -612,11 +612,7 @@ previous one.
 - `:checkhealth logpose` covers any new requirement the feature introduces.
 - No behaviour change to earlier features unless the spec says so.
 
-## 7. Behaviour changes vs. the Python scripts (documented in README)
+## 7. Release notes
 
-- Existing note → opened instead of an error.
-- `--dry-run` → interactive preview + confirm (`!` to skip).
-- Hardcoded `parent.parent` root → configured root, with marker autodetect as fallback.
-- Accented titles are transliterated in filenames (`reunion`, not `reuni-n`); content keeps the
-  original title.
-- Meeting notes gain frontmatter and typed templates.
+Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
