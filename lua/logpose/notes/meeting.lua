@@ -74,6 +74,8 @@ end
 ---@field path string
 ---@field content string
 ---@field cursor integer[]
+---@field previous? logpose.Item  previous note in the series
+---@field carried logpose.Item[]   open tasks carried over from it
 
 --- Build (but don't write) a meeting note.
 ---@param root string
@@ -126,6 +128,29 @@ function M.build(root, key, input, iso, project)
     table.insert(frontmatter, "project: " .. project)
   end
   vim.list_extend(frontmatter, { "title: " .. yaml_string(title), "attendees: []", "series: " .. series, "---" })
+
+  local path = fs.join(M.dir(root, project), M.filename(iso, slug, key))
+  local body = vim.split(rendered.text, "\n", { plain = true })
+  local cursor = { rendered.cursor[1], rendered.cursor[2] }
+  local previous, carried = M.previous(root, series, iso, path)
+  if previous then
+    local inserted = M.series_lines(path, previous, carried, root)
+    -- Right after the title heading (or at the top).
+    local h = 0
+    for i, line in ipairs(body) do
+      if line:match("^#%s") then
+        h = i
+        break
+      end
+    end
+    for i, line in ipairs(inserted) do
+      table.insert(body, h + i, line)
+    end
+    if cursor[1] > h then
+      cursor[1] = cursor[1] + #inserted
+    end
+  end
+
   return {
     key = key,
     title = title,
@@ -133,10 +158,89 @@ function M.build(root, key, input, iso, project)
     series = series,
     date = iso,
     project = project,
-    path = fs.join(M.dir(root, project), M.filename(iso, slug, key)),
-    content = table.concat(frontmatter, "\n") .. "\n" .. rendered.text,
-    cursor = { rendered.cursor[1] + #frontmatter, rendered.cursor[2] },
+    path = path,
+    content = table.concat(frontmatter, "\n") .. "\n" .. table.concat(body, "\n"),
+    cursor = { cursor[1] + #frontmatter, cursor[2] },
+    previous = previous,
+    carried = carried,
   }
+end
+
+--- Most recent earlier note of `series` and its open tasks.
+---@param root string
+---@param series string
+---@param iso string
+---@param path string the new note (excluded)
+---@return logpose.Item? previous, logpose.Item[] open_tasks
+function M.previous(root, series, iso, path)
+  local items = require("logpose.index").build(root)
+  local best
+  for _, it in ipairs(items) do
+    if it.kind == "note" and it.note_type == "meeting" and it.series == series and it.date and it.file ~= path then
+      local earlier = it.date < iso or (it.date == iso and it.file < path)
+      if earlier and (not best or it.date > best.date or (it.date == best.date and it.file > best.file)) then
+        best = it
+      end
+    end
+  end
+  local open = {}
+  if best and config.get().series.carry_over then
+    for _, it in ipairs(items) do
+      if it.kind == "task" and it.file == best.file and not it.checked then
+        table.insert(open, it)
+      end
+    end
+  end
+  return best, open
+end
+
+--- "Previous: …" and the "## Carried over" section for a new note at `path`.
+---@param path string
+---@param previous logpose.Item
+---@param carried logpose.Item[]
+---@param root string
+---@return string[]
+function M.series_lines(path, previous, carried, root)
+  local label = previous.date and (previous.title .. " " .. previous.date) or previous.title
+  local lines = { "", "Previous: " .. link.make(path, previous.file, label, root) }
+  if #carried > 0 then
+    vim.list_extend(lines, { "", "## Carried over" })
+    local from = link.make(path, previous.file, previous.date or previous.title, root)
+    for _, it in ipairs(carried) do
+      -- Drop an older "(from …)" so items carried several times keep one, current, origin.
+      local text = it.text:gsub("%s*%(from %[%[.-%]%]%)$", ""):gsub("%s*%(from %[.-%]%(.-%)%)$", "")
+      table.insert(lines, ("- [ ] %s (from %s)"):format(text, from))
+    end
+  end
+  return lines
+end
+
+--- Mark carried tasks in the previous note as `- [>]` (migrated), so they aren't listed twice.
+---@param note logpose.MeetingNote
+---@return "file"|"buffer"|nil
+function M.mark_carried(note)
+  if not note.previous or #note.carried == 0 or not config.get().series.mark_carried then
+    return nil
+  end
+  local rows = {}
+  for _, it in ipairs(note.carried) do
+    rows[it.lnum] = true
+  end
+  local ok, err, changed = fs.update_lines(note.previous.file, function(lines)
+    local touched = false
+    for lnum in pairs(rows) do
+      local line = lines[lnum]
+      if line and line:match("^%s*[-*+]%s+%[ %]") then
+        lines[lnum] = line:gsub("%[ %]", "[>]", 1)
+        touched = true
+      end
+    end
+    return touched and lines or nil
+  end)
+  if not ok then
+    error(err, 0)
+  end
+  return changed
 end
 
 --- Directory for meeting notes of `project` (see `meeting_subdir`).
@@ -282,6 +386,10 @@ local function write_and_open(root, note)
   local ok, err = fs.write_file(note.path, note.content)
   if not ok then
     error(err, 0)
+  end
+  local marked, mark_err = pcall(M.mark_carried, note)
+  if not marked then
+    vim.notify("logpose: couldn't mark carried items in the previous note: " .. tostring(mark_err), vim.log.levels.WARN)
   end
   local linked, link_err = pcall(M.link_in_daily, root, note)
   if not linked then
