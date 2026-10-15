@@ -1,0 +1,5 @@
+# {title}
+
+{cursor}
+
+## Log

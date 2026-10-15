@@ -7,6 +7,7 @@
 ---   week:SPEC  sprint:SPEC   SPEC = current, -1, +1, a date, or a sprint number
 ---   section:decisions      under a `## ` heading containing the text
 ---   person:ana  @ana       involves the person (attendee, 1:1, @mention)
+---   status:todo  blocked   task files: board column; blocked tasks
 ---   anything else          words that must all appear in the text
 local date = require("logpose.util.date")
 
@@ -21,6 +22,8 @@ local M = {}
 ---@field until? string
 ---@field section? string
 ---@field people string[]
+---@field status? string
+---@field blocked? boolean
 ---@field words string[]
 
 ---@param args string[]
@@ -65,6 +68,8 @@ function M.parse(args, today, lenient)
       end
     elseif key == "person" then
       table.insert(q.people, require("logpose.util.text").slugify(value))
+    elseif key == "status" then
+      q.status = value:lower()
     elseif key == "section" then
       q.section = (value:lower():gsub("%-", " "))
     elseif arg:match("^@.") then
@@ -73,6 +78,8 @@ function M.parse(args, today, lenient)
       table.insert(q.tags, arg:sub(2):lower())
     elseif arg == "open" or arg == "done" then
       q.state = arg
+    elseif arg == "blocked" then
+      q.blocked = true
     else
       table.insert(q.words, arg:lower())
     end
@@ -119,9 +126,24 @@ function M.match(item, q)
     return false
   end
   if q.state then
-    if item.kind ~= "task" or item.checked ~= (q.state == "done") then
+    local is_file = item.note_type == "task" and item.kind == "note"
+    local done
+    if is_file then
+      done = item.status == require("logpose.config").get().board.done
+    elseif item.kind == "task" then
+      done = item.checked
+    else
       return false
     end
+    if done ~= (q.state == "done") then
+      return false
+    end
+  end
+  if q.status and not (item.kind == "note" and item.status == q.status) then
+    return false
+  end
+  if q.blocked and not (item.kind == "note" and item.blocked) then
+    return false
   end
   if q.since and (not item.date or item.date < q.since) then
     return false

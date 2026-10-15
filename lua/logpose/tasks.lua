@@ -130,7 +130,24 @@ function M.done(root, line1, line2)
     return
   end
 
+  local taskfile = require("logpose.taskfile")
+  if
+    taskfile.is_task_file(abs, root)
+    and not M.parse_task(vim.api.nvim_buf_get_lines(buf, line1 - 1, line1, false)[1] or "")
+  then
+    -- In a task file (not on one of its checklist items): the task itself is done.
+    local done = config.get().board.done
+    if taskfile.set_status(abs, done) then
+      vim.notify("logpose: moved to " .. taskfile.label(done), vim.log.levels.INFO)
+    else
+      vim.notify("logpose: already " .. taskfile.label(done), vim.log.levels.INFO)
+    end
+    return
+  end
+
   local from_inbox = same_file(abs, "inbox", root)
+  -- With task files, a checkbox outside INBOX is just checked off (no DONE.md log).
+  local log = from_inbox or config.get().tasks.mode == "inbox"
   local was_modified = vim.bo[buf].modified
   local lines = vim.api.nvim_buf_get_lines(buf, line1 - 1, line2, false)
   local done_path = config.path("done", root)
@@ -143,7 +160,7 @@ function M.done(root, line1, line2)
       already = already + 1
     else
       local item = "- [x] " .. task.text
-      if not from_inbox then
+      if not from_inbox and log then
         local label = vim.fn.fnamemodify(abs, ":t:r")
         item = item .. " (" .. link.make(done_path, abs, label, root) .. ")"
       end
@@ -153,7 +170,9 @@ function M.done(root, line1, line2)
   end
 
   if #items > 0 then
-    add_items(done_path, "# DONE", items)
+    if log then
+      add_items(done_path, "# DONE", items)
+    end
     -- Edit the current buffer through the API so `u` undoes it.
     for j = #rows, 1, -1 do
       local row = rows[j]
@@ -186,13 +205,46 @@ function M.done(root, line1, line2)
   vim.notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
 end
 
+--- Capture `text` as a task file in `tasks.capture_status` (files mode).
+---@param text string
+---@param root string
+---@param project? string
+---@param open? boolean open the new file to add context
+---@return string path
+function M.capture_file(text, root, project, open)
+  local taskfile = require("logpose.taskfile")
+  local title, tags, due = taskfile.from_text(text)
+  tags = vim.tbl_filter(function(t)
+    return t ~= project
+  end, tags)
+  local status = config.get().tasks.capture_status
+  local path, cursor = taskfile.create(root, { title = title, project = project, tags = tags, due = due })
+  if open then
+    vim.cmd.edit(vim.fn.fnameescape(path))
+    pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+  end
+  vim.notify(
+    ("logpose: captured to %s: %s"):format(taskfile.label(status), link.relpath(root, path)),
+    vim.log.levels.INFO
+  )
+  return path
+end
+
 ---@param opts logpose.CommandOpts
 function M.capture_command(opts)
   local text = vim.trim(table.concat(opts.args, " "))
+  local files = config.get().tasks.mode == "files"
   config.with_root(ui.safely(function(root)
     local project = require("logpose.project").resolve(root)
+    local function capture(t)
+      if files then
+        M.capture_file(t, root, project, opts.bang)
+      else
+        M.capture(t, root, project)
+      end
+    end
     if text ~= "" then
-      M.capture(text, root, project)
+      capture(text)
       return
     end
     local prompt = project and ("Capture (#" .. project .. "): ") or "Capture: "
@@ -204,7 +256,7 @@ function M.capture_command(opts)
           vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
           return
         end
-        M.capture(input, root, project)
+        capture(input)
       end)
     )
   end))

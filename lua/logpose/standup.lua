@@ -261,7 +261,44 @@ local function group(items, projects)
   return out
 end
 
---- Standup text for the daily note of `iso`.
+--- Task-file lines for each standup section: done since the previous workday, in progress,
+--- blocked. Each line carries `#project` so grouping works.
+---@param root string
+---@param iso string
+---@return table<string, string[]>
+function M.board_items(root, iso)
+  local out = { yesterday = {}, today = {}, blockers = {} }
+  if config.get().tasks.mode ~= "files" then
+    return out
+  end
+  local cfg = config.get().board
+  local since = date.prev_workday(iso, config.get().workdays)
+  local tasks = vim.tbl_filter(function(it)
+    return it.kind == "note" and it.note_type == "task" and not it.archived
+  end, require("logpose.index").build(root))
+  table.sort(tasks, function(a, b)
+    return a.file < b.file
+  end)
+  for _, it in ipairs(tasks) do
+    local tag = it.project and (" #" .. it.project) or ""
+    if it.status == cfg.done then
+      if it.done_date and it.done_date >= since and it.done_date < iso then
+        table.insert(out.yesterday, "- [x] " .. it.text .. tag)
+      end
+    else
+      if it.status == cfg.start then
+        table.insert(out.today, "- [ ] " .. it.text .. tag)
+      end
+      if it.blocked then
+        local reason = it.blocked == "yes" and "" or (": " .. it.blocked)
+        table.insert(out.blockers, "- " .. it.text .. reason .. tag)
+      end
+    end
+  end
+  return out
+end
+
+--- Standup text for the daily note of `iso`, plus the board's task files.
 ---@param root string
 ---@param iso string
 ---@return string[]? lines, string? err
@@ -270,8 +307,12 @@ function M.render(root, iso)
   local path = daily.path(iso, root)
   local buf = fs.find_buf(path)
   local lines = buf and vim.api.nvim_buf_get_lines(buf, 0, -1, false) or fs.read_lines(path)
+  local board = M.board_items(root, iso)
   if not lines then
-    return nil, ("logpose: no daily note for %s; run :Logpose daily"):format(iso)
+    if #board.yesterday + #board.today + #board.blockers == 0 then
+      return nil, ("logpose: no daily note for %s; run :Logpose daily"):format(iso)
+    end
+    lines = {}
   end
   local opts = config.get().standup
   local projects = {}
@@ -283,6 +324,11 @@ function M.render(root, iso)
   for _, key in ipairs({ "yesterday", "today", "blockers" }) do
     local name = opts.sections[key]
     local items = M.section(lines, name)
+    for _, line in ipairs(board[key]) do
+      if not vim.tbl_contains(items, line) then
+        table.insert(items, line)
+      end
+    end
     table.insert(out, "")
     table.insert(out, "## " .. name)
     if #items == 0 then

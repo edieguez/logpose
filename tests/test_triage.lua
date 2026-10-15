@@ -10,7 +10,7 @@ local T = MiniTest.new_set({
       child.setup()
       root = H.journal()
       child.cmd("cd " .. H.tmpdir())
-      child.lua(("require('logpose').setup({ root = %q, picker = 'select' })"):format(root))
+      child.lua(("require('logpose').setup({ root = %q, picker = 'select', tasks = { mode = 'inbox' } })"):format(root))
       H.freeze(child, 2026, 10, 14)
       H.write(root .. "/INBOX.md", table.concat({
         "# INBOX",
