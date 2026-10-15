@@ -3,7 +3,8 @@
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
 > **Status: early development.** The core journal (M1) is done: onboarding, projects, daily and
-> meeting notes, and weekly or sprint archiving. M2 is under way: capture/done work; pickers land next.
+> meeting notes, and weekly or sprint archiving. M2 is under way: capture/done and search work;
+> meeting action items land next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -45,6 +46,8 @@ carries on. Run `:Logpose init` again any time to switch journals.
 | `:Logpose archive[!]` | Move past weeks of `INBOX.md`/`DONE.md` into weekly archive files. Shows a preview and asks first; `!` skips it. |
 | `:Logpose capture [text]` | Add `- [ ] text` under today in `INBOX.md` (tagged `#project` when one is active). No text: prompt. |
 | `:Logpose done` | Mark the task on the current line (or a range / visual selection) done: from INBOX it moves to `DONE.md`; in a meeting or daily note it's checked off and logged in DONE with a link. |
+| `:Logpose find [scope] [filters]` | Search notes, tasks, tags and projects (see below). |
+| `:Logpose grep [text]` | Live grep in the journal (quickfix list without a picker plugin). |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -60,6 +63,9 @@ vim.keymap.set("n", "<leader>jd", "<Plug>(logpose-daily)", { desc = "Daily note"
 vim.keymap.set("n", "<leader>jm", "<Plug>(logpose-meeting)", { desc = "Meeting note" })
 vim.keymap.set("n", "<leader>jc", "<Plug>(logpose-capture)", { desc = "Capture to INBOX" })
 vim.keymap.set({ "n", "x" }, "<leader>jx", "<Plug>(logpose-done)", { desc = "Mark done" })
+vim.keymap.set("n", "<leader>jf", "<Plug>(logpose-find)", { desc = "Find notes" })
+vim.keymap.set("n", "<leader>jt", "<cmd>Logpose find tasks open<cr>", { desc = "Open tasks" })
+vim.keymap.set("n", "<leader>j/", "<Plug>(logpose-grep)", { desc = "Grep journal" })
 ```
 
 ### Archiving
@@ -98,6 +104,34 @@ meeting notes are filed per project:
   `- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]`. Recurring meetings are grouped per
   project.
 - `require("logpose").project()` returns the active project, e.g. for your statusline.
+
+### Searching
+
+`:Logpose find` works with snacks.picker (LazyVim's default), fzf-lua or Telescope, whichever is
+installed, and falls back to `vim.ui.select`. Logpose builds the results itself, so every picker
+shows the same thing.
+
+Scopes: `notes` (default), `daily`, `meetings`, `archives`, `tasks`, `tags`, `projects`.
+Filters, all combined with AND (with completion):
+
+| Filter | Matches |
+|---|---|
+| `project:acme` | items of project `acme`, or tagged `#acme` |
+| `#perf` / `tag:perf` | items carrying the tag |
+| `type:retro` | meetings of that type |
+| `open` / `done` | tasks by state |
+| `since:2026-10-01` / `until:2026-10-14` | by date |
+| other words | must all appear in the text |
+
+```vim
+:Logpose find meetings project:acme
+:Logpose find tasks open #perf
+:Logpose find tags          " pick a tag, then everything tagged with it
+:Logpose find projects      " pick a project, then its notes and tasks
+```
+
+Tags are inline `#words` (not headings, URL fragments or issue numbers like `#123`) plus
+frontmatter `tags: [a, b]`, compared case-insensitively.
 
 ### Templates
 
