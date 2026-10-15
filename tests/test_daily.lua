@@ -34,7 +34,7 @@ T["creates today's note and puts the cursor under ## Today"] = function()
   eq(child.api.nvim_win_get_cursor(0), { 6, 0 })
 end
 
-T["header matches the Python script's format"] = function()
+T["header format"] = function()
   child.cmd("Logpose daily")
   eq(vim.split(H.read(daily_path("2026-10-14")), "\n")[1], "# 2026-10-14 daily notes")
 end
