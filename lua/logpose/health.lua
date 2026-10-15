@@ -55,6 +55,13 @@ function M.check()
     h.ok(("By week, starting %s: current is %s"):format(day, current.label))
   end
 
+  h.start("logpose: usage stats")
+  if config.get().telemetry.enabled then
+    h.ok("On (local only): " .. vim.fn.fnamemodify(require("logpose.telemetry").path(), ":~"))
+  else
+    h.info("Off. Enable with setup({ telemetry = { enabled = true } }); see :Logpose stats")
+  end
+
   h.start("logpose: journal paths")
   local keys = vim.tbl_keys(config.get().dirs)
   table.sort(keys)
