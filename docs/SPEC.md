@@ -38,6 +38,7 @@ logic (week grouping + same-date body merge).
 |----|----------------------------------|-----------|------------|-------------------------------------|
 | F0 | Foundation                       | Core      | —          | scaffold, config, root, tests, CI   |
 | F1 | Daily & meeting notes            | Core      | F0         | replaces `new-daily-note.py`, `new-meeting-note.py` |
+| F1.5 | Onboarding (`init`, first run) | Core      | F1         | new                                 |
 | F2 | Archive                          | Core      | F0         | replaces `archive-journal.py`       |
 | F3 | Kanban flow (capture / done)     | High      | F0         | new                                 |
 | F4 | Navigation (pickers)             | High      | F1         | new                                 |
@@ -49,10 +50,14 @@ logic (week grouping + same-date body merge).
 \* soft dependency: works with the `vim.ui.select` fallback, better with F4.
 
 **Milestones**
-- **M1 (F0–F2): Python scripts retired.** Everything `bin/` does is in the plugin, with parity
+- **M1 (F0–F2, incl. F1.5): Python scripts retired.** Everything `bin/` does is in the plugin, with parity
   verified. Owner decides whether to delete `bin/` or keep it as a cron fallback.
 - **M2 (F3–F5): Daily driver.** Capture, complete, find, and follow up on meeting action items.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, sprint archives/reports, ticket links.
+
+**Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F2 / M1 …); fixes bump the patch;
+1.0.0 once M3 is done.
 
 ---
 
@@ -65,11 +70,12 @@ No keymaps are set by default; suggested ones go in the README.
 **Dates.** ISO `YYYY-MM-DD` strings everywhere; compare them lexicographically. All date
 arithmetic goes through `util/date.lua`, anchored at **12:00 local time** to avoid DST bugs.
 
-**Journal files (existing formats — verify against the real files before coding).**
+**Journal files** (default layout, relative to the journal root; every path is configurable via
+`dirs`, so an existing journal such as `C1-llm-journal` keeps its `journal/…` layout in config).
 - `INBOX.md` / `DONE.md`: a title, then sections headed `## YYYY-MM-DD`, each holding items.
-- Daily notes: `journal/daily/daily-YYYY-MM-DD.md`.
-- Meeting notes: `journal/meetings/YYYY-MM-DD - <slug>.md`.
-- Week archives: `journal/journal-entries/week-<monday>.md`, `journal/done-entries/done-week-<monday>.md`.
+- Daily notes: `daily/daily-YYYY-MM-DD.md`.
+- Meeting notes: `meetings/YYYY-MM-DD - <slug>.md`.
+- Week archives: `journal-entries/week-<monday>.md`, `done-entries/done-week-<monday>.md`.
 
 **Tasks.** A task is a markdown list item `- [ ] text` (open) or `- [x] text` (done).
 Optional inline metadata, parsed from F5 on: `@owner`, `due:YYYY-MM-DD`.
@@ -130,15 +136,15 @@ Makefile                    -- `make test`, `make lint`
 2. `config.lua` defaults:
    ```lua
    {
-     root = nil,                 -- absolute path, e.g. "~/repos/C1-llm-journal" (recommended)
-     root_markers = { ".llm-wiki-layout" },
+     root = nil,                 -- absolute path; overrides the root saved by :Logpose init
+     root_markers = { ".logpose" },  -- generic defaults since F1.5 (were C1's journal/… layout)
      dirs = {
-       daily = "journal/daily",           meetings = "journal/meetings",
-       inbox = "journal/INBOX.md",        done = "journal/DONE.md",
-       journal_entries = "journal/journal-entries",
-       done_entries = "journal/done-entries",
-       templates = "journal/templates",   -- user overrides; falls back to plugin templates/
-       reports = "journal/reports",
+       daily = "daily",                   meetings = "meetings",
+       inbox = "INBOX.md",                done = "DONE.md",
+       journal_entries = "journal-entries",
+       done_entries = "done-entries",
+       templates = "templates",           -- user overrides; falls back to plugin templates/
+       reports = "reports",
      },
      affixes = { daily = "daily-", week = "week-", done_week = "done-week-" },
      link_style = "wiki",
@@ -149,8 +155,8 @@ Makefile                    -- `make test`, `make lint`
    Feature-specific keys are added by their features. Unknown keys → warning, not error.
    Invalid values → error. Lists (`workdays`, `root_markers`) are replaced, not merged.
 3. **Root resolution** (in order): configured `root` (expand `~`) → `vim.fs.root(current buffer,
-   root_markers)` → `vim.fs.root(cwd, root_markers)` → error "logpose: journal root not found;
-   set `root` in setup()". A bare `journal/` directory is **not** a marker (too many false
+   root_markers)` → `vim.fs.root(cwd, root_markers)` → the root saved by `:Logpose init` (F1.5)
+   → error "logpose: journal root not found; run :Logpose init or set `root` in setup()". A bare `journal/` directory is **not** a marker (too many false
    positives). The configured path comes first because the owner is usually editing a *work*
    repo when a meeting starts.
 4. `util/date.lua`: `today()`, `now_hhmm()`, `parse_iso(s)`, `add_days(iso, n)`,
@@ -258,7 +264,7 @@ two note scripts.
   (`series` is filled in now so F5 can use it: the type name for fixed-title types; for types
   with a prompt, `<type>-<slug of the input>`, e.g. `1on1-ana`, `adhoc-reunion-con-qa`.)
 - Types are ordered by an `order` field in the picker; set a type to `false` to remove it; a type
-  without `template` uses `meeting`. Wiki links are relative to `link_base` (default `journal`).
+  without `template` uses `meeting`. Wiki links are relative to `link_base` (default `""`, the root).
 - Default `templates/meeting.md`: `# {date} - {title} meeting notes`, then `## Notes`
   (cursor here — notes come first during a meeting), `## Decisions`, `## Action items` (`- [ ] `). Type templates add their own sections:
   - planning: Sprint goal / Committed items / Risks / Action items
@@ -290,6 +296,41 @@ the link to the buffer (left unsaved) instead of refusing.
 - Daily link insertion: heading missing, heading present, link already present (idempotent).
 - Parity: generated daily/meeting file names and headers match the Python scripts for the same
   date and title (ASCII titles; accented titles intentionally differ — document it).
+
+---
+
+## F1.5 — Onboarding (Core)
+
+**Goal.** A new user gets a working journal without editing their config.
+
+**Design** (`onboard.lua`, `state.lua`)
+- `state.lua`: JSON in `stdpath("data")/logpose/state.json`; `get(key)`, `set(key, value)`.
+- `:Logpose init [dir]` — no argument → `vim.ui.input` (prompt "Journal directory: ", default:
+  the saved root or `~/journal`, `completion = "dir"`). Then:
+  - a file → error; missing or empty directory → create it with `dirs.daily`, `dirs.meetings`,
+    `INBOX.md` (`# INBOX`), `DONE.md` (`# DONE`); existing non-empty directory → nothing scaffolded;
+  - write the first `root_markers` entry if missing (never `.git`);
+  - save the root to state; notify; warn if `setup({ root })` points elsewhere (it wins).
+- Root resolution gains a last step: the saved root (ignored if the directory is gone).
+- `config.with_root(fn)`: commands that need a root (`daily`, `meeting`, and every later feature)
+  call it. No root → the first-run prompt ("No journal found. Create one at: "), then continue
+  the original command with the new root. Cancel → warning naming `:Logpose init`. A configured
+  but missing `root` is an error, never a prompt. Validate arguments (e.g. meeting type) before
+  prompting.
+- Health reports "saved by :Logpose init" as a root source and suggests `:Logpose init` when no
+  root is found.
+- Generic defaults (§3): paths relative to the root, `.logpose` marker, `link_base = ""`.
+
+**Acceptance criteria**
+- In a fresh Neovim with no config, `:Logpose daily` asks for a directory, creates the journal,
+  and opens today's note in it; afterwards commands work from any buffer.
+- `:Logpose init ~/existing-notes` only adds `.logpose`; existing files are untouched.
+- Tests never touch the real `stdpath("data")` (each child gets its own `XDG_DATA_HOME`).
+
+**Tests**
+- Scaffold vs existing directory, spaces and `~` in paths, file instead of directory, custom
+  `dirs`/markers, prompt defaults and cancel, saved-root precedence, first run from `daily` and
+  `meeting`, configured-but-missing root, directory completion.
 
 ---
 
@@ -505,6 +546,7 @@ previous one.
 
 | Command                                   | Feature |
 |-------------------------------------------|---------|
+| `:Logpose init [dir]`                     | F1.5 |
 | `:Logpose daily [date\|prev\|next\|today]` | F1 |
 | `:Logpose meeting [type] [date]`          | F1, F5 |
 | `:Logpose archive[!]`                     | F2, F7 |

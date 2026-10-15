@@ -2,7 +2,7 @@
 
 Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in Neovim.
 
-> **Status: early development.** Daily and meeting notes work; archiving lands next.
+> **Status: early development.** Onboarding, daily and meeting notes work; archiving lands next.
 > See [`docs/SPEC.md`](docs/SPEC.md) for the full plan and roadmap.
 
 ## Requirements
@@ -19,18 +19,27 @@ Daily notes, meeting notes and sprint archives for Scrum/Kanban developers, in N
 {
   "edieguez/logpose",
   cmd = "Logpose",
-  opts = {
-    root = "~/path/to/your/journal", -- recommended: commands then work from any buffer
-  },
+  opts = {},
 }
 ```
 
 For local development, use `dir = "~/Projects/logpose"` instead of the repo name.
 
+## Getting started
+
+Run `:Logpose init` and pick a directory for your journal (default `~/journal`). Logpose creates
+it with `daily/`, `meetings/`, `INBOX.md`, `DONE.md` and a `.logpose` marker, and remembers it, so
+commands work from any buffer with no configuration. Pointing it at a directory that already has
+notes only adds the marker.
+
+If you skip this step, the first command that needs a journal offers to create one and then
+carries on. Run `:Logpose init` again any time to switch journals.
+
 ## Usage
 
 | Command | What it does |
 |---|---|
+| `:Logpose init [dir]` | Choose or create the journal directory and remember it. |
 | `:Logpose daily [today\|prev\|next\|YYYY-MM-DD]` | Create (if needed) and open a daily note. `prev`/`next` step by workdays from the note you're in. |
 | `:Logpose meeting [type] [YYYY-MM-DD]` | New meeting note. Without a type, pick one from a list. Pass a date to backfill. |
 
@@ -59,21 +68,21 @@ template (`daily`, `meeting`, `planning`, `refinement`, `review`, `retro`, `1on1
 
 ```lua
 require("logpose").setup({
-  root = nil,                            -- absolute path to the journal repo
-  root_markers = { ".llm-wiki-layout" }, -- used to find the root when `root` is nil
-  dirs = {
-    daily = "journal/daily",
-    meetings = "journal/meetings",
-    inbox = "journal/INBOX.md",
-    done = "journal/DONE.md",
-    journal_entries = "journal/journal-entries",
-    done_entries = "journal/done-entries",
-    templates = "journal/templates",
-    reports = "journal/reports",
+  root = nil,                            -- journal path; overrides the one saved by :Logpose init
+  root_markers = { ".logpose" },         -- used to find the root when `root` is nil
+  dirs = {                               -- relative to the root
+    daily = "daily",
+    meetings = "meetings",
+    inbox = "INBOX.md",
+    done = "DONE.md",
+    journal_entries = "journal-entries",
+    done_entries = "done-entries",
+    templates = "templates",
+    reports = "reports",
   },
   affixes = { daily = "daily-", week = "week-", done_week = "done-week-" },
   link_style = "wiki",                   -- or "markdown"
-  link_base = "journal",                 -- wiki-link targets are relative to this dir
+  link_base = "",                        -- wiki-link targets are relative to this dir ("" = root)
   workdays = { 1, 2, 3, 4, 5 },          -- ISO weekdays, Monday = 1
   picker = "auto",                       -- "snacks" | "fzf_lua" | "telescope" | "select"
   meeting_filename = "{date} - {slug}",  -- may add {time} (HHMM) for several same-title meetings a day
@@ -90,7 +99,27 @@ require("logpose").setup({
 ```
 
 The journal root is resolved in this order: `root` → a marker above the current buffer → a marker
-above the current directory.
+above the current directory → the journal saved by `:Logpose init`.
+
+An existing journal with a different layout just needs `dirs` (and `link_base` if wiki links
+should be relative to a subdirectory):
+
+```lua
+opts = {
+  root = "~/repos/my-journal",
+  link_base = "journal",
+  dirs = {
+    daily = "journal/daily",
+    meetings = "journal/meetings",
+    inbox = "journal/INBOX.md",
+    done = "journal/DONE.md",
+    journal_entries = "journal/journal-entries",
+    done_entries = "journal/done-entries",
+    templates = "journal/templates",
+    reports = "journal/reports",
+  },
+}
+```
 
 Add your own meeting types (e.g. `standup = { label = "Standup", title = "Standup" }`) or remove one
 with `retro = false`.

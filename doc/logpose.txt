@@ -29,9 +29,9 @@ Requires Neovim 0.10 or later.
 Options ~
 
   root           (string|nil)  Absolute path to the journal. `~` is expanded.
-                 Recommended, so commands work from any buffer.
+                 Overrides the journal saved by |:Logpose-init|.
   root_markers   (string[])    Markers that identify a journal root when
-                 `root` is nil. Default: `{ ".llm-wiki-layout" }`.
+                 `root` is nil. Default: `{ ".logpose" }`.
   dirs           (table)       Paths relative to the root: `daily`,
                  `meetings`, `inbox`, `done`, `journal_entries`,
                  `done_entries`, `templates`, `reports`.
@@ -43,7 +43,7 @@ Options ~
   picker         (string)      "auto", "snacks", "fzf_lua", "telescope" or
                  "select". Default "auto".
   link_base      (string)      Directory (relative to root) that wiki-link
-                 targets are relative to. Default "journal".
+                 targets are relative to. Default "" (the root).
   meeting_filename (string)    Meeting filename without `.md`. Variables:
                  {date}, {time} (HHMM), {slug}, {type}. Must contain {slug}.
                  Default "{date} - {slug}".
@@ -62,6 +62,10 @@ The root is resolved in this order:
   1. The configured `root`.
   2. A marker above the current buffer's file.
   3. A marker above the current working directory.
+  4. The journal saved by |:Logpose-init| (stored in
+     `stdpath("data")/logpose/state.json`).
+
+When none is found, commands offer to create a journal and then continue.
 
 A bare `journal/` directory is not a marker.
 
@@ -73,6 +77,13 @@ A bare `journal/` directory is not a marker.
     Run a logpose subcommand. <Tab> completes subcommands and arguments.
     Each subcommand also has a `<Plug>(logpose-{subcommand})` mapping.
     No keymaps are set by default.
+
+                                                               *:Logpose-init*
+:Logpose init [{dir}]
+    Choose or create the journal directory (prompts with `~/journal` when
+    {dir} is omitted) and remember it. A new or empty directory gets
+    `daily/`, `meetings/`, `INBOX.md`, `DONE.md` and the root marker; an
+    existing one only gets the marker. Run again to switch journals.
 
                                                               *:Logpose-daily*
 :Logpose daily [today|prev|next|{YYYY-MM-DD}]
