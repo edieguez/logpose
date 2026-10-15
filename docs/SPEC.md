@@ -51,7 +51,7 @@ capture/done, sprint-aware archives and reports.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports, ticket links.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5 …); fixes bump the patch;
+bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6 …); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -591,25 +591,33 @@ previous one.
 
 ## F6 — Standup prep (Medium)
 
-**Goal.** The daily note arrives with "Yesterday" already written.
+**Goal.** The daily note arrives with "Yesterday" already written and unfinished work carried.
 
-**Design** (`standup.lua`, hooked into F1.2 creation only — never modifies an existing note)
-- Find the **most recent existing** daily note before the new date (handles weekends, vacations).
-- Copy its `## Today` items into the new note's `## Yesterday`.
-- Copy its **open** tasks from `## Today` into the new `## Today` (carry-forward), unless
-  `standup.carry_forward = false`.
-- Optionally append today's DONE entries for that previous date (`standup.include_done = true`).
-- Section names configurable: `standup.sections = { yesterday = "Yesterday", today = "Today" }`.
-- Add `:Logpose standup` to open a read-only scratch buffer with Yesterday / Today / Blockers of
-  today's note, ready to read aloud or paste into chat.
+**Design** (`standup.lua`, hooked into daily-note creation only — never modifies an existing note)
+- Previous note = the most recent existing daily note before the new date (weekends, vacations).
+- From its `## Today` section:
+  - checked tasks → `## Yesterday` as plain bullets (`- text`); other non-empty lines (notes,
+    plain bullets) are copied as they are; `- [>]` lines are skipped;
+  - open tasks → the new `## Today` (`standup.carry_forward`, default on), and with
+    `standup.mark_carried` (default) they become `- [>]` in the previous note so they're
+    tracked once; empty placeholders are ignored.
+- `standup.include_done = true` also lists that day's `DONE.md` entries under Yesterday
+  (without duplicating lines already there).
+- Items go right after each heading; the cursor stays on the empty line after the carried tasks.
+- Section names configurable: `standup.sections = { yesterday, today, blockers }`.
+- `:Logpose standup [date]` opens a read-only scratch buffer (`logpose://standup/<date>`, `q`
+  closes) with Yesterday / Today / Blockers of that day's note (unsaved edits included). With
+  `standup.group_by_project` (default) items tagged with a known project are grouped under
+  `### <project>`, the rest under `### other`; empty sections show `- (none)`.
 
 **Acceptance criteria**
-- Monday's new note gets Friday's items in "Yesterday"; open Friday tasks carry into "Today".
+- Monday's new note gets Friday's done items in "Yesterday" and open tasks in "Today".
 - An existing daily note is never modified by re-running `:Logpose daily`.
 
 **Tests**
-- Previous-note lookup across a gap of several days; no previous note → template unchanged.
-- Section extraction when sections are missing, empty, or renamed via config.
+- Prefill content and cursor, `[>]` marking and single listing, each option off, include_done,
+  no previous note, existing note untouched, custom section names.
+- Standup view: grouping, flat output, unsaved edits, missing note.
 
 ---
 
@@ -670,7 +678,7 @@ previous one.
 | `:Logpose find [notes\|daily\|meetings\|archives\|tasks\|tags\|projects] [filters]` | F4 |
 | `:Logpose grep [text]`                    | F4 |
 | `:Logpose actions [open\|mine\|overdue\|all] [filters]` | F5 |
-| `:Logpose standup`                        | F6 |
+| `:Logpose standup [date]`                 | F6 |
 | `:Logpose report[!] [week\|sprint] [offset]` | F7 |
 | `:Logpose ticket [ID]`                    | F8 |
 

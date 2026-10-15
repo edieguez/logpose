@@ -76,6 +76,10 @@ Options ~
   series         (table)       `carry_over` (true): carry the previous
                  meeting's open tasks. `mark_carried` (true): mark them
                  `- [>]` in the previous note.
+  standup        (table)       `sections` (names of the yesterday/today/
+                 blockers headings), `carry_forward` (true), `mark_carried`
+                 (true), `include_done` (false), `group_by_project` (true).
+                 See |logpose-standup|.
   projects       (table)       `detect` (boolean, default true): the git
                  repo of the current buffer/cwd is the project. `paths`
                  (table): directory -> project name; longest match wins.
@@ -162,6 +166,18 @@ A bare `journal/` directory is not a marker.
     and logged in DONE with a link back to the note. Non-task lines are
     skipped. The current buffer is edited so |u| undoes it, then saved
     unless it already had unsaved changes.
+
+                                                            *:Logpose-standup*
+:Logpose standup [{date}]
+    Show Yesterday / Today / Blockers of the daily note (today by default)
+    in a scratch buffer, grouped by project tag. `q` closes it.
+
+                                                            *logpose-standup*
+Standup prep ~
+A new daily note starts from the most recent earlier one: its checked
+`## Today` tasks (and other lines) go under `## Yesterday`, its open tasks
+move to the new `## Today` and are marked `- [>]` in the old note. Existing
+notes are never changed.
 
                                                             *:Logpose-actions*
 :Logpose actions [open|mine|overdue|all] [{filters}...]
