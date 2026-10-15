@@ -19,7 +19,7 @@ function M.pick(items, opts)
     items = entries,
     format = "text",
     preview = has_files and "file" or "none",
-    layout = has_files and nil or { preset = "select" },
+    layout = not has_files and { preset = "select" } or nil,
     sort = { fields = { "score:desc", "idx" } }, -- keep logpose's order when the query is empty
     confirm = function(picker, item)
       picker:close()
