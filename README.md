@@ -165,7 +165,8 @@ project: acme
 tags: [perf]
 due: 2026-10-20
 blocked: waiting on ana
-created: 2026-10-15
+created: 2026-10-15T09:05
+modified: 2026-10-16T15:02
 started: 2026-10-16
 done:
 ---
@@ -184,9 +185,14 @@ You never edit `status` by hand: logpose moves it, sets `started` and `done`, an
 the `## Log`.
 
 **The board.** `:Logpose board [filters]` shows the tasks as columns:
-**Backlog → TODO → In progress → Follow-up → Done**. Cards show the title, `⛔ reason` when
-blocked, and `project · #tags · due MM-DD` (overdue in a warning colour). In a project's repo
-you see that project's tasks; inside the journal, all of them.
+**Backlog → TODO → In progress → Follow-up → Done**. Each card is a box with the title,
+`⊘ reason` when blocked (red border), and `◆ project #tags ◷ MM-DD` (overdue dates in red).
+The focused card gets a heavy border. Each column has its own colour: grey, blue, yellow,
+purple, green by default, linked to your colour scheme's diagnostic groups; set a column's `hl`
+to another highlight group, or override the `LogposeBoard*` groups (`LogposeBoardColumn1`…,
+`LogposeBoardFocus`, `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardProject`,
+`LogposeBoardTag`…). In a project's repo you see that project's tasks; inside the journal, all
+of them.
 
 | Key | Action | Key | Action |
 |---|---|---|---|
@@ -194,6 +200,7 @@ you see that project's tasks; inside the journal, all of them.
 | `H` `L` (`<` `>`) | move the card left / right | `1`–`9` | move it to column N |
 | `x` | done | `b` | block (asks why) / unblock |
 | `J` `K` | move the card down / up | `a` | add a card to this column |
+| `D` | delete the card (asks first) | | |
 | `<CR>` | open the task file | `/` | filter (`find` filters) |
 | `p` | this project / all | `r` `q` `?` | refresh, close, help |
 
@@ -370,6 +377,12 @@ override one. Variables: `{date}`, `{time}`, `{weekday}`, `{iso_week}`, `{sprint
 `{type}`, `{type_label}`, `{series}`, `{attendees}`, `{project}`. `{cursor}` marks where the
 cursor lands. Unknown variables are left as they are.
 
+New notes get `created:` and `modified:` in their frontmatter (local time, ISO 8601:
+`2026-10-15T18:57`; daily notes get a small frontmatter for them). `modified:` is bumped
+whenever logpose changes a note and whenever you save one you changed in Neovim; notes without
+a `modified:` key (older ones) are left alone, so add the key to opt one in. Turn either off
+with `timestamps = { created = false, modified = false }`.
+
 Every note logpose creates passes markdownlint's default rules. Meeting notes, topic notes,
 project pages and tasks carry their title in the frontmatter, which markdownlint counts as the
 top-level heading, so their body starts at `##` (a `# Title` as well would break MD025, one
@@ -444,6 +457,10 @@ require("logpose").setup({
     done = "done",                       -- reaching it sets `done:`
     done_window = "period",              -- Done shows this week/sprint, or a number of days
     min_column_width = 24,               -- narrower than this, columns stack
+  },
+  timestamps = {
+    created = true,                      -- `created:` in new notes (local time, 2026-10-15T18:57)
+    modified = true,                     -- `modified:`, bumped on every change
   },
   search = { live = true },              -- the picker prompt re-runs the query as you type
   retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
