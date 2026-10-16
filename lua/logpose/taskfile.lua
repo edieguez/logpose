@@ -39,6 +39,7 @@ M.KEYS = { "title", "status", "project", "tags", "due", "blocked", "created", "m
 ---@field done? string
 ---@field order? number
 ---@field archived boolean
+---@field since? string  day it entered its current column (from the log; else created)
 
 ---@return { key: string, label: string }[]
 function M.columns()
@@ -131,10 +132,22 @@ function M.parse(path, lines, root)
     end, fm.tags)
   end
   local archive = fs.join(M.dir(root), "archive") .. "/"
+  local status = str(fm.status) or config.get().tasks.capture_status
+  -- When did it reach its current column? The last "A → <label>" log line, else creation.
+  local since
+  local label = M.label(status)
+  for _, l in ipairs(lines) do
+    local day, to = l:match("^%- (%d%d%d%d%-%d%d%-%d%d) %d%d:%d%d: .- → (.+)$")
+    if day and vim.trim(to) == label then
+      since = day
+    end
+  end
+  since = since or (str(fm.created) and fm.created:sub(1, 10)) or nil
   return {
+    since = since,
     path = path,
     title = title or vim.fn.fnamemodify(path, ":t:r"),
-    status = str(fm.status) or config.get().tasks.capture_status,
+    status = status,
     project = str(fm.project) and fm.project:lower() or nil,
     tags = tags,
     due = str(fm.due) and date.is_iso(fm.due) and fm.due or nil,

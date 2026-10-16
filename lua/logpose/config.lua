@@ -148,11 +148,12 @@ M.defaults = {
     promote_status = "todo",
   },
   board = {
-    --- Columns, left to right. `key` is the task's `status:`; `label` is shown.
+    --- Columns, left to right. `key` is the task's `status:`; `label` is shown; optional `limit`
+    --- (WIP limit: the count turns red above it) and `hl` (highlight group for the column).
     columns = {
       { key = "backlog", label = "Backlog" },
       { key = "todo", label = "TODO" },
-      { key = "in-progress", label = "In progress" },
+      { key = "in-progress", label = "In progress", limit = 3 },
       { key = "follow-up", label = "Follow-up" },
       { key = "done", label = "Done" },
     },
@@ -164,6 +165,10 @@ M.defaults = {
     done_window = "period",
     --- Narrower than this, columns stack vertically.
     min_column_width = 24,
+    --- Cards untouched for this many days in a column (not Done) are shown faded.
+    stale_days = 7,
+    --- Columns folded to a narrow strip when the board opens (`z` toggles), e.g. { "done" }.
+    collapsed = {},
   },
   timestamps = {
     --- `created:` / `modified:` (local time, 2026-10-15T18:57) in the frontmatter of new notes.
@@ -338,6 +343,7 @@ local function validate(opts)
     check(("board.columns[%d].key"):format(i), col.key, "string")
     check(("board.columns[%d].label"):format(i), col.label, "string", true)
     check(("board.columns[%d].hl"):format(i), col.hl, "string", true)
+    check(("board.columns[%d].limit"):format(i), col.limit, "number", true)
     if not col.key:match("^[%w_%-]+$") then
       error(("logpose: board column key %q may only use letters, digits, - and _"):format(col.key), 0)
     end
@@ -358,6 +364,8 @@ local function validate(opts)
     error('logpose: `board.done_window` must be "period" or a number of days', 0)
   end
   check("board.min_column_width", opts.board.min_column_width, "number")
+  check("board.stale_days", opts.board.stale_days, "number")
+  check("board.collapsed", opts.board.collapsed, "table")
   check("timestamps", opts.timestamps, "table")
   check("timestamps.created", opts.timestamps.created, "boolean")
   check("timestamps.modified", opts.timestamps.modified, "boolean")
