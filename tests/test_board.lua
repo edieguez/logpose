@@ -435,4 +435,35 @@ T["K peeks at the task in a float; closing saves and refreshes"] = function()
   )
 end
 
+T["redraws to fit when a sidebar opens or closes, and ignores the editor's columns"] = function()
+  child.o.statuscolumn = "%s%l " -- like LazyVim's
+  child.o.foldcolumn = "1"
+  child.o.sidescrolloff = 8
+  child.cmd("Logpose board")
+  local function fits()
+    child.lua("vim.wait(100, function() return false end)")
+    return child.lua_get([[(function()
+      local buf = vim.fn.bufnr("logpose://board")
+      local win = vim.fn.bufwinid(buf)
+      local info = vim.fn.getwininfo(win)[1]
+      local widest = 0
+      for _, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+        widest = math.max(widest, vim.fn.strdisplaywidth(l))
+      end
+      local leftcol = vim.api.nvim_win_call(win, vim.fn.winsaveview).leftcol
+      return { textoff = info.textoff, fits = widest <= info.width - info.textoff, leftcol = leftcol, width = info.width }
+    end)()]])
+  end
+  local r = fits()
+  eq({ r.textoff, r.fits, r.leftcol }, { 0, true, 0 })
+  child.cmd("topleft vsplit | enew | vertical resize 40") -- an explorer; focus stays there
+  r = fits()
+  eq({ r.fits, r.leftcol }, { true, 0 })
+  eq(r.width < 160, true)
+  child.cmd("close")
+  r = fits()
+  eq({ r.fits, r.width }, { true, 160 })
+  H.contains(screen(), "● Done (1)") -- full width again: Done back on the first row
+end
+
 return T
