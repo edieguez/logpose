@@ -57,6 +57,14 @@ function M.ensure(iso, root)
   local rendered = template.render(template.load("daily", root), template.vars(iso))
   -- Standup prep: start from the previous daily note.
   local text, cursor, after_write = require("logpose.standup").prepare(root, iso, rendered.text, rendered.cursor)
+  local stamps = require("logpose.timestamps").lines()
+  if #stamps > 0 and text:sub(1, 4) ~= "---\n" then
+    -- No title here: the note's `# heading` stays its title (markdownlint MD025).
+    local fm = vim.list_extend({ "---" }, stamps)
+    table.insert(fm, "---")
+    text = table.concat(fm, "\n") .. "\n" .. text
+    cursor = cursor and { cursor[1] + #fm, cursor[2] } or cursor
+  end
   text, cursor = require("logpose.markdown").tidy_text(text, cursor)
   local ok, err = fs.write_file(path, text, { tidy = true })
   if not ok then

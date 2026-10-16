@@ -29,14 +29,14 @@ T["creates today's note and puts the cursor under ## Today"] = function()
   eq(bufname(), daily_path("2026-10-14"))
   eq(
     H.read(daily_path("2026-10-14")),
-    "# 2026-10-14 daily notes\n\n## Yesterday\n\n## Today\n\n## Blockers\n\n## Meetings\n\n## Notes\n"
+    "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# 2026-10-14 daily notes\n\n## Yesterday\n\n## Today\n\n## Blockers\n\n## Meetings\n\n## Notes\n"
   )
-  eq(child.api.nvim_win_get_cursor(0), { 6, 0 })
+  eq(child.api.nvim_win_get_cursor(0), { 10, 0 })
 end
 
 T["header format"] = function()
   child.cmd("Logpose daily")
-  eq(vim.split(H.read(daily_path("2026-10-14")), "\n")[1], "# 2026-10-14 daily notes")
+  eq(vim.split(H.read(daily_path("2026-10-14")), "\n")[5], "# 2026-10-14 daily notes")
 end
 
 T["opens an existing note without overwriting it"] = function()
@@ -85,21 +85,27 @@ T["uses a template from the journal"] = function()
   H.write(root .. "/templates/daily.md", "# {weekday} {date}\n{cursor}\n")
   child.cmd("Logpose daily")
   -- no trailing blank line (MD012): the cursor stays on the last line
-  eq(H.read(daily_path("2026-10-14")), "# Wednesday 2026-10-14\n")
-  eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
+  eq(
+    H.read(daily_path("2026-10-14")),
+    "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# Wednesday 2026-10-14\n"
+  )
+  eq(child.api.nvim_win_get_cursor(0), { 5, 0 })
 end
 
 T["{sprint} names the current sprint when an anchor is set"] = function()
   H.write(root .. "/templates/daily.md", "# {date} {sprint}\n")
   child.cmd("Logpose daily")
-  eq(H.read(daily_path("2026-10-14")), "# 2026-10-14\n") -- no trailing space (MD009)
+  eq(
+    H.read(daily_path("2026-10-14")),
+    "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# 2026-10-14\n"
+  ) -- no trailing space (MD009)
   child.lua(
     ("require('logpose').setup({ root = %q, period = { sprint = { anchor = '2026-10-01', first_number = 42 } } })"):format(
       root
     )
   )
   child.cmd("Logpose daily next")
-  eq(H.read(daily_path("2026-10-15")), "# 2026-10-15 sprint-43\n")
+  H.contains(H.read(daily_path("2026-10-15")), "---\n# 2026-10-15 sprint-43\n")
 end
 
 T["honours configured dirs and affixes"] = function()
