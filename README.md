@@ -199,10 +199,19 @@ of them.
 | `h` `l` | previous / next column | `j` `k` | previous / next card |
 | `H` `L` (`<` `>`) | move the card left / right | `1`–`9` | move it to column N |
 | `x` | done | `b` | block (asks why) / unblock |
-| `J` `K` | move the card down / up | `a` | add a card to this column |
-| `D` | delete the card (asks first) | | |
+| `<C-j>` `<C-k>` | move the card down / up | `a` | add a card to this column |
+| `K` | peek: the task in a floating window | `D` | delete the card (asks first) |
+| `z` | fold / unfold the column | `gg` `G` | first / last card |
 | `<CR>` | open the task file | `/` | filter (`find` filters) |
 | `p` | this project / all | `r` `q` `?` | refresh, close, help |
+
+Each card shows how long it has been in its column (`4d`, from its log); cards untouched for
+`board.stale_days` (7) fade, so forgotten work stands out. A column with a `limit` shows
+`In progress (2/3)` and turns the count red above it (In progress has a limit of 3 by default).
+Columns scroll on their own (`↑ 3 more` / `↓ 5 more`), keeping the focused card in view, and
+`z` folds a column to a narrow strip with its count (`board.collapsed = { "done" }` starts it
+folded). `K` opens the task in a floating window to read or edit its context without leaving
+the board; `q` closes it, saves, and the board picks up the change.
 
 The cursor and the mouse select cards too. Coming back to the board (`<C-o>`, `:b#`) redraws
 it. Done shows what finished in the current week or sprint; older done tasks are filed away
@@ -449,7 +458,7 @@ require("logpose").setup({
     columns = {
       { key = "backlog", label = "Backlog" },
       { key = "todo", label = "TODO" },
-      { key = "in-progress", label = "In progress" },
+      { key = "in-progress", label = "In progress", limit = 3 },   -- also: hl = "…"
       { key = "follow-up", label = "Follow-up" },
       { key = "done", label = "Done" },
     },
@@ -457,6 +466,8 @@ require("logpose").setup({
     done = "done",                       -- reaching it sets `done:`
     done_window = "period",              -- Done shows this week/sprint, or a number of days
     min_column_width = 24,               -- narrower than this, columns stack
+    stale_days = 7,                      -- cards this long in a column fade
+    collapsed = {},                      -- columns folded when the board opens
   },
   timestamps = {
     created = true,                      -- `created:` in new notes (local time, 2026-10-15T18:57)
