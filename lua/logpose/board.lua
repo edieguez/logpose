@@ -406,7 +406,7 @@ function M.render(b, width, height)
   local open = math.max(n - folded, 1)
   local colw = math.floor((width - (n - 1) - folded * M.COLLAPSED_WIDTH) / open)
   b.stacked = colw < cfg.min_column_width
-  b.width = b.stacked and math.max(width - 1, 20) or colw
+  b.width = b.stacked and math.max(width - 1, 12) or colw
   b.widths = {}
   for ci, col in ipairs(b.columns) do
     b.widths[ci] = (b.collapsed[col.key] and not b.stacked) and M.COLLAPSED_WIDTH or b.width
@@ -561,15 +561,76 @@ local function clamp(b)
   b.focus.row = math.max(1, math.min(b.focus.row, math.max(count, 1)))
 end
 
---- Redraw at the window's size.
+--- Window options that would eat columns, scroll sideways or draw over the board.
+M.WINDOW_OPTIONS = {
+  wrap = false,
+  number = false,
+  relativenumber = false,
+  signcolumn = "no",
+  foldcolumn = "0",
+  statuscolumn = "",
+  colorcolumn = "",
+  list = false,
+  spell = false,
+  cursorcolumn = false,
+  foldenable = false,
+  sidescrolloff = 0,
+}
+
+--- Apply `M.WINDOW_OPTIONS` to a window showing the board.
+---@param win integer
+function M.setup_window(win)
+  for opt, value in pairs(M.WINDOW_OPTIONS) do
+    pcall(function()
+      vim.wo[win][0][opt] = value
+    end)
+  end
+end
+
+--- Redraw at the size of the window showing the board: its text area, without any columns
+--- the window still reserves (fold, sign, status), so nothing is cut off or scrolled sideways.
 ---@param b logpose.Board
 local function redraw(b)
   local win = vim.fn.bufwinid(b.buf)
-  if win ~= -1 then
-    M.render(b, vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win))
-  else
-    M.render(b, vim.o.columns, vim.o.lines - 2)
+  if win == -1 then
+    return -- not visible: drawn when it's shown again
   end
+  local info = vim.fn.getwininfo(win)[1] or {}
+  local width = vim.api.nvim_win_get_width(win) - (info.textoff or 0)
+  M.render(b, width, vim.api.nvim_win_get_height(win))
+  vim.api.nvim_win_call(win, function()
+    local view = vim.fn.winsaveview()
+    if view.leftcol ~= 0 then
+      view.leftcol = 0
+      vim.fn.winrestview(view)
+    end
+  end)
+end
+
+--- Redraw soon, once, however many resize events arrive (dragging, sidebars opening).
+---@param b logpose.Board
+local function redraw_soon(b)
+  if b._pending then
+    return
+  end
+  b._pending = true
+  vim.defer_fn(function()
+    b._pending = false
+    if vim.api.nvim_buf_is_valid(b.buf) then
+      redraw(b)
+      if vim.api.nvim_get_current_buf() == b.buf then
+        b._placing = true
+        local win = vim.api.nvim_get_current_win()
+        local pos = vim.api.nvim_win_get_cursor(win)
+        local ci, ri = M.at(b, pos[1], pos[2])
+        if not (ci == b.focus.col and ri == b.focus.row) then
+          b._placing = false
+          M._place_cursor(b)
+        end
+        b._placing = false
+      end
+    end
+  end, 20)
 end
 
 --- Redraw so the focused card gets the heavy border (and is scrolled into view).
@@ -581,6 +642,11 @@ end
 --- Put the cursor on the focused card (or the column header when it's empty).
 ---@param b logpose.Board
 local function place_cursor(b)
+  return M._place_cursor(b)
+end
+
+---@param b logpose.Board
+function M._place_cursor(b)
   local win = vim.fn.bufwinid(b.buf)
   if win == -1 then
     return
@@ -1042,9 +1108,7 @@ function M.open_board(root, opts)
   vim.bo[buf].swapfile = false
   vim.bo[buf].filetype = "logpose-board"
   vim.api.nvim_win_set_buf(0, buf)
-  for opt, value in pairs({ wrap = false, number = false, relativenumber = false, signcolumn = "no", list = false }) do
-    vim.wo[0][0][opt] = value
-  end
+  M.setup_window(vim.api.nvim_get_current_win())
   ---@type logpose.Board
   local b = {
     root = root,
@@ -1079,12 +1143,45 @@ function M.open_board(root, opts)
       on_cursor(b)
     end,
   })
-  vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter", "VimResized" }, {
+  -- Coming back to the board: reload (files may have changed) and redraw.
+  vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
     buffer = buf,
     callback = function()
       if vim.api.nvim_buf_is_valid(buf) and vim.fn.bufwinid(buf) ~= -1 then
         M.refresh(b, (M.focused(b) or {}).file)
+      end
+    end,
+  })
+  -- Any window that starts showing the board gets the board's window options.
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = group,
+    buffer = buf,
+    callback = function()
+      M.setup_window(vim.api.nvim_get_current_win())
+      redraw_soon(b)
+    end,
+  })
+  -- Size changes: the terminal, splits and sidebars opening or closing next to the board.
+  vim.api.nvim_create_autocmd({ "VimResized", "WinResized", "WinClosed", "WinNew" }, {
+    group = group,
+    callback = function(ev)
+      if not vim.api.nvim_buf_is_valid(buf) then
+        return true -- the board is gone: drop this autocmd
+      end
+      if ev.event == "WinResized" then
+        local shown = false
+        for _, win in ipairs((vim.v.event or {}).windows or {}) do
+          if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+            shown = true
+          end
+        end
+        if not shown then
+          return
+        end
+      end
+      if vim.fn.bufwinid(buf) ~= -1 then
+        redraw_soon(b)
       end
     end,
   })
