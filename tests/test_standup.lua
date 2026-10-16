@@ -5,7 +5,13 @@ local child = H.new_child()
 local root
 
 local function setup(extra)
-  child.lua(("require('logpose').setup(vim.tbl_extend('force', { root = %q }, %s))"):format(root, extra or "{}"))
+  -- timestamps are covered in test_timestamps; here they'd only shift line numbers
+  child.lua(
+    ("require('logpose').setup(vim.tbl_extend('force', { root = %q, timestamps = { created = false, modified = false } }, %s))"):format(
+      root,
+      extra or "{}"
+    )
+  )
 end
 
 local T = MiniTest.new_set({

@@ -165,6 +165,12 @@ M.defaults = {
     --- Narrower than this, columns stack vertically.
     min_column_width = 24,
   },
+  timestamps = {
+    --- `created:` / `modified:` (local time, 2026-10-15T18:57) in the frontmatter of new notes.
+    --- `modified:` is bumped when logpose rewrites a note and when you save a changed one.
+    created = true,
+    modified = true,
+  },
   search = {
     --- Re-run the search as you edit the picker prompt (snacks, fzf-lua, telescope). The prompt
     --- takes the same filters as :Logpose find. false = the picker fuzzy-filters fixed results.
@@ -331,6 +337,7 @@ local function validate(opts)
     check(("board.columns[%d]"):format(i), col, "table")
     check(("board.columns[%d].key"):format(i), col.key, "string")
     check(("board.columns[%d].label"):format(i), col.label, "string", true)
+    check(("board.columns[%d].hl"):format(i), col.hl, "string", true)
     if not col.key:match("^[%w_%-]+$") then
       error(("logpose: board column key %q may only use letters, digits, - and _"):format(col.key), 0)
     end
@@ -351,6 +358,9 @@ local function validate(opts)
     error('logpose: `board.done_window` must be "period" or a number of days', 0)
   end
   check("board.min_column_width", opts.board.min_column_width, "number")
+  check("timestamps", opts.timestamps, "table")
+  check("timestamps.created", opts.timestamps.created, "boolean")
+  check("timestamps.modified", opts.timestamps.modified, "boolean")
   check("search", opts.search, "table")
   check("search.live", opts.search.live, "boolean")
   check("retrieval", opts.retrieval, "table")

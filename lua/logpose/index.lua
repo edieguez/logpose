@@ -269,7 +269,7 @@ function M.index_lines(path, lines, root)
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
     note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
-    note.date = t.done or t.created or note.date
+    note.date = t.done or (t.created and t.created:sub(1, 10)) or note.date
   end
   table.insert(items, note)
 

@@ -50,6 +50,8 @@ T["a new 1:1 links the previous one and carries open follow-ups"] = function()
     new,
     table.concat({
       "series: 1on1-ana",
+      "created: 2026-10-14T10:30",
+      "modified: 2026-10-14T10:30",
       "---",
       "Previous: [[meetings/2026-10-07 - 1-1-ana|1:1 Ana 2026-10-07]]",
       "",
