@@ -24,7 +24,7 @@ local KEYWORDS = {
   actions = { "open", "mine", "overdue", "all" },
   report = { "week", "sprint" },
   daily = { "today", "prev", "next" },
-  board = { "move", "done", "block", "reorder", "add", "open" }, -- recorded by the board's keys
+  board = { "move", "done", "block", "reorder", "add", "open", "delete" }, -- recorded by the board's keys
 }
 
 M.throttle_ms = 60 * 1000
