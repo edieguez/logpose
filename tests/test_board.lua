@@ -69,14 +69,19 @@ T["shows columns side by side with cards, counts and meta"] = function()
   child.cmd("Logpose board")
   local s = screen()
   H.contains(s, "Board · all projects")
-  H.contains(s, " Backlog (1)")
-  H.contains(s, "│ TODO (1)")
-  H.contains(s, "│ In progress (1)")
-  H.contains(s, "│ Follow-up (0)")
-  H.contains(s, "│ Done (1)") -- "Old work" finished last week: not shown
-  H.contains(s, "⛔ waiting on ana")
-  H.contains(s, "acme · #perf · due 10-14")
+  local headers = child.api.nvim_buf_get_lines(0, 2, 3, false)[1]
+  for _, h in ipairs({ "● Backlog (1)", "● TODO (1)", "● In progress (1)", "● Follow-up (0)", "● Done (1)" }) do
+    H.contains(headers, h) -- "Old work" finished last week: not in Done
+  end
+  H.contains(s, "⊘ waiting on ana")
+  H.contains(s, "◆ acme #perf ◷ 10-14")
+  H.contains(s, "╭─") -- cards are boxes
+  H.contains(s, "┏━") -- the focused one has a heavy border
   eq(s:find("Old work", 1, true), nil)
+  -- no trailing whitespace anywhere, the last column included
+  for _, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
+    eq(l:match("%s$"), nil)
+  end
   eq(child.bo.filetype, "logpose-board")
   eq(child.bo.modifiable, false)
 end
@@ -121,7 +126,7 @@ T["b blocks with a reason and unblocks"] = function()
   child.type_keys("lb")
   eq(child.lua_get("_G.prompt"), "Blocked by: ")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "blocked: needs review")
-  H.contains(screen(), "⛔ needs review")
+  H.contains(screen(), "⊘ needs review")
   child.type_keys("b")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "blocked:\n")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "unblocked")
@@ -230,7 +235,7 @@ T["custom columns"] = function()
   child.cmd("Logpose board")
   local s = screen()
   H.contains(s, " To do (3)") -- statuses without a column show in the capture column
-  H.contains(s, "│ doing (0)")
+  H.contains(s, "● doing (0)")
   child.type_keys("L")
   eq(status(root .. "/tasks/fix-flaky.md"), "doing")
 end
@@ -286,6 +291,44 @@ T["archive moves done tasks from earlier periods"] = function()
     "\n"
   )
   H.contains(report, "- Old work")
+end
+
+T["columns, blocked cards and overdue dates are coloured"] = function()
+  child.cmd("Logpose board")
+  local groups = child.lua_get([[(function()
+    local seen = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+      seen[m[4].hl_group] = true
+    end
+    return seen
+  end)()]])
+  for _, g in ipairs({
+    "LogposeBoardTitle",
+    "LogposeBoardColumn1",
+    "LogposeBoardColumn3",
+    "LogposeBoardFocus",
+    "LogposeBoardBlocked",
+    "LogposeBoardOverdue",
+    "LogposeBoardProject",
+    "LogposeBoardTag",
+  }) do
+    eq({ g, groups[g] }, { g, true })
+  end
+  -- linked to standard groups, so colour schemes style them; users can override
+  eq(child.lua_get("vim.api.nvim_get_hl(0, { name = 'LogposeBoardColumn3' }).link"), "DiagnosticWarn")
+end
+
+T["D deletes a card after asking"] = function()
+  child.cmd("Logpose board")
+  child.lua([[vim.ui.select = function(items, opts, cb) _G.prompt = opts.prompt; cb('Cancel') end]])
+  child.type_keys("D") -- focused: Read paper (Backlog)
+  H.contains(child.lua_get("_G.prompt"), 'Delete "Read paper"?')
+  eq(H.read(root .. "/tasks/read-paper.md") ~= nil, true)
+  child.lua([[vim.ui.select = function(items, opts, cb) cb('Delete') end]])
+  child.type_keys("D")
+  eq(H.read(root .. "/tasks/read-paper.md"), nil)
+  H.contains(screen(), "● Backlog (0)")
+  H.contains(child.notifications()[#child.notifications()].msg, "deleted read-paper.md")
 end
 
 return T
