@@ -102,6 +102,9 @@ Options ~
                  ("in-progress") sets `started:`, `done` ("done") sets `done:`.
                  `done_window`: "period" (default) or a number of days of done
                  tasks to show. `min_column_width` (24): narrower, columns stack.
+                 `stale_days` (7): cards this long in a column fade.
+                 `collapsed` ({}): column keys folded when the board opens.
+                 A column may set `limit` (WIP limit; In progress: 3) and `hl`.
   timestamps     (table)       `created` (true), `modified` (true): add
                  `created:`/`modified:` (local time, 2026-10-15T18:57) to new
                  notes. `modified:` is bumped when logpose changes a note and
@@ -322,13 +325,18 @@ that logpose appends to on every move. Keys on the board:
   h l / j k     previous / next column / card (cursor and mouse select too)
   H L  < >      move the card left / right      1-9   move it to column N
   x             done                            b     block / unblock
-  J K           move the card down / up         a     add a card here
-  D             delete the card (asks first)
+  <C-j> <C-k>   move the card down / up         a     add a card here
+  K             peek at the task in a float     D     delete the card (asks first)
+  z             fold / unfold the column        gg G  first / last card
   <CR>          open the task file              /     filter (find filters)
   p             this project / all              r     refresh
   q             close                           ?     help
 
-Cards are boxes; the focused one has a heavy border. Columns are coloured
+Cards are boxes; the focused one has a heavy border. Each shows its days in
+the column (from its log); cards older than `board.stale_days` fade. Column
+headers show `count/limit` when a column has a `limit`, red above it. Columns
+scroll on their own, keeping the focused card in view. The peek window (`K`)
+is the task file itself: edit it, `q` closes and saves. Columns are coloured
 through `LogposeBoardColumn1`… (linked to diagnostic groups; a column's `hl`
 picks another group); other groups: `LogposeBoardFocus`, `LogposeBoardBlocked`,
 `LogposeBoardOverdue`, `LogposeBoardProject`, `LogposeBoardTag`,
