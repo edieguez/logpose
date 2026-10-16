@@ -337,7 +337,7 @@ function M.render(root, iso)
       vim.list_extend(out, opts.group_by_project and group(items, projects) or items)
     end
   end
-  return out
+  return (require("logpose.markdown").tidy(out))
 end
 
 ---@param opts logpose.CommandOpts

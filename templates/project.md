@@ -1,6 +1,5 @@
-# {title}
-
 ## Overview
+
 {cursor}
 
 ## Links

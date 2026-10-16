@@ -48,8 +48,9 @@ T[":Logpose note creates a topic note"] = function()
   child.cmd("Logpose note Queue design")
   local path = root .. "/notes/queue-design.md"
   eq(child.api.nvim_buf_get_name(0), path)
-  eq(H.read(path), '---\ntitle: "Queue design"\ncreated: 2026-10-14\ntags: []\n---\n# Queue design\n\n\n')
-  eq(child.api.nvim_win_get_cursor(0), { 8, 0 })
+  -- the title lives in the frontmatter only (an H1 too would break MD025)
+  eq(H.read(path), '---\ntitle: "Queue design"\ncreated: 2026-10-14\ntags: []\n---\n\n')
+  eq(child.api.nvim_win_get_cursor(0), { 6, 0 })
   child.cmd("Logpose project acme")
   child.cmd("Logpose note Retry policy")
   H.contains(H.read(root .. "/notes/retry-policy.md"), "project: acme\n")
@@ -69,7 +70,7 @@ T[":Logpose project-page"] = function()
   local path = root .. "/projects/acme-api.md"
   H.contains(
     H.read(path),
-    '---\ntitle: "Acme API"\ntype: project\nproject: acme-api\ntags: []\n---\n# Acme API\n\n## Overview\n'
+    '---\ntitle: "Acme API"\ntype: project\nproject: acme-api\ntags: []\n---\n## Overview\n\n## Links\n'
   )
   child.cmd("Logpose project thesis")
   child.cmd("Logpose project-page")

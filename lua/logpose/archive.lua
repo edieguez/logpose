@@ -231,7 +231,7 @@ function M.execute(plan)
     error(err, 0)
   end
   for _, w in ipairs(plan.writes) do
-    local wrote, write_err = fs.write_file(w.path, w.content)
+    local wrote, write_err = fs.write_file(w.path, w.content, { tidy = true })
     if not wrote then
       error(write_err .. " (archive stopped; running it again is safe)", 0)
     end

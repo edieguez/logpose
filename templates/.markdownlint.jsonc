@@ -1,0 +1,6 @@
+// These templates are fragments: logpose adds the frontmatter (with the title markdownlint
+// accepts as the top-level heading) when it creates a note. The notes themselves pass every
+// default rule; see scripts/lint-output.sh.
+{
+  "MD041": false
+}

@@ -174,6 +174,10 @@ function M.build(root, key, input, iso, project, attendees)
     end
   end
 
+  local content, final_cursor = require("logpose.markdown").tidy_text(
+    table.concat(frontmatter, "\n") .. "\n" .. table.concat(body, "\n"),
+    { cursor[1] + #frontmatter, cursor[2] }
+  )
   return {
     key = key,
     title = title,
@@ -182,8 +186,8 @@ function M.build(root, key, input, iso, project, attendees)
     date = iso,
     project = project,
     path = path,
-    content = table.concat(frontmatter, "\n") .. "\n" .. table.concat(body, "\n"),
-    cursor = { cursor[1] + #frontmatter, cursor[2] },
+    content = content,
+    cursor = final_cursor,
     previous = previous,
     carried = carried,
   }
@@ -385,7 +389,7 @@ function M.link_in_daily(root, note)
   end
   local ok, err, changed = fs.update_lines(daily_path, function(lines)
     return M.insert_under_heading(lines, "Meetings", item, marker)
-  end)
+  end, { tidy = true })
   if not ok then
     error(err, 0)
   end
@@ -406,7 +410,7 @@ local safely = ui.safely
 ---@param root string
 ---@param note logpose.MeetingNote
 local function write_and_open(root, note)
-  local ok, err = fs.write_file(note.path, note.content)
+  local ok, err = fs.write_file(note.path, note.content, { tidy = true })
   if not ok then
     error(err, 0)
   end
