@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -948,11 +948,17 @@ a real task has. Tasks become files and the board becomes the place you see and 
 - Listed tests written and passing in CI (0.10, stable, nightly).
 - `doc/logpose.txt` and README updated (commands, config keys, `<Plug>` mappings).
 - `:checkhealth logpose` covers any new requirement the feature introduces.
+- Templates and every note logpose generates pass markdownlint's default rules (`make lint-md`,
+  run in CI): titles live in the frontmatter only, and writes that create or restructure a note
+  go through `markdown.tidy` (blank lines around headings, lists, tables, fences; no blank runs;
+  no trailing spaces). User text is never reflowed; only reports wrap their own long items.
 - No behaviour change to earlier features unless the spec says so.
 
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
 - 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
+- 0.21.0: new meeting notes, topic notes, project pages and tasks have no `# Title` heading
+  (the frontmatter title is the heading); templates have no `- [ ] ` placeholder lines.
 - 0.19.0: `:Logpose find` is live by default with a picker plugin (the filters move into the
   prompt); `search = { live = false }` restores fixed results.

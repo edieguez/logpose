@@ -404,6 +404,11 @@ Variables: {date} {time} {weekday} {iso_week} {title} {type} {type_label}
 {series} {attendees} {project} {sprint}. Unknown variables are left as is. {cursor} marks where
 the cursor goes and is removed.
 
+Notes logpose creates pass markdownlint's default rules: notes with a `title:`
+in the frontmatter have no `# Title` heading (MD025), and blank lines around
+headings, lists, tables and code blocks are kept when logpose creates or
+reorganizes a note. Text you wrote is never rewrapped.
+
 ==============================================================================
 5. HEALTH                                                     *logpose-health*
 
