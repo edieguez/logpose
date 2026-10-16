@@ -2,7 +2,7 @@ NVIM ?= nvim
 # A DST-observing zone, so the date tests exercise DST transitions.
 TEST_TZ ?= America/New_York
 
-.PHONY: test test-file lint format deps clean
+.PHONY: test test-file lint lint-md format deps clean
 
 deps: deps/mini.nvim
 
@@ -18,10 +18,14 @@ test-file: deps
 	TZ=$(TEST_TZ) $(NVIM) --headless --noplugin -u tests/minimal_init.lua -c "lua MiniTest.run_file('$(FILE)')"
 
 lint:
-	stylua --check lua plugin tests
+	stylua --check lua plugin tests scripts
+
+# Templates and generated notes against markdownlint's default rules (needs markdownlint-cli2)
+lint-md:
+	NVIM=$(NVIM) ./scripts/lint-output.sh
 
 format:
-	stylua lua plugin tests
+	stylua lua plugin tests scripts
 
 clean:
 	rm -rf deps
