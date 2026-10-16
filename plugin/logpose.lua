@@ -12,3 +12,4 @@ end
 require("logpose.commands").create()
 require("logpose.tickets").setup_autocmd()
 require("logpose.telemetry").setup_autocmd()
+require("logpose.timestamps").setup_autocmd()

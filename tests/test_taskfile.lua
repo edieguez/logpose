@@ -42,7 +42,8 @@ T["create writes frontmatter, body and a log"] = function()
       "tags: [perf]",
       "due: 2026-10-20",
       "blocked:",
-      "created: 2026-10-15",
+      "created: 2026-10-15T09:05",
+      "modified: 2026-10-15T09:05",
       "started:",
       "done:",
       "---",
@@ -174,7 +175,7 @@ T["capture creates a Backlog task; capture! opens it"] = function()
   eq(child.api.nvim_buf_get_name(0), "") -- not opened
   child.cmd("Logpose capture! write the retro")
   eq(child.api.nvim_buf_get_name(0), root .. "/tasks/write-the-retro.md")
-  eq(child.api.nvim_win_get_cursor(0)[1], 13) -- the blank line under ## Context
+  eq(child.api.nvim_win_get_cursor(0)[1], 14) -- the blank line under ## Context
   eq(H.read(root .. "/INBOX.md"), nil)
 end
 

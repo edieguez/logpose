@@ -118,6 +118,9 @@ function M.write_file(path, content, opts)
     local lines = vim.split(content, "\n", { plain = true })
     content = table.concat(require("logpose.markdown").tidy(lines), "\n") .. "\n"
   end
+  if path:sub(-3) == ".md" then
+    content = require("logpose.timestamps").touch_text(content) -- bump `modified:`
+  end
   local ok, err = M.check_writable({ path })
   if not ok then
     return false, err
@@ -170,6 +173,7 @@ function M.update_lines(path, transform, opts)
     if tidy then
       new = require("logpose.markdown").tidy(new)
     end
+    new = require("logpose.timestamps").touch(new)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, new)
     return true, nil, "buffer"
   end

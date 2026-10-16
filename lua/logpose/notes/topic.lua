@@ -38,6 +38,7 @@ local function create(path, tpl, vars, fm, root)
   for _, kv in ipairs(fm) do
     table.insert(lines, kv[1] .. ": " .. kv[2])
   end
+  vim.list_extend(lines, require("logpose.timestamps").lines())
   table.insert(lines, "---")
   local text, cursor = require("logpose.markdown").tidy_text(
     table.concat(lines, "\n") .. "\n" .. rendered.text,
@@ -59,7 +60,7 @@ function M.note(root, title)
     error(("logpose: can't make a filename from %q"):format(title), 0)
   end
   local project = require("logpose.project").resolve(root)
-  local fm = { { "title", yaml_string(title) }, { "created", date.today() } }
+  local fm = { { "title", yaml_string(title) } }
   if project then
     table.insert(fm, { "project", project })
   end

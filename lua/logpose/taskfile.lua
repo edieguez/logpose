@@ -7,7 +7,8 @@
 ---   tags: [perf]
 ---   due: 2026-10-20
 ---   blocked: waiting on ana
----   created: 2026-10-15
+---   created: 2026-10-15T09:05
+---   modified: 2026-10-16T15:02
 ---   started: 2026-10-16
 ---   done:
 ---   ---
@@ -23,7 +24,7 @@ local text = require("logpose.util.text")
 local M = {}
 
 --- Frontmatter keys logpose writes, in order.
-M.KEYS = { "title", "status", "project", "tags", "due", "blocked", "created", "started", "done", "order" }
+M.KEYS = { "title", "status", "project", "tags", "due", "blocked", "created", "modified", "started", "done", "order" }
 
 ---@class logpose.Task
 ---@field path string
@@ -395,12 +396,14 @@ function M.create(root, t)
     tags = t.tags or {},
     due = t.due,
     blocked = nil,
-    created = t.created or today,
+    -- tasks always know when they were created (the board sorts by it)
+    created = t.created or require("logpose.timestamps").now(),
+    modified = config.get().timestamps.modified and require("logpose.timestamps").now() or nil,
     started = status == config.get().board.start and today or nil,
     done = status == config.get().board.done and today or nil,
   }
   for _, k in ipairs(M.KEYS) do
-    if k ~= "order" then
+    if k ~= "order" and not (k == "modified" and values.modified == nil) then
       table.insert(fm, fm_line(k, values[k]))
     end
   end

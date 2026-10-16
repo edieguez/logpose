@@ -57,6 +57,8 @@ T["planning: no prompt, frontmatter, cursor, daily link"] = function()
       'title: "Sprint planning"',
       "attendees: []",
       "series: planning",
+      "created: 2026-10-14T10:30",
+      "modified: 2026-10-14T10:30",
       "---",
       "## Sprint goal",
       "",
@@ -68,7 +70,7 @@ T["planning: no prompt, frontmatter, cursor, daily link"] = function()
       "",
     }, "\n")
   )
-  eq(child.api.nvim_win_get_cursor(0), { 9, 0 })
+  eq(child.api.nvim_win_get_cursor(0), { 11, 0 })
   eq(child.lua_get("_G.input_asked"), vim.NIL)
 
   local d = H.read(daily())

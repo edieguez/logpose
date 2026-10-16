@@ -150,7 +150,9 @@ function M.build(root, key, input, iso, project, attendees)
     table.insert(frontmatter, "with: " .. yaml_string(with))
   end
   table.insert(frontmatter, "attendees: [" .. table.concat(vim.tbl_map(yaml_item, attendees), ", ") .. "]")
-  vim.list_extend(frontmatter, { "series: " .. series, "---" })
+  table.insert(frontmatter, "series: " .. series)
+  vim.list_extend(frontmatter, require("logpose.timestamps").lines())
+  table.insert(frontmatter, "---")
 
   local path = fs.join(M.dir(root, project), M.filename(iso, slug, key))
   local body = vim.split(rendered.text, "\n", { plain = true })
