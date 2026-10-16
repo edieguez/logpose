@@ -169,11 +169,12 @@ created: 2026-10-15
 started: 2026-10-16
 done:
 ---
-# Fix flaky test
+## Context
 
 Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 ## Log
+
 - 2026-10-15 09:05: created in Backlog
 - 2026-10-16 09:10: TODO → In progress
 - 2026-10-16 15:02: blocked: waiting on ana
@@ -364,10 +365,19 @@ the commands you haven't used. `:Logpose stats!` resets. Days older than
 ## Templates
 
 Shipped templates: `daily`, `meeting`, `planning`, `refinement`, `review`, `retro`, `1on1`,
-`note`, `project`. Put a file with the same name in your journal's `templates/` folder to
+`note`, `project`, `task`. Put a file with the same name in your journal's `templates/` folder to
 override one. Variables: `{date}`, `{time}`, `{weekday}`, `{iso_week}`, `{sprint}`, `{title}`,
 `{type}`, `{type_label}`, `{series}`, `{attendees}`, `{project}`. `{cursor}` marks where the
 cursor lands. Unknown variables are left as they are.
+
+Every note logpose creates passes markdownlint's default rules. Meeting notes, topic notes,
+project pages and tasks carry their title in the frontmatter, which markdownlint counts as the
+top-level heading, so their body starts at `##` (a `# Title` as well would break MD025, one
+top-level heading per document). When logpose creates or reorganizes a note (a meeting link
+in the daily note, a carried-over item, a log line, an INBOX section) it also keeps the blank
+lines markdownlint asks for around headings, lists, tables and code blocks; it never rewraps
+what you wrote, so long lines (MD013) are up to you. Your own templates get the same blank-line
+treatment.
 
 ## Configuration
 
@@ -520,6 +530,7 @@ picker in use and whether usage stats are on.
 make test                              # full suite (clones mini.nvim into deps/ on first run)
 make test-file FILE=tests/test_date.lua
 make lint                              # stylua --check
+make lint-md                           # markdownlint on the templates and generated notes
 make format
 ```
 
