@@ -30,4 +30,19 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          args: --check lua plugin tests
+          args: --check lua plugin tests scripts
+
+  markdown:
+    name: markdownlint (templates and generated notes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g markdownlint-cli2
+      - run: make lint-md
