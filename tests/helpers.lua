@@ -76,4 +76,18 @@ function H.contains(s, needle)
   end
 end
 
+--- Lines joined with a final newline, laid out the way markdownlint wants (and logpose
+--- writes): a blank line after every heading. For fixtures and expected file contents.
+function H.md(...)
+  local out = {}
+  local src = { ... }
+  for i, l in ipairs(src) do
+    table.insert(out, l)
+    if l:match("^#+%s") and src[i + 1] ~= nil and src[i + 1] ~= "" then
+      table.insert(out, "")
+    end
+  end
+  return table.concat(out, "\n") .. "\n"
+end
+
 return H

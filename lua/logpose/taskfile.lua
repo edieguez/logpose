@@ -257,7 +257,7 @@ end
 ---@param path string
 ---@param fn fun(lines: string[]): string[]?
 local function update(path, fn)
-  local ok, err = fs.update_lines(path, fn)
+  local ok, err = fs.update_lines(path, fn, { tidy = true })
   if not ok then
     error(err, 0)
   end
@@ -346,6 +346,8 @@ end
 ---@return string title, string[] tags, string? due
 function M.from_text(s)
   local index = require("logpose.index")
+  -- A carried-over item ends in "(from [[previous note]])": that link isn't part of the task.
+  s = s:gsub("%s*%(from %[%[.-%]%]%)%s*$", ""):gsub("%s*%(from %[.-%]%(.-%)%)%s*$", "")
   local tags = index.tags_in(s)
   local due = s:match("%f[%w]due:(%d%d%d%d%-%d%d%-%d%d)")
   local title = (" " .. s)
@@ -407,22 +409,23 @@ function M.create(root, t)
   if body[#body] == "" then
     table.remove(body)
   end
-  local cursor = { rendered.cursor[1] + #fm, rendered.cursor[2] }
+  local row = rendered.cursor[1]
   if t.body and #t.body > 0 then
-    local row = rendered.cursor[1]
-    local line = body[row] or ""
-    if vim.trim(line) == "" then
-      body[row] = t.body[1]
-      for i = 2, #t.body do
-        table.insert(body, row + i - 1, t.body[i])
-      end
-      cursor = { row + #fm + #t.body, 0 }
-      table.insert(body, row + #t.body, "")
+    -- The given lines go where the cursor would be; the cursor lands on a blank line after them.
+    local insert = vim.list_extend(vim.list_extend({}, t.body), { "" })
+    if vim.trim(body[row] or "") == "" then
+      table.remove(body, row)
     end
+    for i, l in ipairs(insert) do
+      table.insert(body, row + i - 1, l)
+    end
+    row = row + #t.body
   end
+  local fm_len = #fm
   local lines = vim.list_extend(fm, body)
   lines = M.append_log(lines, "created in " .. M.label(status))
-  local ok, err = fs.write_file(path, table.concat(lines, "\n") .. "\n")
+  local text, cursor = require("logpose.markdown").tidy_text(table.concat(lines, "\n"), { row + fm_len, 0 })
+  local ok, err = fs.write_file(path, text)
   if not ok then
     error(err, 0)
   end

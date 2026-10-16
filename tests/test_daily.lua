@@ -29,7 +29,7 @@ T["creates today's note and puts the cursor under ## Today"] = function()
   eq(bufname(), daily_path("2026-10-14"))
   eq(
     H.read(daily_path("2026-10-14")),
-    "# 2026-10-14 daily notes\n\n## Yesterday\n\n## Today\n\n\n## Blockers\n\n## Meetings\n\n## Notes\n"
+    "# 2026-10-14 daily notes\n\n## Yesterday\n\n## Today\n\n## Blockers\n\n## Meetings\n\n## Notes\n"
   )
   eq(child.api.nvim_win_get_cursor(0), { 6, 0 })
 end
@@ -84,14 +84,15 @@ end
 T["uses a template from the journal"] = function()
   H.write(root .. "/templates/daily.md", "# {weekday} {date}\n{cursor}\n")
   child.cmd("Logpose daily")
-  eq(H.read(daily_path("2026-10-14")), "# Wednesday 2026-10-14\n\n")
-  eq(child.api.nvim_win_get_cursor(0), { 2, 0 })
+  -- no trailing blank line (MD012): the cursor stays on the last line
+  eq(H.read(daily_path("2026-10-14")), "# Wednesday 2026-10-14\n")
+  eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
 end
 
 T["{sprint} names the current sprint when an anchor is set"] = function()
   H.write(root .. "/templates/daily.md", "# {date} {sprint}\n")
   child.cmd("Logpose daily")
-  eq(H.read(daily_path("2026-10-14")), "# 2026-10-14 \n")
+  eq(H.read(daily_path("2026-10-14")), "# 2026-10-14\n") -- no trailing space (MD009)
   child.lua(
     ("require('logpose').setup({ root = %q, period = { sprint = { anchor = '2026-10-01', first_number = 42 } } })"):format(
       root

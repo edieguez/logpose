@@ -21,9 +21,7 @@ local function p(rel)
   return root .. "/" .. rel
 end
 
-local function lines(...)
-  return table.concat({ ... }, "\n") .. "\n"
-end
+local lines = H.md
 
 local function buf_lines()
   return child.api.nvim_buf_get_lines(0, 0, -1, false)
@@ -125,7 +123,7 @@ T["capture"]["adds to an unsaved INBOX buffer without losing edits"] = function(
   child.api.nvim_buf_set_lines(0, 0, -1, false, { "# INBOX", "typing…" })
   child.cmd("Logpose capture new")
   eq(H.read(p("INBOX.md")), lines("# INBOX"))
-  eq(buf_lines(), { "# INBOX", "typing…", "", "## 2026-10-14", "- [ ] new" })
+  eq(buf_lines(), { "# INBOX", "", "typing…", "", "## 2026-10-14", "", "- [ ] new" })
   H.contains(child.notifications()[1].msg, "unsaved")
 end
 
@@ -133,7 +131,7 @@ T["capture"]["reloads a clean INBOX buffer"] = function()
   H.write(p("INBOX.md"), lines("# INBOX"))
   child.cmd("edit " .. p("INBOX.md"))
   child.cmd("Logpose capture new")
-  eq(buf_lines(), { "# INBOX", "", "## 2026-10-14", "- [ ] new" })
+  eq(buf_lines(), { "# INBOX", "", "## 2026-10-14", "", "- [ ] new" })
 end
 
 T["done"] = MiniTest.new_set()
@@ -144,7 +142,7 @@ local INBOX =
 T["done"]["moves an INBOX task to DONE and saves"] = function()
   H.write(p("INBOX.md"), INBOX)
   child.cmd("edit " .. p("INBOX.md"))
-  child.api.nvim_win_set_cursor(0, { 4, 0 })
+  child.api.nvim_win_set_cursor(0, { 5, 0 })
   child.cmd("Logpose done")
   eq(H.read(p("DONE.md")), lines("# DONE", "", "## 2026-10-14", "- [x] a #acme"))
   eq(
@@ -157,16 +155,16 @@ end
 T["done"]["can be undone in the INBOX buffer"] = function()
   H.write(p("INBOX.md"), INBOX)
   child.cmd("edit " .. p("INBOX.md"))
-  child.api.nvim_win_set_cursor(0, { 4, 0 })
+  child.api.nvim_win_set_cursor(0, { 5, 0 })
   child.cmd("Logpose done")
   child.cmd("undo")
-  eq(buf_lines()[4], "- [ ] a #acme")
+  eq(buf_lines()[5], "- [ ] a #acme")
 end
 
 T["done"]["handles a range and skips non-task lines"] = function()
   H.write(p("INBOX.md"), INBOX)
   child.cmd("edit " .. p("INBOX.md"))
-  child.cmd("4,6Logpose done")
+  child.cmd("5,7Logpose done")
   eq(H.read(p("DONE.md")), lines("# DONE", "", "## 2026-10-14", "- [x] a #acme", "- [x] b"))
   eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-13", "- not a task", "", "## 2026-10-14", "- [ ] c"))
   H.contains(child.notifications()[1].msg, "2 tasks done, skipped 1 non-task line")
@@ -175,8 +173,8 @@ end
 T["done"]["works from a visual selection via <Plug>"] = function()
   H.write(p("INBOX.md"), INBOX)
   child.cmd("edit " .. p("INBOX.md"))
-  child.api.nvim_win_set_cursor(0, { 6, 0 })
-  child.type_keys("V", "3j")
+  child.api.nvim_win_set_cursor(0, { 7, 0 })
+  child.type_keys("V", "4j")
   child.api.nvim_feedkeys(child.api.nvim_replace_termcodes("<Plug>(logpose-done)", true, false, true), "x", false)
   eq(H.read(p("DONE.md")), lines("# DONE", "", "## 2026-10-14", "- [x] b", "- [x] c"))
 end
@@ -185,7 +183,7 @@ T["done"]["checks off a meeting action item and links it from DONE"] = function(
   local note = p("meetings/2026-10-14 - retro.md")
   H.write(note, lines("# Retro", "", "## Action items", "- [ ] follow up", "- [x] already"))
   child.cmd("edit " .. vim.fn.fnameescape(note))
-  child.cmd("4,5Logpose done")
+  child.cmd("5,6Logpose done")
   eq(H.read(note), lines("# Retro", "", "## Action items", "- [x] follow up", "- [x] already"))
   eq(
     H.read(p("DONE.md")),
@@ -199,10 +197,10 @@ T["done"]["does not save a buffer that already had unsaved edits"] = function()
   H.write(note, lines("# day", "- [ ] task"))
   child.cmd("edit " .. note)
   child.api.nvim_buf_set_lines(0, 0, 1, false, { "# day (edited)" })
-  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
   child.cmd("Logpose done")
   eq(H.read(note), lines("# day", "- [ ] task"))
-  eq(buf_lines(), { "# day (edited)", "- [x] task" })
+  eq(buf_lines(), { "# day (edited)", "", "- [x] task" })
   eq(child.api.nvim_get_option_value("modified", { buf = 0 }), true)
   H.contains(H.read(p("DONE.md")), "- [x] task ([[daily/daily-2026-10-14|daily-2026-10-14]])")
 end
@@ -211,7 +209,7 @@ T["done"]["follows a newest-first DONE"] = function()
   H.write(p("DONE.md"), lines("# DONE", "", "## 2026-10-13", "- [x] y", "", "## 2026-10-12", "- [x] x"))
   H.write(p("INBOX.md"), INBOX)
   child.cmd("edit " .. p("INBOX.md"))
-  child.api.nvim_win_set_cursor(0, { 9, 0 })
+  child.api.nvim_win_set_cursor(0, { 11, 0 })
   child.cmd("Logpose done")
   eq(
     H.read(p("DONE.md")),

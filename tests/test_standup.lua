@@ -59,13 +59,14 @@ T["a new daily note starts from the previous one"] = function()
       "# 2026-10-14 daily notes",
       "",
       "## Yesterday",
+      "",
       "- review PR #acme",
       "Paired with Ana on CI",
       "",
       "## Today",
+      "",
       "- [ ] fix flaky test #acme",
       "- [ ] write thesis chapter #thesis",
-      "",
       "",
       "## Blockers",
       "",
@@ -74,7 +75,7 @@ T["a new daily note starts from the previous one"] = function()
       "## Notes"
     )
   )
-  eq(child.api.nvim_win_get_cursor(0), { 10, 0 }) -- the empty line after the carried tasks
+  eq(child.api.nvim_win_get_cursor(0), { 12, 0 }) -- the empty line after the carried tasks
   local prev = H.read(d("2026-10-12"))
   H.contains(prev, "- [>] fix flaky test #acme\n- [>] write thesis chapter #thesis\n")
   H.contains(prev, "- [x] review PR #acme\n")
@@ -94,7 +95,7 @@ T["carry_forward = false only fills Yesterday"] = function()
   H.write(d("2026-10-12"), PREV)
   child.cmd("Logpose daily")
   local new = H.read(d("2026-10-14"))
-  H.contains(new, "## Yesterday\n- review PR #acme\nPaired with Ana on CI\n\n## Today\n\n")
+  H.contains(new, "## Yesterday\n\n- review PR #acme\nPaired with Ana on CI\n\n## Today\n\n## Blockers")
   eq(H.read(d("2026-10-12")), PREV)
 end
 
@@ -102,7 +103,7 @@ T["mark_carried = false leaves the previous note alone"] = function()
   setup("{ standup = { mark_carried = false } }")
   H.write(d("2026-10-12"), PREV)
   child.cmd("Logpose daily")
-  H.contains(H.read(d("2026-10-14")), "## Today\n- [ ] fix flaky test #acme\n")
+  H.contains(H.read(d("2026-10-14")), "## Today\n\n- [ ] fix flaky test #acme\n")
   eq(H.read(d("2026-10-12")), PREV)
 end
 
@@ -125,13 +126,13 @@ T["include_done adds yesterday's DONE entries without duplicates"] = function()
   child.cmd("Logpose daily")
   H.contains(
     H.read(d("2026-10-14")),
-    "## Yesterday\n- review PR #acme\nPaired with Ana on CI\n- shipped release ([[meetings/x|x]])\n\n## Today"
+    "## Yesterday\n\n- review PR #acme\nPaired with Ana on CI\n- shipped release ([[meetings/x|x]])\n\n## Today"
   )
 end
 
 T["no previous note leaves the template as is"] = function()
   child.cmd("Logpose daily")
-  H.contains(H.read(d("2026-10-14")), "## Yesterday\n\n## Today\n\n\n## Blockers")
+  H.contains(H.read(d("2026-10-14")), "## Yesterday\n\n## Today\n\n## Blockers")
 end
 
 T["an existing daily note is never changed"] = function()
@@ -147,7 +148,7 @@ T["custom section names"] = function()
   H.write(root .. "/templates/daily.md", "# {date}\n\n## Ayer\n\n## Hoy\n{cursor}\n\n## Bloqueos\n")
   H.write(d("2026-10-12"), "# x\n\n## Hoy\n- [x] hecho\n- [ ] pendiente\n")
   child.cmd("Logpose daily")
-  eq(H.read(d("2026-10-14")), "# 2026-10-14\n\n## Ayer\n- hecho\n\n## Hoy\n- [ ] pendiente\n\n\n## Bloqueos\n")
+  eq(H.read(d("2026-10-14")), "# 2026-10-14\n\n## Ayer\n\n- hecho\n\n## Hoy\n\n- [ ] pendiente\n\n## Bloqueos\n")
 end
 
 T[":Logpose standup"] = MiniTest.new_set()
@@ -166,18 +167,27 @@ T[":Logpose standup"]["groups today's sections by project"] = function()
     "# Standup 2026-10-14",
     "",
     "## Yesterday",
+    "",
     "### acme",
+    "",
     "- review PR #acme",
+    "",
     "### other",
+    "",
     "Paired with Ana on CI",
     "",
     "## Today",
+    "",
     "### acme",
+    "",
     "- [ ] fix flaky test #acme",
+    "",
     "### thesis",
+    "",
     "- [ ] write thesis chapter #thesis",
     "",
     "## Blockers",
+    "",
     "- (none)",
   })
   H.contains(child.api.nvim_buf_get_name(0), "logpose://standup/2026-10-14")
@@ -186,17 +196,17 @@ end
 T[":Logpose standup"]["flat without projects or with grouping off"] = function()
   H.write(d("2026-10-14"), lines("# d", "## Yesterday", "- did a #x", "## Today", "- [ ] b", "## Blockers", "- infra"))
   local out = standup()
-  eq(vim.list_slice(out, 3, 4), { "## Yesterday", "- did a #x" })
+  eq(vim.list_slice(out, 3, 5), { "## Yesterday", "", "- did a #x" })
   vim.fn.mkdir(root .. "/meetings/x", "p")
   setup("{ standup = { group_by_project = false } }")
   child.cmd("close")
-  eq(vim.list_slice(standup(), 3, 4), { "## Yesterday", "- did a #x" })
+  eq(vim.list_slice(standup(), 3, 5), { "## Yesterday", "", "- did a #x" })
 end
 
 T[":Logpose standup"]["uses unsaved edits of the daily note"] = function()
   child.cmd("Logpose daily")
   child.api.nvim_buf_set_lines(0, 5, 6, false, { "- [ ] typed, not saved" })
-  H.contains(table.concat(standup(), "\n"), "## Today\n- [ ] typed, not saved")
+  H.contains(table.concat(standup(), "\n"), "## Today\n\n- [ ] typed, not saved")
 end
 
 T[":Logpose standup"]["needs today's daily note"] = function()

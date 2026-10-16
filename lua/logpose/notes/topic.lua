@@ -39,11 +39,15 @@ local function create(path, tpl, vars, fm, root)
     table.insert(lines, kv[1] .. ": " .. kv[2])
   end
   table.insert(lines, "---")
-  local ok, err = fs.write_file(path, table.concat(lines, "\n") .. "\n" .. rendered.text)
+  local text, cursor = require("logpose.markdown").tidy_text(
+    table.concat(lines, "\n") .. "\n" .. rendered.text,
+    { rendered.cursor[1] + #lines, rendered.cursor[2] }
+  )
+  local ok, err = fs.write_file(path, text)
   if not ok then
     error(err, 0)
   end
-  open(path, { rendered.cursor[1] + #lines, rendered.cursor[2] })
+  open(path, cursor)
 end
 
 --- Topic note `notes/<slug>.md`.

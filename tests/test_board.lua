@@ -239,9 +239,9 @@ T["standup lists board work; report and health count it"] = function()
   task("yesterday", { title = "Finished yesterday", status = "done", project = "acme", done = "2026-10-14" })
   child.cmd("Logpose standup")
   local s = screen()
-  H.contains(s, "## Yesterday\n### acme\n- [x] Finished yesterday #acme")
-  H.contains(s, "## Today\n### acme\n- [ ] Queue design #acme")
-  H.contains(s, "## Blockers\n### acme\n- Queue design: waiting on ana #acme")
+  H.contains(s, "## Yesterday\n\n### acme\n\n- [x] Finished yesterday #acme")
+  H.contains(s, "## Today\n\n### acme\n\n- [ ] Queue design #acme")
+  H.contains(s, "## Blockers\n\n### acme\n\n- Queue design: waiting on ana #acme")
 
   local report = table.concat(
     child.lua_get(
@@ -255,7 +255,7 @@ T["standup lists board work; report and health count it"] = function()
   H.contains(report, "- Ship it ([[tasks/shipped|Ship it]])  @acme")
   H.contains(
     report,
-    "### Blocked tasks (1)\n- [In progress] Queue design: waiting on ana ([[tasks/queue|Queue design]])"
+    "### Blocked tasks (1)\n\n- [In progress] Queue design: waiting on ana ([[tasks/queue|Queue design]])"
   )
   H.contains(report, "### In progress for more than 14 days (0)")
 

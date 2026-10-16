@@ -46,11 +46,10 @@ T["create writes frontmatter, body and a log"] = function()
       "started:",
       "done:",
       "---",
-      "# Fix flaky test",
-      "",
-      "",
+      "## Context",
       "",
       "## Log",
+      "",
       "- 2026-10-15 09:05: created in Backlog",
       "",
     }, "\n")
@@ -63,7 +62,7 @@ end
 T["create puts body lines where the cursor goes and validates the column"] = function()
   local path = create("{ title = 'Promoted', status = 'todo', body = { 'From: [[x]]' } }")
   local content = H.read(path)
-  H.contains(content, "# Promoted\n\nFrom: [[x]]\n\n")
+  H.contains(content, "---\n## Context\n\nFrom: [[x]]\n\n## Log\n")
   H.contains(content, "status: todo")
   MiniTest.expect.error(function()
     create("{ title = 'Nope', status = 'nope' }")
@@ -100,6 +99,7 @@ T["set_status keeps started, done and the log in step"] = function()
     H.read(path),
     table.concat({
       "## Log",
+      "",
       "- 2026-10-15 09:05: created in Backlog",
       "- 2026-10-15 09:05: Backlog → In progress",
       "- 2026-10-16 17:00: blocked: waiting on ana",
@@ -174,7 +174,7 @@ T["capture creates a Backlog task; capture! opens it"] = function()
   eq(child.api.nvim_buf_get_name(0), "") -- not opened
   child.cmd("Logpose capture! write the retro")
   eq(child.api.nvim_buf_get_name(0), root .. "/tasks/write-the-retro.md")
-  eq(child.api.nvim_win_get_cursor(0)[1], 14)
+  eq(child.api.nvim_win_get_cursor(0)[1], 13) -- the blank line under ## Context
   eq(H.read(root .. "/INBOX.md"), nil)
 end
 
@@ -236,10 +236,10 @@ T["migrate turns open INBOX items into task files"] = function()
   child.cmd("Logpose migrate!")
   local a = fm(root .. "/tasks/fix-flaky-test.md")
   eq({ a.status, a.project, a.tags, a.due, a.created }, { "backlog", "acme", { "perf" }, "2026-10-20", "2026-10-13" })
-  H.contains(H.read(root .. "/tasks/fix-flaky-test.md"), "# fix flaky test\n\n- seen on Mondays\n- logs in CI\n")
+  H.contains(H.read(root .. "/tasks/fix-flaky-test.md"), "## Context\n\n- seen on Mondays\n- logs in CI\n\n## Log")
   eq(fm(root .. "/tasks/read-paper.md").created, "2026-10-13")
   eq(fm(root .. "/tasks/learn-rust.md").tags, { "someday" })
-  eq(H.read(root .. "/INBOX.md"), "# INBOX\n\n## 2026-10-13\n- [x] already done\n\n## Someday\n")
+  eq(H.read(root .. "/INBOX.md"), "# INBOX\n\n## 2026-10-13\n\n- [x] already done\n\n## Someday\n")
   H.contains(child.notifications()[1].msg, "migrated 3 tasks to Backlog")
   child.cmd("Logpose migrate")
   H.contains(child.notifications()[2].msg, "no open INBOX tasks")

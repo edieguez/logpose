@@ -128,7 +128,7 @@ T["meetings"]["go to meetings/<project>/ with project frontmatter"] = function()
   H.contains(content, "series: acme-api/retro")
   H.contains(
     H.read(root .. "/daily/daily-2026-10-14.md"),
-    "## Meetings\n- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]\n"
+    "## Meetings\n\n- acme-api: [[meetings/acme-api/2026-10-14 - retro|Retro]]\n"
   )
 end
 

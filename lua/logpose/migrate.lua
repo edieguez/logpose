@@ -112,7 +112,7 @@ function M.apply(root, plan)
       end
     end
     return kept
-  end)
+  end, { tidy = true })
   if not wrote then
     error(werr, 0)
   end

@@ -48,7 +48,7 @@ end
 ---@return "file"|"buffer"|nil changed, integer added
 local function add_items(path, title, items)
   if not fs.exists(path) then
-    local ok, err = fs.write_file(path, title .. "\n")
+    local ok, err = fs.write_file(path, title .. "\n", { tidy = true })
     if not ok then
       error(err, 0)
     end
@@ -65,7 +65,7 @@ local function add_items(path, title, items)
       end
     end
     return touched and current or nil
-  end)
+  end, { tidy = true })
   if not ok then
     error(err, 0)
   end

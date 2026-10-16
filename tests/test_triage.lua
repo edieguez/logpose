@@ -74,15 +74,17 @@ T["tag a project, move into a note, drop, quit"] = function()
     "## 2026-10-12",
     "",
     "## 2026-10-13",
+    "",
     "- [ ] newer #acme",
     "- [x] closed",
     "",
     "## Someday",
+    "",
     "- [ ] parked",
   }, "\n") .. "\n")
   H.contains(
     H.read(root .. "/meetings/acme/2026-10-14 - retro.md"),
-    "## Action items\n- [ ] existing\n- [ ] old one #acme\n\n## Notes"
+    "## Action items\n\n- [ ] existing\n- [ ] old one #acme\n\n## Notes"
   )
   H.contains(last_note(), "triage finished: 1 tagged, 1 moved, 1 dropped; 1 left in INBOX")
 end
@@ -90,8 +92,8 @@ end
 T["due with a relative date, done, someday"] = function()
   answers("due", "+3d", "done", "someday", "skip")
   child.cmd("Logpose triage")
-  H.contains(H.read(root .. "/DONE.md"), "## 2026-10-14\n- [x] old one due:2026-10-17\n")
-  H.contains(inbox(), "## Someday\n- [ ] parked\n- [ ] second\n")
+  H.contains(H.read(root .. "/DONE.md"), "## 2026-10-14\n\n- [x] old one due:2026-10-17\n")
+  H.contains(inbox(), "## Someday\n\n- [ ] parked\n- [ ] second\n")
   eq(inbox():find("old one", 1, true), nil)
   H.contains(last_note(), "1 tagged, 1 done, 1 someday, 1 skipped; 1 left")
 end

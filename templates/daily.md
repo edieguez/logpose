@@ -3,6 +3,7 @@
 ## Yesterday
 
 ## Today
+
 {cursor}
 
 ## Blockers

@@ -58,25 +58,21 @@ T["planning: no prompt, frontmatter, cursor, daily link"] = function()
       "attendees: []",
       "series: planning",
       "---",
-      "# 2026-10-14 - Sprint planning meeting notes",
-      "",
       "## Sprint goal",
-      "",
       "",
       "## Committed items",
       "",
       "## Risks",
       "",
       "## Action items",
-      "- [ ] ",
       "",
     }, "\n")
   )
-  eq(child.api.nvim_win_get_cursor(0), { 11, 0 })
+  eq(child.api.nvim_win_get_cursor(0), { 9, 0 })
   eq(child.lua_get("_G.input_asked"), vim.NIL)
 
   local d = H.read(daily())
-  H.contains(d, "## Meetings\n- [[meetings/2026-10-14 - sprint-planning|Sprint planning]]\n\n## Notes")
+  H.contains(d, "## Meetings\n\n- [[meetings/2026-10-14 - sprint-planning|Sprint planning]]\n\n## Notes")
 end
 
 T["adhoc: prompts, transliterates the filename, keeps the title"] = function()
@@ -85,7 +81,7 @@ T["adhoc: prompts, transliterates the filename, keeps the title"] = function()
   local path = meeting("2026-10-14 - reunion-con-qa.md")
   eq(child.api.nvim_buf_get_name(0), path)
   H.contains(H.read(path), 'title: "Reunión con QA"')
-  H.contains(H.read(path), "# 2026-10-14 - Reunión con QA meeting notes")
+  eq(H.read(path):find("\n# ", 1, true), nil) -- no H1 next to the frontmatter title (MD025)
   H.contains(H.read(path), "series: adhoc-reunion-con-qa")
 end
 
@@ -93,7 +89,7 @@ T["filename and header format for ASCII titles"] = function()
   answer_input("Sprint Planning")
   child.cmd("Logpose meeting adhoc")
   local path = meeting("2026-10-14 - sprint-planning.md")
-  H.contains(H.read(path), "\n# 2026-10-14 - Sprint Planning meeting notes\n")
+  H.contains(H.read(path), 'title: "Sprint Planning"\n')
 end
 
 T["1on1: title from the prompt, series per person"] = function()
@@ -102,7 +98,7 @@ T["1on1: title from the prompt, series per person"] = function()
   local path = meeting("2026-10-14 - 1-1-ana.md")
   H.contains(H.read(path), 'title: "1:1 Ana"')
   H.contains(H.read(path), "series: 1on1-ana")
-  H.contains(H.read(path), "## Follow-ups\n- [ ] ")
+  H.contains(H.read(path), "## Follow-ups\n")
 end
 
 T["empty or cancelled input aborts"] = function()

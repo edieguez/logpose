@@ -64,7 +64,7 @@ local function edit(path, fn)
     end
     return
   end
-  local ok, err = fs.update_lines(path, fn)
+  local ok, err = fs.update_lines(path, fn, { tidy = true })
   if not ok then
     error(err, 0)
   end
@@ -332,7 +332,7 @@ function M.move(s, item)
         local out = vim.list_extend({}, lines)
         table.insert(out, line)
         return out
-      end)
+      end, { tidy = true })
       if not ok then
         error(err, 0)
       end

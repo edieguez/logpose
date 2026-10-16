@@ -34,9 +34,8 @@ local function first_one_on_one()
   answer("Ana")
   child.cmd("Logpose meeting 1on1 2026-10-07")
   local path = m("2026-10-07 - 1-1-ana.md")
-  local content =
-    H.read(path)
-      :gsub("## Follow%-ups\n%- %[ %] \n", "## Follow-ups\n- [ ] send feedback\n- [x] done item\n- [ ] book room\n")
+  local content = H.read(path)
+    :gsub("## Follow%-ups\n$", "## Follow-ups\n\n- [ ] send feedback\n- [x] done item\n- [ ] book room\n")
   H.write(path, content)
   child.cmd("enew!")
   return path
@@ -50,11 +49,12 @@ T["a new 1:1 links the previous one and carries open follow-ups"] = function()
   H.contains(
     new,
     table.concat({
-      "# 2026-10-14 - 1:1 Ana meeting notes",
-      "",
+      "series: 1on1-ana",
+      "---",
       "Previous: [[meetings/2026-10-07 - 1-1-ana|1:1 Ana 2026-10-07]]",
       "",
       "## Carried over",
+      "",
       "- [ ] send feedback (from [[meetings/2026-10-07 - 1-1-ana|2026-10-07]])",
       "- [ ] book room (from [[meetings/2026-10-07 - 1-1-ana|2026-10-07]])",
       "",
