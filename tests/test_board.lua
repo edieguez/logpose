@@ -70,7 +70,7 @@ T["shows columns side by side with cards, counts and meta"] = function()
   local s = screen()
   H.contains(s, "Board · all projects")
   local headers = child.api.nvim_buf_get_lines(0, 2, 3, false)[1]
-  for _, h in ipairs({ "● Backlog (1)", "● TODO (1)", "● In progress (1)", "● Follow-up (0)", "● Done (1)" }) do
+  for _, h in ipairs({ "● Backlog (1)", "● TODO (1)", "● In progress (1/3)", "● Follow-up (0)", "● Done (1)" }) do
     H.contains(headers, h) -- "Old work" finished last week: not in Done
   end
   H.contains(s, "⊘ waiting on ana")
@@ -167,13 +167,13 @@ T["filters from the command line and /"] = function()
   eq(screen():find("Fix flaky test", 1, true), nil)
 end
 
-T["J/K reorder cards within a column"] = function()
+T["<C-j>/<C-k> reorder cards within a column"] = function()
   task("a-first", { title = "Alpha", status = "todo", created = "2026-10-01" })
   child.cmd("Logpose board")
   child.type_keys("l") -- TODO: Fix flaky (due) then Alpha
   local s = screen()
   assert(s:find("Fix flaky test", 1, true) < s:find("Alpha", 1, true))
-  child.type_keys("J")
+  child.type_keys("<C-j>")
   s = screen()
   assert(s:find("Alpha", 1, true) < s:find("Fix flaky test", 1, true))
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "order: 2")
@@ -200,7 +200,7 @@ T["the cursor selects a card; <CR> opens it and the board refreshes on return"] 
   eq(child.api.nvim_buf_get_name(0), root .. "/tasks/queue.md")
   child.lua(("require('logpose.taskfile').set_status(%q, 'follow-up')"):format(root .. "/tasks/queue.md"))
   child.cmd("buffer logpose://board")
-  H.contains(screen(), "In progress (0)")
+  H.contains(screen(), "In progress (0/3)")
   H.contains(screen(), "Follow-up (1)")
 end
 
@@ -329,6 +329,110 @@ T["D deletes a card after asking"] = function()
   eq(H.read(root .. "/tasks/read-paper.md"), nil)
   H.contains(screen(), "● Backlog (0)")
   H.contains(child.notifications()[#child.notifications()].msg, "deleted read-paper.md")
+end
+
+T["cards show how long they've been in their column; stale ones fade"] = function()
+  -- queue: In progress since 10-12 (started), no log -> created 10-09
+  local s = screen()
+  child.cmd("Logpose board")
+  s = screen()
+  H.contains(s, "6d") -- Queue design: created 2026-10-09, no move logged
+  H.contains(s, "5d") -- Fix flaky test: created 2026-10-10
+  task(
+    "moved",
+    { title = "Moved recently", status = "todo", created = "2026-09-01" },
+    "\n## Log\n\n- 2026-10-14 09:00: Backlog → TODO\n"
+  )
+  child.type_keys("r")
+  H.contains(screen(), "1d") -- the log says when it reached TODO
+  local groups = child.lua_get([[(function()
+    local seen = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+      seen[m[4].hl_group] = true
+    end
+    return seen
+  end)()]])
+  eq(groups.LogposeBoardAge, true)
+  setup("{ board = { stale_days = 3 } }")
+  child.cmd("Logpose board")
+  groups = child.lua_get([[(function()
+    local seen = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+      seen[m[4].hl_group] = true
+    end
+    return seen
+  end)()]])
+  eq({ groups.LogposeBoardStale, groups.LogposeBoardFaded }, { true, true })
+end
+
+T["WIP limits show in the header and turn red above it"] = function()
+  child.cmd("Logpose board")
+  H.contains(screen(), "● In progress (1/3)")
+  task("w2", { title = "W2", status = "in-progress" })
+  task("w3", { title = "W3", status = "in-progress" })
+  task("w4", { title = "W4", status = "in-progress" })
+  child.type_keys("r")
+  H.contains(screen(), "● In progress (4/3)")
+  local over = child.lua_get([[(function()
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+      if m[4].hl_group == "LogposeBoardOverLimit" then return true end
+    end
+    return false
+  end)()]])
+  eq(over, true)
+end
+
+T["columns scroll on their own and keep the focused card in view"] = function()
+  child.o.lines = 20
+  for i = 1, 8 do
+    task("b" .. i, { title = "Backlog " .. i, status = "backlog", created = ("2026-10-0%d"):format(i) })
+  end
+  child.cmd("Logpose board")
+  local s = screen()
+  H.contains(s, "↓ ")
+  eq(s:find("↑", 1, true), nil)
+  H.contains(s, "● In progress (1/3)") -- the other columns stay put
+  child.type_keys("G")
+  s = screen()
+  H.contains(s, "↑ ")
+  H.contains(s, "┏━") -- the focused (last) card is drawn
+  H.contains(s, "Read paper") -- created 10-11: the last Backlog card
+  child.type_keys("gg")
+  eq(screen():find("↑", 1, true), nil)
+end
+
+T["z folds a column to a strip and back"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("llll", "z") -- Done
+  local s = screen()
+  H.contains(s, "▸1")
+  eq(s:find("Ship it", 1, true), nil)
+  child.type_keys("z")
+  H.contains(screen(), "● Done (1)")
+  setup("{ board = { collapsed = { 'backlog' } } }")
+  child.cmd("Logpose board")
+  H.contains(screen(), "▸1")
+  eq(screen():find("Read paper", 1, true), nil)
+end
+
+T["K peeks at the task in a float; closing saves and refreshes"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("K") -- Read paper
+  eq(child.api.nvim_buf_get_name(0), root .. "/tasks/read-paper.md")
+  eq(child.api.nvim_win_get_config(0).relative, "editor")
+  child.api.nvim_buf_set_lines(0, -1, -1, false, { "notes from the peek" })
+  child.type_keys("q")
+  eq(child.bo.filetype, "logpose-board")
+  H.contains(H.read(root .. "/tasks/read-paper.md"), "notes from the peek")
+  -- the close keys don't stay on the task buffer
+  eq(
+    child.lua_get(
+      ("vim.api.nvim_buf_call(vim.fn.bufnr(%q), function() return vim.fn.maparg('q', 'n') end)"):format(
+        root .. "/tasks/read-paper.md"
+      )
+    ),
+    ""
+  )
 end
 
 return T

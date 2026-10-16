@@ -22,6 +22,9 @@ local ns = vim.api.nvim_create_namespace("logpose.board")
 ---@field cards_at { first: integer, last: integer }[][]  [col][row] -> buffer rows (1-based)
 ---@field stacked boolean
 ---@field width integer column width
+---@field widths integer[] width per column (folded ones are narrow)
+---@field offset table<integer, integer> first visible card per column
+---@field collapsed table<string, boolean> folded columns by key
 
 ---@type table<integer, logpose.Board>
 M.boards = {}
@@ -31,9 +34,10 @@ M.HELP = {
   "  h / l        previous / next column      j / k   previous / next card",
   "  H / L  < >   move the card left / right  1-9     move it to column N",
   "  x            done                        b       block / unblock",
-  "  J / K        move the card down / up     a       add a card here",
-  "  D            delete the card (asks)",
+  "  <C-j>/<C-k>  move the card down / up     a       add a card here",
+  "  K            peek: the task in a float   D       delete the card (asks)",
   "  <CR>         open the task file          /       filter (find filters)",
+  "  z            fold / unfold the column    gg / G  first / last card",
   "  p            this project / all          r       refresh",
   "  q            close                       ?       this help",
 }
@@ -135,9 +139,10 @@ function M.collect(root, opts)
   local today = opts.today or date.today()
   local q = query.parse(query.split(opts.filter or ""), today, true)
   local cfg = config.get()
-  local orders = {}
+  local orders, since_of = {}, {}
   for _, t in ipairs(taskfile.list(root)) do
     orders[t.path] = t.order
+    since_of[t.path] = t.since
   end
   local columns, by_key = {}, {}
   for _, c in ipairs(taskfile.columns()) do
@@ -152,6 +157,7 @@ function M.collect(root, opts)
       local recent = it.status ~= cfg.board.done or not it.done_date or it.done_date >= since
       if in_scope and recent and query.match(it, q) then
         it.order = orders[it.file]
+        it.since = since_of[it.file]
         local col = by_key[it.status] or by_key[cfg.tasks.capture_status]
         table.insert(col.cards, it)
       end
@@ -176,9 +182,17 @@ M.HL = {
   LogposeBoardOverdue = "DiagnosticError",
   LogposeBoardBlocked = "DiagnosticError",
   LogposeBoardEmpty = "Comment",
+  LogposeBoardAge = "Comment",
+  LogposeBoardStale = "DiagnosticWarn",
+  LogposeBoardFaded = "Comment",
+  LogposeBoardOverLimit = "DiagnosticError",
+  LogposeBoardMore = "Comment",
 }
 --- Column colours by position (a column's `hl` overrides): grey, blue, yellow, purple, green.
 M.COLUMN_HL = { "Comment", "DiagnosticInfo", "DiagnosticWarn", "DiagnosticHint", "DiagnosticOk" }
+
+--- Width of a folded column.
+M.COLLAPSED_WIDTH = 5
 
 local function define_highlights()
   for name, link in pairs(M.HL) do
@@ -225,6 +239,17 @@ function M.fit_chunks(chunks, w)
   return out
 end
 
+--- Days a card has been in its column (nil in Done).
+---@param it logpose.Item
+---@param today string
+---@return integer?
+function M.age(it, today)
+  if it.status == config.get().board.done or not it.since or not date.is_iso(it.since) then
+    return nil
+  end
+  return math.max(0, date.diff_days(it.since, today))
+end
+
 --- One card as box lines of `w` cells. Each line is a list of chunks.
 ---@param it logpose.Item
 ---@param w integer
@@ -236,6 +261,8 @@ function M.card_lines(it, w, today, col_hl, focused)
   local box = focused and BOX.focus or BOX.normal
   local border = focused and "LogposeBoardFocus" or (it.blocked and "LogposeBoardBlocked" or col_hl)
   local inner = math.max(w - 4, 1)
+  local age = M.age(it, today)
+  local stale = age and age >= config.get().board.stale_days
   local out = {}
   local function row(chunks)
     local line = { { box.v .. " ", border } }
@@ -244,8 +271,9 @@ function M.card_lines(it, w, today, col_hl, focused)
     table.insert(out, line)
   end
   table.insert(out, { { box.tl .. string.rep(box.h, w - 2) .. box.tr, border } })
+  local title_hl = focused and "LogposeBoardFocusTitle" or (stale and "LogposeBoardFaded" or nil)
   for _, l in ipairs(M.wrap(it.text, inner, 2)) do
-    row({ { l, focused and "LogposeBoardFocusTitle" or nil } })
+    row({ { l, title_hl } })
   end
   if it.blocked then
     row({ { "⊘ " .. (it.blocked == "yes" and "blocked" or it.blocked), "LogposeBoardBlocked" } })
@@ -269,6 +297,9 @@ function M.card_lines(it, w, today, col_hl, focused)
     local overdue = it.due < today and it.status ~= config.get().board.done
     add("◷ " .. it.due:sub(6), overdue and "LogposeBoardOverdue" or "LogposeBoardDue")
   end
+  if age then
+    add(("%dd"):format(age), stale and "LogposeBoardStale" or "LogposeBoardAge")
+  end
   if #meta > 0 then
     row(meta)
   end
@@ -276,17 +307,113 @@ function M.card_lines(it, w, today, col_hl, focused)
   return out
 end
 
+--- Lines of one column: header, then the cards that fit (scrolled so the focused one shows),
+--- with "↑ n more" / "↓ n more" markers. Records which cards are visible.
+---@param b logpose.Board
+---@param ci integer
+---@param w integer
+---@param avail integer rows available under the header
+---@param today string
+---@return { chunks: logpose.Chunk[], card?: integer }[]
+local function column_block(b, ci, w, avail, today)
+  local col = b.columns[ci]
+  local col_hl = "LogposeBoardColumn" .. ci
+  local limit = config.get().board.columns[ci] and config.get().board.columns[ci].limit
+  local over = limit and #col.cards > limit
+  local block = {}
+  if b.collapsed[col.key] then
+    table.insert(block, {
+      chunks = M.fit_chunks(
+        { { "▸", col_hl }, { tostring(#col.cards), over and "LogposeBoardOverLimit" or "LogposeBoardHint" } },
+        w
+      ),
+    })
+    -- The label, one letter per line.
+    local n = vim.fn.strchars(col.label)
+    for i = 0, math.min(n, avail) - 1 do
+      table.insert(block, { chunks = M.fit_chunks({ { " " .. vim.fn.strcharpart(col.label, i, 1), col_hl } }, w) })
+    end
+    return block
+  end
+  local count = limit and ("(%d/%d)"):format(#col.cards, limit) or ("(%d)"):format(#col.cards)
+  table.insert(block, {
+    chunks = M.fit_chunks({
+      { "● ", col_hl },
+      { col.label .. " ", col_hl },
+      { count, over and "LogposeBoardOverLimit" or "LogposeBoardHint" },
+    }, w),
+  })
+  if #col.cards == 0 then
+    table.insert(block, { chunks = M.fit_chunks({ { "  · empty ·", "LogposeBoardEmpty" } }, w) })
+    return block
+  end
+  local lines = {}
+  for ri, it in ipairs(col.cards) do
+    lines[ri] = M.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row)
+  end
+  -- Do cards first..last fit, counting the "more" markers they'd need?
+  local function fits(first, last)
+    local rows = (first > 1 and 1 or 0) + (last < #lines and 1 or 0)
+    for r = first, last do
+      rows = rows + #lines[r]
+    end
+    return rows <= avail
+  end
+  local first = math.max(1, math.min(b.offset[ci] or 1, #lines))
+  if ci == b.focus.col then
+    first = math.min(first, b.focus.row)
+    while first < b.focus.row and not fits(first, b.focus.row) do
+      first = first + 1
+    end
+  end
+  local last = first
+  while last < #lines and fits(first, last + 1) do
+    last = last + 1
+  end
+  b.offset[ci] = first
+  if first > 1 then
+    table.insert(block, { chunks = M.fit_chunks({ { ("  ↑ %d more"):format(first - 1), "LogposeBoardMore" } }, w) })
+  end
+  for ri = first, last do
+    for _, l in ipairs(lines[ri]) do
+      table.insert(block, { chunks = l, card = ri })
+    end
+  end
+  if last < #lines then
+    table.insert(
+      block,
+      { chunks = M.fit_chunks({ { ("  ↓ %d more"):format(#lines - last), "LogposeBoardMore" } }, w) }
+    )
+  end
+  return block
+end
+
 --- Render into the board buffer and remember where each card is.
 ---@param b logpose.Board
 ---@param width integer window width
-function M.render(b, width)
+---@param height? integer window height (columns scroll within it)
+function M.render(b, width, height)
   define_highlights()
   local today = date.today()
   local cfg = config.get().board
   local n = #b.columns
-  local colw = math.floor((width - (n - 1)) / n)
+  local folded = 0
+  for _, col in ipairs(b.columns) do
+    if b.collapsed[col.key] then
+      folded = folded + 1
+    end
+  end
+  local open = math.max(n - folded, 1)
+  local colw = math.floor((width - (n - 1) - folded * M.COLLAPSED_WIDTH) / open)
   b.stacked = colw < cfg.min_column_width
   b.width = b.stacked and math.max(width - 1, 20) or colw
+  b.widths = {}
+  for ci, col in ipairs(b.columns) do
+    b.widths[ci] = (b.collapsed[col.key] and not b.stacked) and M.COLLAPSED_WIDTH or b.width
+  end
+  -- Rows for cards under each column header: the window minus the board header (2) and the
+  -- column header (1). Stacked columns don't scroll: the buffer does.
+  local avail = (b.stacked or not height) and math.huge or math.max(height - 3, 5)
 
   local scope = b.all and "all projects" or (b.project or "all projects")
   local head = { { "Board", "LogposeBoardTitle" }, { " · " .. scope, "LogposeBoardProject" } }
@@ -334,29 +461,10 @@ function M.render(b, width)
   add_row({ { chunks = head } })
   add_row({ { chunks = {} } })
 
-  -- Each column as a list of segments of width b.width.
   local blocks = {}
-  for ci, col in ipairs(b.columns) do
-    local col_hl = "LogposeBoardColumn" .. ci
-    local block = {}
-    table.insert(block, {
-      chunks = M.fit_chunks({
-        { "● ", col_hl },
-        { col.label, col_hl },
-        { (" (%d)"):format(#col.cards), "LogposeBoardHint" },
-      }, b.width),
-    })
+  for ci = 1, n do
     b.cards_at[ci] = {}
-    if #col.cards == 0 then
-      table.insert(block, { chunks = M.fit_chunks({ { "  · empty ·", "LogposeBoardEmpty" } }, b.width) })
-    end
-    for ri, it in ipairs(col.cards) do
-      local focused = ci == b.focus.col and ri == b.focus.row
-      for _, l in ipairs(M.card_lines(it, b.width, today, col_hl, focused)) do
-        table.insert(block, { chunks = l, card = ri })
-      end
-    end
-    blocks[ci] = block
+    blocks[ci] = column_block(b, ci, b.widths[ci], avail, today)
   end
 
   if b.stacked then
@@ -373,15 +481,14 @@ function M.render(b, width)
       end
     end
   else
-    local height = 0
+    local rows = 0
     for _, block in ipairs(blocks) do
-      height = math.max(height, #block)
+      rows = math.max(rows, #block)
     end
-    local blank = { { string.rep(" ", b.width) } }
-    for r = 1, height do
+    for r = 1, rows do
       local segs = {}
       for ci, block in ipairs(blocks) do
-        local seg = block[r] or { chunks = blank }
+        local seg = block[r] or { chunks = { { string.rep(" ", b.widths[ci]) } } }
         segs[ci] = { chunks = seg.chunks, card = seg.card, ci = ci }
       end
       add_row(segs)
@@ -454,11 +561,21 @@ local function clamp(b)
   b.focus.row = math.max(1, math.min(b.focus.row, math.max(count, 1)))
 end
 
---- Redraw so the focused card gets the heavy border.
+--- Redraw at the window's size.
+---@param b logpose.Board
+local function redraw(b)
+  local win = vim.fn.bufwinid(b.buf)
+  if win ~= -1 then
+    M.render(b, vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win))
+  else
+    M.render(b, vim.o.columns, vim.o.lines - 2)
+  end
+end
+
+--- Redraw so the focused card gets the heavy border (and is scrolled into view).
 ---@param b logpose.Board
 function M.highlight_focus(b)
-  local win = vim.fn.bufwinid(b.buf)
-  M.render(b, win ~= -1 and vim.api.nvim_win_get_width(win) or vim.o.columns)
+  redraw(b)
 end
 
 --- Put the cursor on the focused card (or the column header when it's empty).
@@ -501,8 +618,7 @@ function M.refresh(b, path)
     end
   end
   clamp(b)
-  local win = vim.fn.bufwinid(b.buf)
-  M.render(b, win ~= -1 and vim.api.nvim_win_get_width(win) or vim.o.columns)
+  redraw(b)
   place_cursor(b)
 end
 
@@ -677,6 +793,93 @@ function M.open(b)
   vim.cmd.edit(vim.fn.fnameescape(it.file))
 end
 
+--- Fold the focused column to a narrow strip, or unfold it.
+---@param b logpose.Board
+function M.toggle_fold(b)
+  local col = b.columns[b.focus.col]
+  if not col then
+    return
+  end
+  b.collapsed[col.key] = not b.collapsed[col.key] or nil
+  M.highlight_focus(b)
+  place_cursor(b)
+end
+
+--- The focused task in a floating window: the file itself, so you can read and edit it.
+--- `q` or <Esc> closes it (saving changes) and the board picks them up.
+---@param b logpose.Board
+---@return integer? win
+function M.peek(b)
+  local it = M.focused(b)
+  if not it then
+    vim.notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  count(b, "peek")
+  local buf = vim.fn.bufadd(it.file)
+  vim.fn.bufload(buf)
+  vim.bo[buf].buflisted = true
+  local width = math.min(90, math.max(40, math.floor(vim.o.columns * 0.6)))
+  local height = math.min(30, math.max(8, math.floor((vim.o.lines - 2) * 0.7)))
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    row = math.floor((vim.o.lines - 2 - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+    width = width,
+    height = height,
+    border = "rounded",
+    title = " " .. M.fit(it.text, width - 4):gsub("%s+$", "") .. " ",
+    title_pos = "center",
+    footer = " q close · changes are saved ",
+    footer_pos = "right",
+  })
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
+  -- Start at the body, after the frontmatter.
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local body = 1
+  if lines[1] == "---" then
+    for i = 2, #lines do
+      if lines[i] == "---" then
+        body = math.min(i + 1, #lines)
+        break
+      end
+    end
+  end
+  pcall(vim.api.nvim_win_set_cursor, win, { body, 0 })
+  -- Close keys for this window only: added to the buffer and removed when the float closes.
+  local added = {}
+  for _, lhs in ipairs({ "q", "<Esc>" }) do
+    if vim.fn.maparg(lhs, "n", false, true).buffer ~= 1 then
+      vim.keymap.set("n", lhs, function()
+        pcall(vim.api.nvim_win_close, win, false)
+      end, { buffer = buf, nowait = true, silent = true, desc = "Close the peek window" })
+      table.insert(added, lhs)
+    end
+  end
+  vim.api.nvim_create_autocmd("WinClosed", {
+    pattern = tostring(win),
+    once = true,
+    callback = function()
+      for _, lhs in ipairs(added) do
+        pcall(vim.keymap.del, "n", lhs, { buffer = buf })
+      end
+      if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].modified then
+        pcall(vim.api.nvim_buf_call, buf, function()
+          vim.cmd("silent write")
+        end)
+      end
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(b.buf) then
+          require("logpose.index").clear_cache()
+          M.refresh(b, it.file)
+        end
+      end)
+    end,
+  })
+  return win
+end
+
 ---@param b logpose.Board
 function M.set_filter(b)
   vim.ui.input(
@@ -767,12 +970,29 @@ local function keymaps(b)
   map("b", function()
     M.toggle_block(b)
   end, "Block / unblock")
-  map("J", function()
+  map("<C-j>", function()
     M.reorder(b, 1)
   end, "Move card down")
-  map("K", function()
+  map("<C-k>", function()
     M.reorder(b, -1)
   end, "Move card up")
+  map("K", function()
+    M.peek(b)
+  end, "Peek at the task")
+  map("z", function()
+    M.toggle_fold(b)
+  end, "Fold / unfold the column")
+  map("gg", function()
+    b.focus.row = 1
+    M.highlight_focus(b)
+    place_cursor(b)
+  end, "First card")
+  map("G", function()
+    b.focus.row = #b.columns[b.focus.col].cards
+    clamp(b)
+    M.highlight_focus(b)
+    place_cursor(b)
+  end, "Last card")
   map("a", function()
     M.add(b)
   end, "Add card")
@@ -839,7 +1059,13 @@ function M.open_board(root, opts)
     cards_at = {},
     stacked = false,
     width = 0,
+    widths = {},
+    offset = {},
+    collapsed = {},
   }
+  for _, key in ipairs(config.get().board.collapsed) do
+    b.collapsed[key] = true
+  end
   M.boards[buf] = b
   if opts.column then
     b.focus.col = taskfile.column_index(opts.column) or 1
@@ -853,7 +1079,7 @@ function M.open_board(root, opts)
       on_cursor(b)
     end,
   })
-  vim.api.nvim_create_autocmd({ "BufEnter", "VimResized" }, {
+  vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter", "VimResized" }, {
     group = group,
     buffer = buf,
     callback = function()
