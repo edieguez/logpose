@@ -57,7 +57,8 @@ function M.ensure(iso, root)
   local rendered = template.render(template.load("daily", root), template.vars(iso))
   -- Standup prep: start from the previous daily note.
   local text, cursor, after_write = require("logpose.standup").prepare(root, iso, rendered.text, rendered.cursor)
-  local ok, err = fs.write_file(path, text)
+  text, cursor = require("logpose.markdown").tidy_text(text, cursor)
+  local ok, err = fs.write_file(path, text, { tidy = true })
   if not ok then
     error(err, 0)
   end

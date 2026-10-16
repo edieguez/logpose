@@ -21,9 +21,7 @@ local function p(rel)
   return root .. "/" .. rel
 end
 
-local function lines(...)
-  return table.concat({ ... }, "\n") .. "\n"
-end
+local lines = H.md
 
 local INBOX = lines(
   "# INBOX",

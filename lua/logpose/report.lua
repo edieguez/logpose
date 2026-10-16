@@ -210,7 +210,12 @@ function M.build(root, p, args, today, dest)
   for _, it in ipairs(unfiled) do
     table.insert(out, "- " .. it.text)
   end
-  return out
+  local markdown = require("logpose.markdown")
+  local wrapped = {}
+  for _, line in ipairs(out) do
+    vim.list_extend(wrapped, markdown.wrap(line, 80))
+  end
+  return (markdown.tidy(wrapped))
 end
 
 --- Parse `[week|sprint] [offset] [filters…]`.
@@ -249,7 +254,7 @@ function M.command(opts)
     local dest = fs.join(config.path("reports", root), name .. ".md")
     local lines = M.build(root, p, filters, today, dest)
     if opts.bang then
-      local ok, werr = fs.write_file(dest, table.concat(lines, "\n") .. "\n")
+      local ok, werr = fs.write_file(dest, table.concat(lines, "\n") .. "\n", { tidy = true })
       if not ok then
         error(werr, 0)
       end

@@ -111,8 +111,13 @@ end
 --- Refuses (returns false, err) if a buffer showing `path` has unsaved changes.
 ---@param path string
 ---@param content string
+---@param opts? { tidy?: boolean }  tidy: normalize blank lines for markdownlint (markdown.tidy)
 ---@return boolean ok, string? err
-function M.write_file(path, content)
+function M.write_file(path, content, opts)
+  if opts and opts.tidy then
+    local lines = vim.split(content, "\n", { plain = true })
+    content = table.concat(require("logpose.markdown").tidy(lines), "\n") .. "\n"
+  end
   local ok, err = M.check_writable({ path })
   if not ok then
     return false, err
@@ -152,13 +157,18 @@ end
 --- unsaved, so nothing the user typed is lost.
 ---@param path string
 ---@param transform fun(lines: string[]): string[]?
+---@param opts? { tidy?: boolean }  tidy: normalize blank lines for markdownlint (markdown.tidy)
 ---@return boolean ok, string? err, "file"|"buffer"|nil changed
-function M.update_lines(path, transform)
+function M.update_lines(path, transform, opts)
+  local tidy = opts and opts.tidy
   local buf = M.find_buf(path)
   if buf and vim.bo[buf].modified then
     local new = transform(vim.api.nvim_buf_get_lines(buf, 0, -1, false))
     if not new then
       return true, nil, nil
+    end
+    if tidy then
+      new = require("logpose.markdown").tidy(new)
     end
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, new)
     return true, nil, "buffer"
@@ -175,7 +185,7 @@ function M.update_lines(path, transform)
   if not new then
     return true, nil, nil
   end
-  local ok, err = M.write_file(path, table.concat(new, "\n") .. "\n")
+  local ok, err = M.write_file(path, table.concat(new, "\n") .. "\n", { tidy = tidy })
   if not ok then
     return false, err
   end
