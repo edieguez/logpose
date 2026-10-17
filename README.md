@@ -73,6 +73,8 @@ and the picker in use.
 
 Every command is a subcommand of `:Logpose` with `<Tab>` completion, and has a
 `<Plug>(logpose-<name>)` mapping. A bang can go on either side: `:Logpose archive!` = `:Logpose! archive`.
+`:Logpose` on its own opens a menu of every command with what it does and the keymap you gave
+it (if any); the ones you use most come first when usage stats are on.
 
 | Command | What it does |
 |---|---|
@@ -150,7 +152,20 @@ with `:Logpose project <name>`, a `projects.paths` match, the git repo of the cu
 With a project, meeting notes go to `meetings/<project>/` with `project:` in the frontmatter,
 the daily-note link is prefixed (`- acme-api: [[…|Retro]]`), captures get `#acme-api`, and
 series never mix across projects. `meeting_subdir = ""` keeps all meetings in one folder.
-`require("logpose").project()` returns the active project, e.g. for your statusline.
+`require("logpose").project()` returns the active project.
+
+**Statusline.** `require("logpose").statusline()` returns the board at a glance, e.g.
+`acme · 2 in progress · 1 blocked · sprint-43 2/10` (the active project, cards in progress and
+blocked for it, and the workday of the current sprint or week). It's cached, so it's cheap to
+call on every redraw, and refreshes as soon as logpose changes anything. For lualine:
+
+```lua
+sections = {
+  lualine_x = { function() return require("logpose").statusline() end },
+}
+```
+
+Pass `{ project = false, tasks = false, period = false, separator = " | " }` to trim it.
 
 ## Tasks and the board
 
@@ -202,6 +217,7 @@ of them.
 | `<C-j>` `<C-k>` | move the card down / up | `a` | add a card to this column |
 | `K` | peek: the task in a floating window | `D` | delete the card (asks first) |
 | `z` | fold / unfold the column | `gg` `G` | first / last card |
+| `u` | undo the last board change | `<C-r>` | redo |
 | `<CR>` | open the task file | `/` | filter (`find` filters) |
 | `p` | this project / all | `r` `q` `?` | refresh, close, help |
 
@@ -210,7 +226,9 @@ Each card shows how long it has been in its column (`4d`, from its log); cards u
 `In progress (2/3)` and turns the count red above it (In progress has a limit of 3 by default).
 Columns scroll on their own (`↑ 3 more` / `↓ 5 more`), keeping the focused card in view, and
 `z` folds a column to a narrow strip with its count (`board.collapsed = { "done" }` starts it
-folded). `K` opens the task in a floating window to read or edit its context without leaving
+folded). Every change made on the board (moves, blocks, reorders, new and deleted cards) can be undone
+with `u` and redone with `<C-r>`, exactly, log lines included; undo refuses if the task was
+edited since. `K` opens the task in a floating window to read or edit its context without leaving
 the board; `q` closes it, saves, and the board picks up the change.
 
 The cursor and the mouse select cards too. Coming back to the board (`<C-o>`, `:b#`) redraws
