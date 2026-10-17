@@ -387,8 +387,12 @@ end
 local cache, cache_opts = {}, nil
 M.reads = 0 -- files actually parsed (for tests and health)
 
+--- Bumped whenever logpose writes notes, so cheap consumers (the statusline) know to recompute.
+M.generation = 0
+
 function M.clear_cache()
   cache = {}
+  M.generation = M.generation + 1
 end
 
 --- Build the index for the whole journal.
