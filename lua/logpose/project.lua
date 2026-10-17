@@ -132,7 +132,10 @@ function M.set(name)
   if name == nil then
     state.set("project", nil)
     local root = config.resolve_root()
-    vim.notify("logpose: project cleared; now " .. M.describe(M.resolve(root)), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(
+      "logpose: project cleared; now " .. M.describe(M.resolve(root)),
+      vim.log.levels.INFO
+    )
     return
   end
   local slug = M.normalize(name)
@@ -140,7 +143,7 @@ function M.set(name)
     error(("logpose: invalid project name %q"):format(name), 0)
   end
   state.set("project", slug)
-  vim.notify("logpose: project set to " .. slug, vim.log.levels.INFO)
+  require("logpose.util.ui").notify("logpose: project set to " .. slug, vim.log.levels.INFO)
 end
 
 local CLEAR = { "none", "auto", "clear" }

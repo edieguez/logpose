@@ -198,11 +198,11 @@ function M.command(opts)
   if opts.bang then
     M._data, M._dirty = { version = 1, days = {} }, false
     os.remove(M.path())
-    vim.notify("logpose: usage stats reset", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: usage stats reset", vim.log.levels.INFO)
     return
   end
   if not config.get().telemetry.enabled and not fs.exists(M.path()) then
-    vim.notify(
+    require("logpose.util.ui").notify(
       "logpose: usage stats are off; enable with setup({ telemetry = { enabled = true } })",
       vim.log.levels.INFO
     )

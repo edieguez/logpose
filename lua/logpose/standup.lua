@@ -191,7 +191,10 @@ function M.mark_carried(path, rows)
     return touched and lines or nil
   end)
   if not ok then
-    vim.notify("logpose: couldn't mark carried tasks in the previous daily note: " .. err, vim.log.levels.WARN)
+    require("logpose.util.ui").notify(
+      "logpose: couldn't mark carried tasks in the previous daily note: " .. err,
+      vim.log.levels.WARN
+    )
   end
 end
 
@@ -351,7 +354,7 @@ function M.command(opts)
   config.with_root(ui.safely(function(root)
     local lines, err = M.render(root, iso)
     if not lines then
-      vim.notify(err, vim.log.levels.WARN)
+      require("logpose.util.ui").notify(err, vim.log.levels.WARN)
       return
     end
     local buf = vim.api.nvim_create_buf(false, true)

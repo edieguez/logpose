@@ -61,13 +61,13 @@ function M.run(dir, on_done)
   local root, scaffolded = M.init(dir)
   local short = vim.fn.fnamemodify(root, ":~")
   if scaffolded then
-    vim.notify(("logpose: created a journal at %s"):format(short), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(("logpose: created a journal at %s"):format(short), vim.log.levels.INFO)
   else
-    vim.notify(("logpose: using %s as the journal"):format(short), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(("logpose: using %s as the journal"):format(short), vim.log.levels.INFO)
   end
   local configured = config.get().root
   if configured and fs.normalize(configured):gsub("/+$", "") ~= root then
-    vim.notify(
+    require("logpose.util.ui").notify(
       ("logpose: setup({ root = %q }) takes precedence over the saved journal"):format(configured),
       vim.log.levels.WARN
     )
@@ -94,9 +94,9 @@ function M.prompt(opts, on_done)
       input = input and vim.trim(input) or ""
       if input == "" then
         if opts.first_run then
-          vim.notify(config.NOT_FOUND, vim.log.levels.WARN)
+          require("logpose.util.ui").notify(config.NOT_FOUND, vim.log.levels.WARN)
         else
-          vim.notify("logpose: cancelled", vim.log.levels.INFO)
+          require("logpose.util.ui").notify("logpose: cancelled", vim.log.levels.INFO)
         end
         return
       end
