@@ -39,6 +39,7 @@ M.HELP = {
   "  <CR>         open the task file          /       filter (find filters)",
   "  z            fold / unfold the column    gg / G  first / last card",
   "  u / <C-r>    undo / redo a board change",
+  "  c            compact cards on / off      s       rows per project on / off",
   "  p            this project / all          r       refresh",
   "  q            close                       ?       this help",
 }
@@ -66,7 +67,9 @@ function M.fit(s, w)
     table.insert(out, ch)
     used = used + cw
   end
-  return table.concat(out) .. "…" .. string.rep(" ", w - used - 1)
+  -- "…" marks the cut; ASCII icons use "~" so the board stays plain ASCII.
+  local ellipsis = config.get().board.icons == "ascii" and "~" or "…"
+  return table.concat(out) .. ellipsis .. string.rep(" ", w - used - 1)
 end
 
 --- Word-wrap `s` into at most `max` lines of `w` cells (the last one cut with …).
@@ -188,6 +191,7 @@ M.HL = {
   LogposeBoardFaded = "Comment",
   LogposeBoardOverLimit = "DiagnosticError",
   LogposeBoardMore = "Comment",
+  LogposeBoardFlash = "IncSearch",
 }
 --- Column colours by position (a column's `hl` overrides): grey, blue, yellow, purple, green.
 M.COLUMN_HL = { "Comment", "DiagnosticInfo", "DiagnosticWarn", "DiagnosticHint", "DiagnosticOk" }
@@ -207,10 +211,62 @@ local function define_highlights()
   end
 end
 
-local BOX = {
+local UNICODE_BOX = {
   normal = { tl = "╭", tr = "╮", bl = "╰", br = "╯", h = "─", v = "│" },
   focus = { tl = "┏", tr = "┓", bl = "┗", br = "┛", h = "━", v = "┃" },
 }
+
+--- Glyph sets (`board.icons`): "unicode" works in any UTF-8 terminal, "nerd" needs a Nerd Font,
+--- "ascii" works everywhere.
+M.ICONS = {
+  unicode = {
+    project = "◆",
+    due = "◷",
+    blocked = "⊘",
+    column = "●",
+    folded = "▸",
+    up = "↑",
+    down = "↓",
+    focus = "▶",
+    card = "•",
+    empty = "· empty ·",
+    box = UNICODE_BOX,
+  },
+  nerd = {
+    project = "",
+    due = "",
+    blocked = "",
+    column = "",
+    folded = "",
+    up = "",
+    down = "",
+    focus = "",
+    card = "•",
+    empty = "· empty ·",
+    box = UNICODE_BOX,
+  },
+  ascii = {
+    project = "+",
+    due = "due",
+    blocked = "!",
+    column = "*",
+    folded = ">",
+    up = "^",
+    down = "v",
+    focus = ">",
+    card = "-",
+    empty = "- empty -",
+    box = {
+      normal = { tl = "+", tr = "+", bl = "+", br = "+", h = "-", v = "|" },
+      focus = { tl = "#", tr = "#", bl = "#", br = "#", h = "=", v = "#" },
+    },
+  },
+}
+
+---@return table
+local function icons()
+  return M.ICONS[config.get().board.icons] or M.ICONS.unicode
+end
 
 ---@alias logpose.Chunk { [1]: string, [2]: string? }  text, highlight group
 
@@ -257,9 +313,14 @@ end
 ---@param today string
 ---@param col_hl string the column's highlight group
 ---@param focused boolean
+---@param compact? boolean one line, no box
 ---@return logpose.Chunk[][]
-function M.card_lines(it, w, today, col_hl, focused)
-  local box = focused and BOX.focus or BOX.normal
+function M.card_lines(it, w, today, col_hl, focused, compact)
+  local ic = icons()
+  if compact then
+    return { M.compact_line(it, w, today, col_hl, focused) }
+  end
+  local box = focused and ic.box.focus or ic.box.normal
   local border = focused and "LogposeBoardFocus" or (it.blocked and "LogposeBoardBlocked" or col_hl)
   local inner = math.max(w - 4, 1)
   local age = M.age(it, today)
@@ -277,7 +338,7 @@ function M.card_lines(it, w, today, col_hl, focused)
     row({ { l, title_hl } })
   end
   if it.blocked then
-    row({ { "⊘ " .. (it.blocked == "yes" and "blocked" or it.blocked), "LogposeBoardBlocked" } })
+    row({ { ic.blocked .. " " .. (it.blocked == "yes" and "blocked" or it.blocked), "LogposeBoardBlocked" } })
   end
   local meta = {}
   local function add(text, hl)
@@ -287,7 +348,7 @@ function M.card_lines(it, w, today, col_hl, focused)
     table.insert(meta, { text, hl })
   end
   if it.project then
-    add("◆ " .. it.project, "LogposeBoardProject")
+    add(ic.project .. " " .. it.project, "LogposeBoardProject")
   end
   for _, t in ipairs(it.tags or {}) do
     if t ~= it.project then
@@ -296,7 +357,7 @@ function M.card_lines(it, w, today, col_hl, focused)
   end
   if it.due then
     local overdue = it.due < today and it.status ~= config.get().board.done
-    add("◷ " .. it.due:sub(6), overdue and "LogposeBoardOverdue" or "LogposeBoardDue")
+    add(ic.due .. " " .. it.due:sub(6), overdue and "LogposeBoardOverdue" or "LogposeBoardDue")
   end
   if age then
     add(("%dd"):format(age), stale and "LogposeBoardStale" or "LogposeBoardAge")
@@ -306,6 +367,47 @@ function M.card_lines(it, w, today, col_hl, focused)
   end
   table.insert(out, { { box.bl .. string.rep(box.h, w - 2) .. box.br, border } })
   return out
+end
+
+--- A card on one line: a marker (▶ when focused, ⊘ when blocked), the title, then the due date
+--- and age at the end.
+---@param it logpose.Item
+---@param w integer
+---@param today string
+---@param col_hl string
+---@param focused boolean
+---@return logpose.Chunk[]
+function M.compact_line(it, w, today, col_hl, focused)
+  local ic = icons()
+  local marker, marker_hl = ic.card, col_hl
+  if it.blocked then
+    marker, marker_hl = ic.blocked, "LogposeBoardBlocked"
+  end
+  if focused then
+    marker, marker_hl = ic.focus, "LogposeBoardFocus"
+  end
+  local tail = {}
+  if it.due then
+    local overdue = it.due < today and it.status ~= config.get().board.done
+    table.insert(
+      tail,
+      { " " .. ic.due .. " " .. it.due:sub(6), overdue and "LogposeBoardOverdue" or "LogposeBoardDue" }
+    )
+  end
+  local age = M.age(it, today)
+  local stale = age and age >= config.get().board.stale_days
+  if age then
+    table.insert(tail, { (" %dd"):format(age), stale and "LogposeBoardStale" or "LogposeBoardAge" })
+  end
+  local tail_w = 0
+  for _, c in ipairs(tail) do
+    tail_w = tail_w + vim.fn.strdisplaywidth(c[1])
+  end
+  local title_w = math.max(w - 2 - tail_w, 1)
+  local title_hl = focused and "LogposeBoardFocusTitle" or (stale and "LogposeBoardFaded" or nil)
+  local line = { { marker .. " ", marker_hl }, { M.fit(it.text, title_w), title_hl } }
+  vim.list_extend(line, tail)
+  return M.fit_chunks(line, w)
 end
 
 --- Lines of one column: header, then the cards that fit (scrolled so the focused one shows),
@@ -325,7 +427,7 @@ local function column_block(b, ci, w, avail, today)
   if b.collapsed[col.key] then
     table.insert(block, {
       chunks = M.fit_chunks(
-        { { "▸", col_hl }, { tostring(#col.cards), over and "LogposeBoardOverLimit" or "LogposeBoardHint" } },
+        { { icons().folded, col_hl }, { tostring(#col.cards), over and "LogposeBoardOverLimit" or "LogposeBoardHint" } },
         w
       ),
     })
@@ -339,18 +441,18 @@ local function column_block(b, ci, w, avail, today)
   local count = limit and ("(%d/%d)"):format(#col.cards, limit) or ("(%d)"):format(#col.cards)
   table.insert(block, {
     chunks = M.fit_chunks({
-      { "● ", col_hl },
+      { icons().column .. " ", col_hl },
       { col.label .. " ", col_hl },
       { count, over and "LogposeBoardOverLimit" or "LogposeBoardHint" },
     }, w),
   })
   if #col.cards == 0 then
-    table.insert(block, { chunks = M.fit_chunks({ { "  · empty ·", "LogposeBoardEmpty" } }, w) })
+    table.insert(block, { chunks = M.fit_chunks({ { "  " .. icons().empty, "LogposeBoardEmpty" } }, w) })
     return block
   end
   local lines = {}
   for ri, it in ipairs(col.cards) do
-    lines[ri] = M.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row)
+    lines[ri] = M.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row, b.compact)
   end
   -- Do cards first..last fit, counting the "more" markers they'd need?
   local function fits(first, last)
@@ -373,7 +475,10 @@ local function column_block(b, ci, w, avail, today)
   end
   b.offset[ci] = first
   if first > 1 then
-    table.insert(block, { chunks = M.fit_chunks({ { ("  ↑ %d more"):format(first - 1), "LogposeBoardMore" } }, w) })
+    table.insert(
+      block,
+      { chunks = M.fit_chunks({ { ("  %s %d more"):format(icons().up, first - 1), "LogposeBoardMore" } }, w) }
+    )
   end
   for ri = first, last do
     for _, l in ipairs(lines[ri]) do
@@ -383,10 +488,86 @@ local function column_block(b, ci, w, avail, today)
   if last < #lines then
     table.insert(
       block,
-      { chunks = M.fit_chunks({ { ("  ↓ %d more"):format(#lines - last), "LogposeBoardMore" } }, w) }
+      { chunks = M.fit_chunks({ { ("  %s %d more"):format(icons().down, #lines - last), "LogposeBoardMore" } }, w) }
     )
   end
   return block
+end
+
+--- Lane key of a card: its project ("" when it has none).
+---@param it logpose.Item
+---@return string
+local function lane_of(it)
+  return it.project or ""
+end
+
+--- Rows per project: column headers once, then for each project a divider and its cards in
+--- each column. Called by `M.render` with its row builder.
+---@param b logpose.Board
+---@param add_row fun(segs: table[])
+---@param today string
+function M.render_lanes(b, add_row, today)
+  local ic = icons()
+  local headers = {}
+  local lanes, seen = {}, {}
+  for ci, col in ipairs(b.columns) do
+    local block = column_block(b, ci, b.widths[ci], 0, today) -- just the header
+    headers[ci] = { chunks = block[1].chunks, ci = ci }
+    for _, it in ipairs(col.cards) do
+      local lane = lane_of(it)
+      if not seen[lane] then
+        seen[lane] = true
+        table.insert(lanes, lane)
+      end
+    end
+  end
+  table.sort(lanes, function(a, c)
+    if (a == "") ~= (c == "") then
+      return c == "" -- "no project" last
+    end
+    return a < c
+  end)
+  add_row(headers)
+  local total = 0
+  for ci = 1, #b.columns do
+    total = total + b.widths[ci] + (ci > 1 and 1 or 0)
+  end
+  for _, lane in ipairs(lanes) do
+    local label = " " .. ic.project .. " " .. (lane == "" and "no project" or lane) .. " "
+    add_row({
+      {
+        chunks = M.fit_chunks({
+          { ic.box.normal.h .. ic.box.normal.h, "LogposeBoardHint" },
+          { label, "LogposeBoardProject" },
+          { string.rep(ic.box.normal.h, math.max(total - vim.fn.strdisplaywidth(label) - 2, 0)), "LogposeBoardHint" },
+        }, total),
+      },
+    })
+    local blocks, rows = {}, 0
+    for ci, col in ipairs(b.columns) do
+      local block = {}
+      if not b.collapsed[col.key] then
+        for ri, it in ipairs(col.cards) do
+          if lane_of(it) == lane then
+            local focused = ci == b.focus.col and ri == b.focus.row
+            for _, l in ipairs(M.card_lines(it, b.widths[ci], today, "LogposeBoardColumn" .. ci, focused, b.compact)) do
+              table.insert(block, { chunks = l, card = ri })
+            end
+          end
+        end
+      end
+      blocks[ci] = block
+      rows = math.max(rows, #block)
+    end
+    for r = 1, rows do
+      local segs = {}
+      for ci, block in ipairs(blocks) do
+        local seg = block[r] or { chunks = { { string.rep(" ", b.widths[ci]) } } }
+        segs[ci] = { chunks = seg.chunks, card = seg.card, ci = ci }
+      end
+      add_row(segs)
+    end
+  end
 end
 
 --- Render into the board buffer and remember where each card is.
@@ -412,16 +593,35 @@ function M.render(b, width, height)
   for ci, col in ipairs(b.columns) do
     b.widths[ci] = (b.collapsed[col.key] and not b.stacked) and M.COLLAPSED_WIDTH or b.width
   end
-  -- Rows for cards under each column header: the window minus the board header (2) and the
-  -- column header (1). Stacked columns don't scroll: the buffer does.
-  local avail = (b.stacked or not height) and math.huge or math.max(height - 3, 5)
+  -- Rows for cards under each column header (the title is in the window's top bar). Stacked
+  -- columns and rows per project don't scroll on their own: the buffer does.
+  local avail = (b.stacked or b.lanes or not height) and math.huge or math.max(height - 1, 5)
 
+  -- The window's top bar: title, scope, filter, modes, help.
   local scope = b.all and "all projects" or (b.project or "all projects")
-  local head = { { "Board", "LogposeBoardTitle" }, { " · " .. scope, "LogposeBoardProject" } }
-  if b.filter ~= "" then
-    table.insert(head, { " · " .. b.filter, "LogposeBoardHint" })
+  local modes = {}
+  if b.lanes then
+    table.insert(modes, "by project")
   end
-  table.insert(head, { "    ? help", "LogposeBoardHint" })
+  if b.compact then
+    table.insert(modes, "compact")
+  end
+  b.title = "Board · " .. scope .. (b.filter ~= "" and (" · " .. b.filter) or "")
+  if #modes > 0 then
+    b.title = b.title .. " · " .. table.concat(modes, ", ")
+  end
+  local function esc(str)
+    return (str:gsub("%%", "%%%%"))
+  end
+  local bar = "%#LogposeBoardTitle# Board%#LogposeBoardProject# · "
+    .. esc(scope)
+    .. (b.filter ~= "" and ("%#LogposeBoardHint# · " .. esc(b.filter)) or "")
+    .. (#modes > 0 and ("%#LogposeBoardHint# · " .. table.concat(modes, ", ")) or "")
+    .. "%=%#LogposeBoardHint#? help "
+  local bar_win = vim.fn.bufwinid(b.buf)
+  if bar_win ~= -1 then
+    vim.wo[bar_win].winbar = bar
+  end
   local lines, hls = {}, {}
   b.segments, b.regions, b.cards_at = {}, {}, {}
 
@@ -459,16 +659,15 @@ function M.render(b, width, height)
     b.regions[row] = region
   end
 
-  add_row({ { chunks = head } })
-  add_row({ { chunks = {} } })
-
   local blocks = {}
   for ci = 1, n do
     b.cards_at[ci] = {}
     blocks[ci] = column_block(b, ci, b.widths[ci], avail, today)
   end
 
-  if b.stacked then
+  if b.lanes and not b.stacked then
+    M.render_lanes(b, add_row, today)
+  elseif b.stacked then
     for ci, block in ipairs(blocks) do
       for _, seg in ipairs(block) do
         seg.ci = ci
@@ -653,8 +852,8 @@ function M._place_cursor(b)
     return
   end
   local at = b.cards_at[b.focus.col] and b.cards_at[b.focus.col][b.focus.row]
-  local row = at and at.first + 1 -- the title line, inside the box
-  local inside = at and #(BOX.normal.v .. " ") or 0
+  local row = at and (b.compact and at.first or at.first + 1) -- the title line, inside the box
+  local inside = at and (b.compact and 0 or #(icons().box.normal.v .. " ")) or 0
   if not row then
     -- the column header
     for r, region in pairs(b.regions) do
@@ -662,7 +861,7 @@ function M._place_cursor(b)
         row = row and math.min(row, r) or r
       end
     end
-    row = row or 3
+    row = row or 1
   end
   local col = (b.stacked and 0 or ((b.segments[row] or {})[b.focus.col] or 0)) + inside
   b._placing = true
@@ -675,6 +874,25 @@ end
 ---@param path? string
 function M.refresh(b, path)
   b.columns = M.collect(b.root, { project = (not b.all) and b.project or nil, filter = b.filter })
+  if b.lanes then
+    -- Group each column by project so j/k follow the cards as drawn.
+    for _, col in ipairs(b.columns) do
+      local pos = {}
+      for i, it in ipairs(col.cards) do
+        pos[it] = i
+      end
+      table.sort(col.cards, function(x, y)
+        local lx, ly = lane_of(x), lane_of(y)
+        if lx ~= ly then
+          if (lx == "") ~= (ly == "") then
+            return ly == ""
+          end
+          return lx < ly
+        end
+        return pos[x] < pos[y]
+      end)
+    end
+  end
   if path then
     for ci, col in ipairs(b.columns) do
       for ri, it in ipairs(col.cards) do
@@ -777,17 +995,20 @@ end
 function M.undo(b)
   local step = table.remove(b.undo)
   if not step then
-    vim.notify("logpose: nothing to undo on the board", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: nothing to undo on the board", vim.log.levels.INFO)
     return
   end
   local ok, focus = apply(b, step, "before")
   if not ok then
-    vim.notify(("logpose: can't undo %s: the task changed since"):format(step.label), vim.log.levels.WARN)
+    require("logpose.util.ui").notify(
+      ("logpose: can't undo %s: the task changed since"):format(step.label),
+      vim.log.levels.WARN
+    )
     return
   end
   table.insert(b.redo, step)
   count(b, "undo")
-  vim.notify(("logpose: undid %s"):format(step.label), vim.log.levels.INFO)
+  require("logpose.util.ui").notify(("logpose: undid %s"):format(step.label), vim.log.levels.INFO)
   M.refresh(b, focus)
 end
 
@@ -796,31 +1017,34 @@ end
 function M.redo(b)
   local step = table.remove(b.redo)
   if not step then
-    vim.notify("logpose: nothing to redo on the board", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: nothing to redo on the board", vim.log.levels.INFO)
     return
   end
   local ok, focus = apply(b, step, "after")
   if not ok then
-    vim.notify(("logpose: can't redo %s: the task changed since"):format(step.label), vim.log.levels.WARN)
+    require("logpose.util.ui").notify(
+      ("logpose: can't redo %s: the task changed since"):format(step.label),
+      vim.log.levels.WARN
+    )
     return
   end
   table.insert(b.undo, step)
   count(b, "redo")
-  vim.notify(("logpose: redid %s"):format(step.label), vim.log.levels.INFO)
+  require("logpose.util.ui").notify(("logpose: redid %s"):format(step.label), vim.log.levels.INFO)
   M.refresh(b, focus)
 end
 
 local function with_card(b, name, fn)
   local it = M.focused(b)
   if not it then
-    vim.notify("logpose: no card here", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   local before = snapshot(b)
   local ok, res = pcall(fn, it)
   record(b, name, before)
   if not ok then
-    vim.notify(tostring(res), vim.log.levels.ERROR)
+    require("logpose.util.ui").notify(tostring(res), vim.log.levels.ERROR)
     return
   end
   if res == false then
@@ -828,7 +1052,42 @@ local function with_card(b, name, fn)
   end
   count(b, name)
   M.refresh(b, type(res) == "string" and res or it.file)
+  if name == "move" or name == "done" then
+    M.flash(b)
+  end
 end
+
+local flash_ns = vim.api.nvim_create_namespace("logpose.board.flash")
+
+--- Briefly highlight the focused card, so a move is easy to follow.
+---@param b logpose.Board
+function M.flash(b)
+  local at = b.cards_at[b.focus.col] and b.cards_at[b.focus.col][b.focus.row]
+  if not at then
+    return
+  end
+  for row = at.first, at.last do
+    local starts = b.segments[row] or {}
+    local start = b.stacked and 0 or starts[b.focus.col]
+    if start then
+      local line = vim.api.nvim_buf_get_lines(b.buf, row - 1, row, false)[1] or ""
+      local stop = (not b.stacked and starts[b.focus.col + 1]) and (starts[b.focus.col + 1] - 1) or #line
+      pcall(vim.api.nvim_buf_set_extmark, b.buf, flash_ns, row - 1, start, {
+        end_col = math.min(stop, #line),
+        hl_group = "LogposeBoardFlash",
+        priority = 300,
+      })
+    end
+  end
+  vim.defer_fn(function()
+    if vim.api.nvim_buf_is_valid(b.buf) then
+      vim.api.nvim_buf_clear_namespace(b.buf, flash_ns, 0, -1)
+    end
+  end, M.flash_ms)
+end
+
+--- How long a moved card stays highlighted.
+M.flash_ms = 300
 
 ---@param b logpose.Board
 ---@param target integer column index
@@ -867,7 +1126,7 @@ end
 function M.toggle_block(b)
   local it = M.focused(b)
   if not it then
-    vim.notify("logpose: no card here", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   if it.blocked then
@@ -915,7 +1174,7 @@ end
 function M.delete(b)
   local it = M.focused(b)
   if not it then
-    vim.notify("logpose: no card here", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   vim.ui.select(
@@ -941,7 +1200,7 @@ function M.delete(b)
       require("logpose.index").clear_cache()
       record(b, "delete", before)
       count(b, "delete")
-      vim.notify(("logpose: deleted %s"):format(vim.fs.basename(it.file)), vim.log.levels.INFO)
+      require("logpose.util.ui").notify(("logpose: deleted %s"):format(vim.fs.basename(it.file)), vim.log.levels.INFO)
       M.refresh(b)
     end)
   )
@@ -996,7 +1255,7 @@ end
 function M.peek(b)
   local it = M.focused(b)
   if not it then
-    vim.notify("logpose: no card here", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   count(b, "peek")
@@ -1081,6 +1340,13 @@ end
 ---@param b logpose.Board
 function M.close(b)
   local win = vim.fn.bufwinid(b.buf)
+  -- Opened in its own tab: close the tab if the board is all that's in it.
+  if win ~= -1 and b.tab and vim.api.nvim_tabpage_is_valid(b.tab) and #vim.api.nvim_list_tabpages() > 1 then
+    if #vim.api.nvim_tabpage_list_wins(b.tab) == 1 then
+      pcall(vim.api.nvim_buf_delete, b.buf, { force = true })
+      return
+    end
+  end
   if win ~= -1 then
     vim.api.nvim_win_call(win, function()
       local alt = vim.fn.bufnr("#")
@@ -1166,6 +1432,14 @@ local function keymaps(b)
   map("z", function()
     M.toggle_fold(b)
   end, "Fold / unfold the column")
+  map("c", function()
+    b.compact = not b.compact
+    M.refresh(b, (M.focused(b) or {}).file)
+  end, "Compact cards on / off")
+  map("s", function()
+    b.lanes = not b.lanes
+    M.refresh(b, (M.focused(b) or {}).file)
+  end, "Rows per project on / off")
   map("gg", function()
     b.focus.row = 1
     M.highlight_focus(b)
@@ -1210,7 +1484,7 @@ local function keymaps(b)
     M.close(b)
   end, "Close")
   map("?", function()
-    vim.notify(table.concat(M.HELP, "\n"), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(table.concat(M.HELP, "\n"), vim.log.levels.INFO)
   end, "Help")
 end
 
@@ -1231,7 +1505,18 @@ function M.open_board(root, opts)
   vim.bo[buf].bufhidden = "hide"
   vim.bo[buf].swapfile = false
   vim.bo[buf].filetype = "logpose-board"
-  vim.api.nvim_win_set_buf(0, buf)
+  local tab
+  if config.get().board.open == "tab" then
+    vim.cmd("tabnew")
+    tab = vim.api.nvim_get_current_tabpage()
+    local scratch = vim.api.nvim_get_current_buf()
+    vim.api.nvim_win_set_buf(0, buf)
+    if scratch ~= buf and vim.api.nvim_buf_get_name(scratch) == "" then
+      pcall(vim.api.nvim_buf_delete, scratch, { force = true })
+    end
+  else
+    vim.api.nvim_win_set_buf(0, buf)
+  end
   M.setup_window(vim.api.nvim_get_current_win())
   ---@type logpose.Board
   local b = {
@@ -1251,6 +1536,9 @@ function M.open_board(root, opts)
     offset = {},
     undo = {},
     redo = {},
+    tab = tab,
+    compact = config.get().board.compact,
+    lanes = config.get().board.lanes,
     collapsed = {},
   }
   for _, key in ipairs(config.get().board.collapsed) do
