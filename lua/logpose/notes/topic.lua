@@ -98,7 +98,7 @@ function M.note_command(opts)
       ui.safely(function(input)
         input = input and vim.trim(input) or ""
         if input == "" then
-          vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
+          require("logpose.util.ui").notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
           return
         end
         M.note(root, input)

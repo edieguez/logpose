@@ -137,7 +137,7 @@ local function show(items, prompt, root, initial)
     prompt = prompt .. " " .. text
   end
   if #items == 0 then
-    vim.notify("logpose: no matches", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no matches", vim.log.levels.INFO)
     return
   end
   picker.pick(to_pick(items), { prompt = prompt, cwd = root })
@@ -213,7 +213,7 @@ function M.find(root, scope, args)
   if scope == "tags" then
     local counts = index.tag_counts(items)
     if #counts == 0 then
-      vim.notify("logpose: no tags found", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: no tags found", vim.log.levels.INFO)
       return
     end
     local entries = vim.tbl_map(function(c)
@@ -236,7 +236,7 @@ function M.find(root, scope, args)
   if scope == "people" then
     local people = index.people(items)
     if #people == 0 then
-      vim.notify("logpose: no people found", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: no people found", vim.log.levels.INFO)
       return
     end
     local entries = vim.tbl_map(function(p)
@@ -265,7 +265,7 @@ function M.find(root, scope, args)
   if scope == "projects" then
     local names = M.projects(root, items)
     if #names == 0 then
-      vim.notify("logpose: no projects found", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: no projects found", vim.log.levels.INFO)
       return
     end
     local entries = vim.tbl_map(function(name)

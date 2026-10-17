@@ -227,7 +227,7 @@ end
 ---@param after? fun()
 local function confirm_and_apply(root, changes, title, bang, after)
   if #changes == 0 then
-    vim.notify("logpose: nothing to change", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: nothing to change", vim.log.levels.INFO)
     return
   end
   local rel = require("logpose.link").relpath
@@ -236,7 +236,7 @@ local function confirm_and_apply(root, changes, title, bang, after)
     if after then
       after()
     end
-    vim.notify(
+    require("logpose.util.ui").notify(
       ("logpose: %s: updated %d file%s"):format(title, #changes, #changes == 1 and "" or "s"),
       vim.log.levels.INFO
     )
@@ -268,7 +268,7 @@ local function confirm_and_apply(root, changes, title, bang, after)
       if choice == "Apply" then
         done()
       else
-        vim.notify("logpose: cancelled", vim.log.levels.INFO)
+        require("logpose.util.ui").notify("logpose: cancelled", vim.log.levels.INFO)
       end
     end)
   )
@@ -311,7 +311,10 @@ function M.rename_project_command(opts)
         end
         for dir, name in pairs(config.get().projects.paths) do
           if project.normalize(name) == o then
-            vim.notify(("logpose: update projects.paths[%q] = %q in your config"):format(dir, n), vim.log.levels.WARN)
+            require("logpose.util.ui").notify(
+              ("logpose: update projects.paths[%q] = %q in your config"):format(dir, n),
+              vim.log.levels.WARN
+            )
           end
         end
       end
