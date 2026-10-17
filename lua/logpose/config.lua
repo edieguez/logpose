@@ -169,7 +169,20 @@ M.defaults = {
     stale_days = 7,
     --- Columns folded to a narrow strip when the board opens (`z` toggles), e.g. { "done" }.
     collapsed = {},
+    --- Glyphs: "unicode", "nerd" (needs a Nerd Font) or "ascii".
+    ---@type "unicode"|"nerd"|"ascii"
+    icons = "unicode",
+    --- Start with one-line cards (`c` toggles) / rows per project (`s` toggles).
+    compact = false,
+    lanes = false,
+    --- Where the board opens: "window" (the current one) or "tab" (its own tab page).
+    ---@type "window"|"tab"
+    open = "window",
   },
+  --- `true` installs a `<leader>j…` keymap set (`{ prefix = "<leader>n" }` for another prefix);
+  --- keys you've mapped yourself are never replaced.
+  ---@type boolean|{ prefix?: string }
+  keymaps = false,
   timestamps = {
     --- `created:` / `modified:` (local time, 2026-10-15T18:57) in the frontmatter of new notes.
     --- `modified:` is bumped when logpose rewrites a note and when you save a changed one.
@@ -366,6 +379,17 @@ local function validate(opts)
   check("board.min_column_width", opts.board.min_column_width, "number")
   check("board.stale_days", opts.board.stale_days, "number")
   check("board.collapsed", opts.board.collapsed, "table")
+  if not vim.tbl_contains({ "unicode", "nerd", "ascii" }, opts.board.icons) then
+    error('logpose: `board.icons` must be "unicode", "nerd" or "ascii"', 0)
+  end
+  check("board.compact", opts.board.compact, "boolean")
+  check("board.lanes", opts.board.lanes, "boolean")
+  if opts.board.open ~= "window" and opts.board.open ~= "tab" then
+    error('logpose: `board.open` must be "window" or "tab"', 0)
+  end
+  if type(opts.keymaps) ~= "boolean" and type(opts.keymaps) ~= "table" then
+    error("logpose: `keymaps` must be true, false or { prefix = ... }", 0)
+  end
   check("timestamps", opts.timestamps, "table")
   check("timestamps.created", opts.timestamps.created, "boolean")
   check("timestamps.modified", opts.timestamps.modified, "boolean")
@@ -414,7 +438,10 @@ function M.setup(opts)
   M.options = merged
   if #warnings > 0 then
     table.sort(warnings)
-    vim.notify("logpose: unknown option(s): " .. table.concat(warnings, ", "), vim.log.levels.WARN)
+    require("logpose.util.ui").notify(
+      "logpose: unknown option(s): " .. table.concat(warnings, ", "),
+      vim.log.levels.WARN
+    )
   end
   return merged
 end
