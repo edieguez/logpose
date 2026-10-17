@@ -38,6 +38,7 @@ M.HELP = {
   "  K            peek: the task in a float   D       delete the card (asks)",
   "  <CR>         open the task file          /       filter (find filters)",
   "  z            fold / unfold the column    gg / G  first / last card",
+  "  u / <C-r>    undo / redo a board change",
   "  p            this project / all          r       refresh",
   "  q            close                       ?       this help",
 }
@@ -698,13 +699,126 @@ end
 ---@param b logpose.Board
 ---@param name string telemetry keyword
 ---@param fn fun(it: logpose.Item): string|boolean|nil  return a path to follow, or false to skip
+--- Contents of every live task file (path -> text), read from disk.
+---@param b logpose.Board
+---@return table<string, string>
+local function snapshot(b)
+  local fs = require("logpose.util.fs")
+  local out = {}
+  for _, t in ipairs(taskfile.list(b.root)) do
+    out[t.path] = fs.read_file(t.path)
+  end
+  return out
+end
+
+--- Record what an action changed (compared with `before`) as one undo step.
+---@param b logpose.Board
+---@param label string
+---@param before table<string, string>
+local function record(b, label, before)
+  local after = snapshot(b)
+  local changes = {}
+  for path, content in pairs(before) do
+    if after[path] ~= content then
+      table.insert(changes, { path = path, before = content, after = after[path] })
+    end
+  end
+  for path, content in pairs(after) do
+    if before[path] == nil then
+      table.insert(changes, { path = path, before = nil, after = content })
+    end
+  end
+  if #changes > 0 then
+    table.insert(b.undo, { label = label, changes = changes })
+    b.redo = {}
+  end
+end
+
+--- Put each changed file back to `side` ("before" for undo, "after" for redo), if nothing
+--- else changed it in between.
+---@param b logpose.Board
+---@param step { label: string, changes: table[] }
+---@param side "before"|"after"
+---@return boolean ok, string? path a file to focus
+local function apply(b, step, side)
+  local fs = require("logpose.util.fs")
+  local other = side == "before" and "after" or "before"
+  for _, c in ipairs(step.changes) do
+    if fs.read_file(c.path) ~= c[other] then
+      return false
+    end
+    local buf = fs.find_buf(c.path)
+    if buf and vim.bo[buf].modified then
+      return false
+    end
+  end
+  local focus
+  for _, c in ipairs(step.changes) do
+    if c[side] == nil then
+      os.remove(c.path)
+      local buf = fs.find_buf(c.path)
+      if buf then
+        pcall(vim.api.nvim_buf_delete, buf, { force = true })
+      end
+    else
+      local ok, err = fs.write_file(c.path, c[side], { raw = true })
+      if not ok then
+        error(err, 0)
+      end
+      focus = focus or c.path
+    end
+  end
+  require("logpose.index").clear_cache()
+  return true, focus
+end
+
+--- `u`: take back the last change made on the board.
+---@param b logpose.Board
+function M.undo(b)
+  local step = table.remove(b.undo)
+  if not step then
+    vim.notify("logpose: nothing to undo on the board", vim.log.levels.INFO)
+    return
+  end
+  local ok, focus = apply(b, step, "before")
+  if not ok then
+    vim.notify(("logpose: can't undo %s: the task changed since"):format(step.label), vim.log.levels.WARN)
+    return
+  end
+  table.insert(b.redo, step)
+  count(b, "undo")
+  vim.notify(("logpose: undid %s"):format(step.label), vim.log.levels.INFO)
+  M.refresh(b, focus)
+end
+
+--- `<C-r>`: redo what `u` took back.
+---@param b logpose.Board
+function M.redo(b)
+  local step = table.remove(b.redo)
+  if not step then
+    vim.notify("logpose: nothing to redo on the board", vim.log.levels.INFO)
+    return
+  end
+  local ok, focus = apply(b, step, "after")
+  if not ok then
+    vim.notify(("logpose: can't redo %s: the task changed since"):format(step.label), vim.log.levels.WARN)
+    return
+  end
+  table.insert(b.undo, step)
+  count(b, "redo")
+  vim.notify(("logpose: redid %s"):format(step.label), vim.log.levels.INFO)
+  M.refresh(b, focus)
+end
+
 local function with_card(b, name, fn)
   local it = M.focused(b)
   if not it then
     vim.notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
+  local before = snapshot(b)
   local ok, res = pcall(fn, it)
+  record(b, name, before)
   if not ok then
     vim.notify(tostring(res), vim.log.levels.ERROR)
     return
@@ -816,6 +930,7 @@ function M.delete(b)
       if buf and vim.bo[buf].modified then
         error("logpose: the task file has unsaved changes; save or discard them first", 0)
       end
+      local before = snapshot(b)
       local ok, err = os.remove(it.file)
       if not ok then
         error(("logpose: cannot delete %s: %s"):format(it.file, err), 0)
@@ -824,6 +939,7 @@ function M.delete(b)
         pcall(vim.api.nvim_buf_delete, buf, { force = true })
       end
       require("logpose.index").clear_cache()
+      record(b, "delete", before)
       count(b, "delete")
       vim.notify(("logpose: deleted %s"):format(vim.fs.basename(it.file)), vim.log.levels.INFO)
       M.refresh(b)
@@ -842,7 +958,9 @@ function M.add(b)
         return
       end
       local project = (not b.all) and b.project or nil
+      local before = snapshot(b)
       local path = taskfile.create(b.root, { title = title, status = col.key, project = project })
+      record(b, "add", before)
       count(b, "add")
       M.refresh(b, path)
     end)
@@ -1065,6 +1183,12 @@ local function keymaps(b)
   map("D", function()
     M.delete(b)
   end, "Delete card")
+  map("u", function()
+    M.undo(b)
+  end, "Undo the last board change")
+  map("<C-r>", function()
+    M.redo(b)
+  end, "Redo")
   map("<CR>", function()
     M.open(b)
   end, "Open task")
@@ -1125,6 +1249,8 @@ function M.open_board(root, opts)
     width = 0,
     widths = {},
     offset = {},
+    undo = {},
+    redo = {},
     collapsed = {},
   }
   for _, key in ipairs(config.get().board.collapsed) do

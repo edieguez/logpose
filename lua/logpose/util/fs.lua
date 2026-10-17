@@ -111,14 +111,15 @@ end
 --- Refuses (returns false, err) if a buffer showing `path` has unsaved changes.
 ---@param path string
 ---@param content string
----@param opts? { tidy?: boolean }  tidy: normalize blank lines for markdownlint (markdown.tidy)
+---@param opts? { tidy?: boolean, raw?: boolean }  tidy: normalize blank lines for markdownlint;
+---  raw: write exactly `content` (no `modified:` bump), e.g. to restore a file
 ---@return boolean ok, string? err
 function M.write_file(path, content, opts)
   if opts and opts.tidy then
     local lines = vim.split(content, "\n", { plain = true })
     content = table.concat(require("logpose.markdown").tidy(lines), "\n") .. "\n"
   end
-  if path:sub(-3) == ".md" then
+  if path:sub(-3) == ".md" and not (opts and opts.raw) then
     content = require("logpose.timestamps").touch_text(content) -- bump `modified:`
   end
   local ok, err = M.check_writable({ path })
