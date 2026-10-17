@@ -142,6 +142,8 @@ A bare `journal/` directory is not a marker.
                                                                     *:Logpose*
 :Logpose {subcommand} [args]
     Run a logpose subcommand. <Tab> completes subcommands and arguments.
+    Without one, opens a menu of every command with its description and
+    your keymap for it (most used first when usage stats are on).
     Each subcommand also has a `<Plug>(logpose-{subcommand})` mapping.
     A bang can go on the command or the subcommand: `:Logpose! archive` and
     `:Logpose archive!` are the same.
@@ -297,6 +299,13 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
 
     `require("logpose").project()` returns the active project.
 
+                                                         *logpose-statusline*
+    `require("logpose").statusline({opts})` returns e.g.
+    "acme · 2 in progress · 1 blocked · sprint-43 2/10": the active project,
+    its cards in progress and blocked, and the workday of the current sprint
+    or week. Cached (cheap on every redraw), refreshed when logpose changes
+    anything. {opts}: `project`, `tasks`, `period` (booleans), `separator`.
+
                                                               *:Logpose-board*
 :Logpose board [{filters}...]
     The task files as a Kanban board in the current window. See
@@ -328,6 +337,7 @@ that logpose appends to on every move. Keys on the board:
   <C-j> <C-k>   move the card down / up         a     add a card here
   K             peek at the task in a float     D     delete the card (asks first)
   z             fold / unfold the column        gg G  first / last card
+  u             undo the last board change      <C-r> redo
   <CR>          open the task file              /     filter (find filters)
   p             this project / all              r     refresh
   q             close                           ?     help
