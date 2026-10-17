@@ -58,14 +58,17 @@ function M.dispatch(cmd)
     -- No subcommand: pick one from the menu.
     local ok, err = pcall(require("logpose.menu").open)
     if not ok then
-      vim.notify("logpose: " .. tostring(err), vim.log.levels.ERROR)
+      require("logpose.util.ui").notify("logpose: " .. tostring(err), vim.log.levels.ERROR)
     end
     return
   end
   local sub = M.subcommands[name]
   if not sub then
     local valid = #names > 0 and table.concat(names, ", ") or "(none yet)"
-    vim.notify(("logpose: unknown subcommand %q. Valid: %s"):format(name, valid), vim.log.levels.ERROR)
+    require("logpose.util.ui").notify(
+      ("logpose: unknown subcommand %q. Valid: %s"):format(name, valid),
+      vim.log.levels.ERROR
+    )
     return
   end
   local args = vim.list_slice(fargs, 2)
@@ -86,7 +89,7 @@ function M.dispatch(cmd)
     if not msg:find("^logpose:") then
       msg = "logpose: " .. msg
     end
-    vim.notify(msg, vim.log.levels.ERROR)
+    require("logpose.util.ui").notify(msg, vim.log.levels.ERROR)
   end
 end
 
@@ -157,6 +160,7 @@ M.builtin = {
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
   done = { module = "logpose.tasks", fn = "done_command", desc = "logpose: mark tasks done", plug = { "n", "x" } },
   board = { module = "logpose.board", desc = "logpose: Kanban board of task files" },
+  today = { module = "logpose.today", complete = false, desc = "logpose: today at a glance" },
   migrate = { module = "logpose.migrate", complete = false, desc = "logpose: turn INBOX items into task files" },
   promote = {
     module = "logpose.migrate",
