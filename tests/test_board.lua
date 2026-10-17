@@ -28,6 +28,11 @@ local function status(path)
   )
 end
 
+--- The board's title, shown in the window's top bar (winbar).
+local function title()
+  return child.lua_get("require('logpose.board').boards[vim.fn.bufnr('logpose://board')].title")
+end
+
 local function screen()
   return table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 end
@@ -68,8 +73,9 @@ local T = MiniTest.new_set({
 T["shows columns side by side with cards, counts and meta"] = function()
   child.cmd("Logpose board")
   local s = screen()
-  H.contains(s, "Board · all projects")
-  local headers = child.api.nvim_buf_get_lines(0, 2, 3, false)[1]
+  eq(title(), "Board · all projects")
+  H.contains(child.wo.winbar, "%#LogposeBoardTitle# Board")
+  local headers = child.api.nvim_buf_get_lines(0, 0, 1, false)[1]
   for _, h in ipairs({ "● Backlog (1)", "● TODO (1)", "● In progress (1/3)", "● Follow-up (0)", "● Done (1)" }) do
     H.contains(headers, h) -- "Old work" finished last week: not in Done
   end
@@ -148,16 +154,16 @@ end
 T["the active project scopes the board; p shows all"] = function()
   setup(("{ projects = { paths = { [%q] = 'acme' } } }"):format(child.fn.getcwd()))
   child.cmd("Logpose board")
-  H.contains(screen(), "Board · acme")
+  eq(title(), "Board · acme")
   eq(screen():find("Read paper", 1, true), nil)
   child.type_keys("p")
-  H.contains(screen(), "Board · all projects")
+  eq(title(), "Board · all projects")
   H.contains(screen(), "Read paper")
 end
 
 T["filters from the command line and /"] = function()
   child.cmd("Logpose board #perf")
-  H.contains(screen(), "Board · all projects · #perf")
+  eq(title(), "Board · all projects · #perf")
   eq(screen():find("Read paper", 1, true), nil)
   H.contains(screen(), "Fix flaky test")
   child.lua([[vim.ui.input = function(opts, cb) _G.default = opts.default; cb('blocked') end]])
@@ -303,7 +309,6 @@ T["columns, blocked cards and overdue dates are coloured"] = function()
     return seen
   end)()]])
   for _, g in ipairs({
-    "LogposeBoardTitle",
     "LogposeBoardColumn1",
     "LogposeBoardColumn3",
     "LogposeBoardFocus",
@@ -502,6 +507,81 @@ T["undo refuses when the task changed since"] = function()
   child.type_keys("u")
   H.contains(child.notifications()[#child.notifications()].msg, "can't undo move: the task changed since")
   H.contains(H.read(flaky), "edited elsewhere")
+end
+
+T["c switches to one-line cards"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("c")
+  local s = screen()
+  eq(s:find("╭", 1, true), nil)
+  H.contains(s, "▶ Read paper") -- the focused card
+  H.contains(s, "• Fix flaky test")
+  H.contains(s, "⊘ Queue design") -- blocked
+  H.contains(title(), "compact")
+  child.type_keys("l", "L") -- moves still work
+  eq(status(root .. "/tasks/fix-flaky.md"), "in-progress")
+end
+
+T["s groups the cards into rows per project"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("s")
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  local function row_of(text)
+    for i, l in ipairs(lines) do
+      if l:find(text, 1, true) then
+        return i
+      end
+    end
+  end
+  local acme, thesis = row_of("◆ acme ─"), row_of("◆ thesis ─")
+  assert(acme and thesis and acme < thesis, "lanes in project order")
+  assert(row_of("Fix flaky test") > acme and row_of("Fix flaky test") < thesis)
+  assert(row_of("Read paper") > thesis)
+  H.contains(title(), "by project")
+  for _, l in ipairs(lines) do
+    eq(l:match("%s$"), nil)
+  end
+end
+
+T["icons can be ascii or nerd font"] = function()
+  setup("{ board = { icons = 'ascii' } }")
+  child.cmd("Logpose board")
+  local s = screen()
+  H.contains(s, "* Backlog (1)")
+  H.contains(s, "+---")
+  H.contains(s, "#===") -- focused
+  H.contains(s, "! waiting on ana")
+  H.contains(s, "+ acme #perf due 10-14")
+  eq(s:find("[╭◆◷⊘●]"), nil)
+  -- long titles are cut with "~", not "…": the whole board is plain ASCII
+  task("long", { title = "A very long task title that cannot possibly fit on one card line", status = "todo" })
+  child.type_keys("r")
+  s = screen()
+  eq(s:find("…", 1, true), nil)
+  eq(s:find("[\128-\255]"), nil)
+  setup("{ board = { icons = 'nerd' } }")
+  child.cmd("Logpose board")
+  H.contains(screen(), vim.fn.nr2char(0xf07b) .. " acme")
+end
+
+T["board.open = 'tab' opens it in its own tab; q closes the tab"] = function()
+  setup("{ board = { open = 'tab' } }")
+  child.cmd("Logpose board")
+  eq(#child.api.nvim_list_tabpages(), 2)
+  eq(child.bo.filetype, "logpose-board")
+  child.type_keys("q")
+  eq(#child.api.nvim_list_tabpages(), 1)
+end
+
+T["a moved card flashes"] = function()
+  child.cmd("Logpose board")
+  child.lua("require('logpose.board').flash_ms = 10000")
+  child.type_keys("l", "L")
+  local flashed = child.lua_get([[(function()
+    local ns = vim.api.nvim_get_namespaces()["logpose.board.flash"]
+    return #vim.api.nvim_buf_get_extmarks(0, ns, 0, -1, {})
+  end)()]])
+  eq(flashed > 0, true)
 end
 
 return T
