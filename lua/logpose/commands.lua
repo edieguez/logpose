@@ -55,10 +55,10 @@ function M.dispatch(cmd)
   end
   local names = M.names()
   if not name then
-    if #names == 0 then
-      vim.notify("logpose: no subcommands available yet", vim.log.levels.INFO)
-    else
-      vim.notify("logpose: usage :Logpose {" .. table.concat(names, "|") .. "}", vim.log.levels.INFO)
+    -- No subcommand: pick one from the menu.
+    local ok, err = pcall(require("logpose.menu").open)
+    if not ok then
+      vim.notify("logpose: " .. tostring(err), vim.log.levels.ERROR)
     end
     return
   end

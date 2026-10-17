@@ -24,10 +24,12 @@ T[":Logpose exists"] = function()
   eq(child.fn.exists(":Logpose"), 2)
 end
 
-T["without a subcommand prints usage"] = function()
+T["without a subcommand opens the command menu"] = function()
+  child.lua("require('logpose').setup({ picker = 'select' })")
+  child.lua([[vim.ui.select = function(items, opts, cb) _G.menu = { prompt = opts.prompt, n = #items } end]])
   child.cmd("Logpose")
   local names = child.lua_get("require('logpose.commands').names()")
-  H.contains(child.notifications()[1].msg, "usage :Logpose {" .. table.concat(names, "|") .. "}")
+  eq(child.lua_get("_G.menu"), { prompt = "Logpose", n = #names })
 end
 
 T["built-in subcommands are registered"] = function()
