@@ -124,7 +124,7 @@ function M.backlinks_command()
   local root, file = current()
   local found = M.backlinks(root, file)
   if #found == 0 then
-    vim.notify("logpose: no backlinks", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no backlinks", vim.log.levels.INFO)
     return
   end
   require("logpose.picker").pick(
@@ -139,7 +139,7 @@ function M.links_command()
   local root, file = current()
   local found = M.outgoing(root, file)
   if #found == 0 then
-    vim.notify("logpose: no links in this note", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no links in this note", vim.log.levels.INFO)
     return
   end
   require("logpose.picker").pick(

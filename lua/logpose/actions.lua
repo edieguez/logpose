@@ -111,7 +111,7 @@ function M.show(root, mode, args)
   local title = ("logpose actions: %s%s"):format(mode, #args > 0 and (" " .. table.concat(args, " ")) or "")
   if #items == 0 then
     local what = mode == "all" and "" or (mode .. " ")
-    vim.notify(("logpose: no %saction items"):format(what), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(("logpose: no %saction items"):format(what), vim.log.levels.INFO)
     return
   end
   if config.get().actions.output == "picker" then

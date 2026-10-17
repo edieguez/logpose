@@ -126,18 +126,18 @@ function M.command(opts)
     local inbox = config.path("inbox", root)
     local lines = fs.read_lines(inbox)
     if not lines then
-      vim.notify("logpose: no INBOX to migrate", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: no INBOX to migrate", vim.log.levels.INFO)
       return
     end
     local plan = M.plan(root, lines)
     if #plan == 0 then
-      vim.notify("logpose: no open INBOX tasks to migrate", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: no open INBOX tasks to migrate", vim.log.levels.INFO)
       return
     end
     local label = taskfile.label(config.get().tasks.capture_status)
     local function run()
       local paths = M.apply(root, plan)
-      vim.notify(
+      require("logpose.util.ui").notify(
         ("logpose: migrated %d task%s to %s"):format(#paths, #paths == 1 and "" or "s", label),
         vim.log.levels.INFO
       )
@@ -178,7 +178,7 @@ function M.command(opts)
         if choice == "Migrate" then
           run()
         else
-          vim.notify("logpose: cancelled", vim.log.levels.INFO)
+          require("logpose.util.ui").notify("logpose: cancelled", vim.log.levels.INFO)
         end
       end)
     )
@@ -228,7 +228,7 @@ function M.promote(root)
       vim.cmd("silent write")
     end)
   end
-  vim.notify(
+  require("logpose.util.ui").notify(
     ("logpose: promoted to %s (%s)"):format(link.relpath(root, path), taskfile.label(status)),
     vim.log.levels.INFO
   )

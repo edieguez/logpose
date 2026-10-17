@@ -418,16 +418,22 @@ local function write_and_open(root, note)
   end
   local marked, mark_err = pcall(M.mark_carried, note)
   if not marked then
-    vim.notify("logpose: couldn't mark carried items in the previous note: " .. tostring(mark_err), vim.log.levels.WARN)
+    require("logpose.util.ui").notify(
+      "logpose: couldn't mark carried items in the previous note: " .. tostring(mark_err),
+      vim.log.levels.WARN
+    )
   end
   local linked, link_err = pcall(M.link_in_daily, root, note)
   if not linked then
-    vim.notify(
+    require("logpose.util.ui").notify(
       "logpose: note created, but linking it in the daily note failed: " .. tostring(link_err),
       vim.log.levels.WARN
     )
   elseif link_err == "buffer" then
-    vim.notify("logpose: added the meeting link to the daily note buffer (unsaved)", vim.log.levels.INFO)
+    require("logpose.util.ui").notify(
+      "logpose: added the meeting link to the daily note buffer (unsaved)",
+      vim.log.levels.INFO
+    )
   end
   open(note.path, note.cursor)
 end
@@ -541,7 +547,7 @@ function M.start(root, key, iso, project)
       M._completing = nil
       input = input and text.trim(input) or ""
       if input == "" then
-        vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
+        require("logpose.util.ui").notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
         return
       end
       with_attendees(root, key, input, iso, project)

@@ -34,7 +34,10 @@ function M.command(opts)
   end
   local names = M.names()
   if #names == 0 then
-    vim.notify('logpose: no views; define them in setup({ views = { name = "find args" } })', vim.log.levels.INFO)
+    require("logpose.util.ui").notify(
+      'logpose: no views; define them in setup({ views = { name = "find args" } })',
+      vim.log.levels.INFO
+    )
     return
   end
   vim.ui.select(

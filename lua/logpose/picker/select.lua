@@ -26,7 +26,7 @@ local function vimgrep(cwd, text)
   local files = vim.fn.fnameescape(cwd) .. "/**/*.md"
   local ok = pcall(vim.cmd, ("silent vimgrep /%s/jg %s"):format(pattern, files))
   if not ok or #vim.fn.getqflist() == 0 then
-    vim.notify(("logpose: no matches for %q"):format(text), vim.log.levels.INFO)
+    require("logpose.util.ui").notify(("logpose: no matches for %q"):format(text), vim.log.levels.INFO)
     return
   end
   vim.cmd("copen")

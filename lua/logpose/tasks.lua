@@ -91,11 +91,11 @@ function M.capture(text, root, project)
   end
   local changed, added = add_items(config.path("inbox", root), "# INBOX", { item })
   if added == 0 then
-    vim.notify("logpose: already in today's INBOX", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: already in today's INBOX", vim.log.levels.INFO)
   elseif changed == "buffer" then
-    vim.notify("logpose: captured to the INBOX buffer (unsaved)", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: captured to the INBOX buffer (unsaved)", vim.log.levels.INFO)
   else
-    vim.notify("logpose: captured to INBOX", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: captured to INBOX", vim.log.levels.INFO)
   end
 end
 
@@ -126,7 +126,7 @@ function M.done(root, line1, line2)
     error("logpose: not a journal file (outside " .. vim.fn.fnamemodify(root, ":~") .. ")", 0)
   end
   if same_file(abs, "done", root) then
-    vim.notify("logpose: already in DONE", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: already in DONE", vim.log.levels.INFO)
     return
   end
 
@@ -138,9 +138,9 @@ function M.done(root, line1, line2)
     -- In a task file (not on one of its checklist items): the task itself is done.
     local done = config.get().board.done
     if taskfile.set_status(abs, done) then
-      vim.notify("logpose: moved to " .. taskfile.label(done), vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: moved to " .. taskfile.label(done), vim.log.levels.INFO)
     else
-      vim.notify("logpose: already " .. taskfile.label(done), vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: already " .. taskfile.label(done), vim.log.levels.INFO)
     end
     return
   end
@@ -202,7 +202,7 @@ function M.done(root, line1, line2)
   if skipped > 0 then
     table.insert(parts, ("skipped %d non-task line%s"):format(skipped, skipped == 1 and "" or "s"))
   end
-  vim.notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
+  require("logpose.util.ui").notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
 end
 
 --- Capture `text` as a task file in `tasks.capture_status` (files mode).
@@ -223,7 +223,7 @@ function M.capture_file(text, root, project, open)
     vim.cmd.edit(vim.fn.fnameescape(path))
     pcall(vim.api.nvim_win_set_cursor, 0, cursor)
   end
-  vim.notify(
+  require("logpose.util.ui").notify(
     ("logpose: captured to %s: %s"):format(taskfile.label(status), link.relpath(root, path)),
     vim.log.levels.INFO
   )
@@ -253,7 +253,7 @@ function M.capture_command(opts)
       ui.safely(function(input)
         input = input and vim.trim(input) or ""
         if input == "" then
-          vim.notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
+          require("logpose.util.ui").notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
           return
         end
         capture(input)

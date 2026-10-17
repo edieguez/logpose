@@ -101,7 +101,7 @@ function M.live(opts)
   end
   local items = opts.items(opts.query)
   if #items == 0 then
-    vim.notify("logpose: no matches", vim.log.levels.INFO)
+    require("logpose.util.ui").notify("logpose: no matches", vim.log.levels.INFO)
     return
   end
   b.pick(items, opts)

@@ -164,7 +164,7 @@ local function finish(s)
     end
   end
   local left = #M.collect(s.root, {})
-  vim.notify(
+  require("logpose.util.ui").notify(
     ("logpose: triage finished%s; %d left in INBOX"):format(
       #parts > 0 and (": " .. table.concat(parts, ", ")) or "",
       left
@@ -243,7 +243,7 @@ local function act(s, item, key)
     ask(s, "Due (YYYY-MM-DD, +3d, tomorrow…): ", function(value)
       local iso = date.resolve(value)
       if not iso then
-        vim.notify(("logpose: not a date: %q"):format(value), vim.log.levels.WARN)
+        require("logpose.util.ui").notify(("logpose: not a date: %q"):format(value), vim.log.levels.WARN)
         return
       end
       replace(s, item, M.set_due(item.line, iso))
@@ -386,7 +386,7 @@ function M.command(opts)
     end
     local queue = M.collect(root, args)
     if #queue == 0 then
-      vim.notify("logpose: INBOX is clear", vim.log.levels.INFO)
+      require("logpose.util.ui").notify("logpose: INBOX is clear", vim.log.levels.INFO)
       return
     end
     next_item({ root = root, queue = queue, i = 1, stats = {} }, false)

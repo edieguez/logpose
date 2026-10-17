@@ -69,7 +69,7 @@ function M.command(opts)
   config.with_root(ui.safely(function(root)
     local found = M.mentions(root, id)
     if #found == 0 then
-      vim.notify(("logpose: %s isn't mentioned anywhere"):format(id), vim.log.levels.INFO)
+      require("logpose.util.ui").notify(("logpose: %s isn't mentioned anywhere"):format(id), vim.log.levels.INFO)
       return
     end
     require("logpose.picker").pick(found, { prompt = id, cwd = root })

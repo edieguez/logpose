@@ -331,7 +331,7 @@ local function report(plan)
   if #plan.tasks > 0 then
     table.insert(parts, ("%d done task%s"):format(#plan.tasks, #plan.tasks == 1 and "" or "s"))
   end
-  vim.notify("logpose: archived " .. table.concat(parts, " and "), vim.log.levels.INFO)
+  require("logpose.util.ui").notify("logpose: archived " .. table.concat(parts, " and "), vim.log.levels.INFO)
 end
 
 ---@param opts logpose.CommandOpts
@@ -339,7 +339,7 @@ function M.command(opts)
   config.with_root(ui.safely(function(root)
     local plan = M.plan(root, date.today())
     if plan.moves == 0 and #plan.tasks == 0 then
-      vim.notify(
+      require("logpose.util.ui").notify(
         ("logpose: nothing to archive; every section is in the current %s"):format(plan.current.kind),
         vim.log.levels.INFO
       )
@@ -359,7 +359,7 @@ function M.command(opts)
           vim.api.nvim_win_close(win, true)
         end
         if choice ~= "Archive" then
-          vim.notify("logpose: archive cancelled", vim.log.levels.INFO)
+          require("logpose.util.ui").notify("logpose: archive cancelled", vim.log.levels.INFO)
           return
         end
         -- Re-plan: files may have changed while the preview was open.
