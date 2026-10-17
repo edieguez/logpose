@@ -14,4 +14,12 @@ function M.project()
   return require("logpose.project").current()
 end
 
+--- The board at a glance, for your statusline: "acme · 2 in progress · 1 blocked · sprint-43 2/10".
+--- lualine: `lualine_x = { function() return require("logpose").statusline() end }`
+---@param opts? logpose.StatuslineOpts  project/tasks/period (booleans), separator
+---@return string
+function M.statusline(opts)
+  return require("logpose.statusline").get(opts)
+end
+
 return M
