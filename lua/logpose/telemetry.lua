@@ -24,7 +24,7 @@ local KEYWORDS = {
   actions = { "open", "mine", "overdue", "all" },
   report = { "week", "sprint" },
   daily = { "today", "prev", "next" },
-  board = { "move", "done", "block", "reorder", "add", "open", "delete", "peek" }, -- recorded by the board's keys
+  board = { "move", "done", "block", "reorder", "add", "open", "delete", "peek", "undo", "redo" }, -- recorded by the board's keys
 }
 
 M.throttle_ms = 60 * 1000
@@ -108,6 +108,27 @@ function M.record(name, args, ok)
   if (vim.uv or vim.loop).now() - M._last_flush >= M.throttle_ms then
     M.flush()
   end
+end
+
+--- Uses per event key over the last `days` days ({} when usage stats are off or empty).
+---@param days integer
+---@return table<string, integer>
+function M.totals(days)
+  if not config.get().telemetry.enabled then
+    return {}
+  end
+  local data = load()
+  local date = require("logpose.util.date")
+  local since = date.add_days(date.today(), -(days - 1))
+  local out = {}
+  for day, events in pairs(data.days) do
+    if day >= since then
+      for key, e in pairs(events) do
+        out[key] = (out[key] or 0) + e.ok + e.err
+      end
+    end
+  end
+  return out
 end
 
 --- Usage summary over the last `days` days.
