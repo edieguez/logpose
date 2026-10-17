@@ -466,4 +466,42 @@ T["redraws to fit when a sidebar opens or closes, and ignores the editor's colum
   H.contains(screen(), "● Done (1)") -- full width again: Done back on the first row
 end
 
+T["u undoes board changes exactly and <C-r> redoes them"] = function()
+  local flaky = root .. "/tasks/fix-flaky.md"
+  local original = H.read(flaky)
+  child.cmd("Logpose board")
+  child.type_keys("l", "L") -- Fix flaky test: TODO -> In progress
+  eq(status(flaky), "in-progress")
+  child.type_keys("u")
+  eq(H.read(flaky), original) -- the log line and timestamps are gone too
+  H.contains(child.notifications()[#child.notifications()].msg, "undid move")
+  child.type_keys("<C-r>")
+  eq(status(flaky), "in-progress")
+  child.type_keys("u")
+  eq(H.read(flaky), original)
+  -- adding and deleting cards undo too
+  child.lua([[vim.ui.input = function(_, cb) cb('Undo me') end]])
+  child.type_keys("a")
+  eq(H.read(root .. "/tasks/undo-me.md") ~= nil, true)
+  child.type_keys("u")
+  eq(H.read(root .. "/tasks/undo-me.md"), nil)
+  child.lua([[vim.ui.select = function(_, _, cb) cb('Delete') end]])
+  child.type_keys("gg", "D")
+  local gone = child.lua_get("vim.tbl_count(vim.fn.globpath(" .. vim.inspect(root .. "/tasks") .. ", '*.md', 0, 1))")
+  child.type_keys("u")
+  eq(child.lua_get("vim.tbl_count(vim.fn.globpath(" .. vim.inspect(root .. "/tasks") .. ", '*.md', 0, 1))"), gone + 1)
+  child.type_keys("u", "u", "u")
+  H.contains(child.notifications()[#child.notifications()].msg, "nothing to undo")
+end
+
+T["undo refuses when the task changed since"] = function()
+  local flaky = root .. "/tasks/fix-flaky.md"
+  child.cmd("Logpose board")
+  child.type_keys("l", "L")
+  H.write(flaky, H.read(flaky) .. "\nedited elsewhere\n")
+  child.type_keys("u")
+  H.contains(child.notifications()[#child.notifications()].msg, "can't undo move: the task changed since")
+  H.contains(H.read(flaky), "edited elsewhere")
+end
+
 return T
