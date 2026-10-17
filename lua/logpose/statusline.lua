@@ -17,7 +17,7 @@ local cache = {} ---@type table<string, { at: integer, gen: integer, text: strin
 ---@param p logpose.Period
 ---@param today string
 ---@return integer n, integer total
-local function workday(p, today)
+function M.workday(p, today)
   local date = require("logpose.util.date")
   local workdays = require("logpose.config").get().workdays
   local n, total, d = 0, 0, p.start
@@ -81,7 +81,7 @@ local function compute(root, project, opts)
     local today = require("logpose.util.date").today()
     local ok, p = pcall(require("logpose.period").of, today)
     if ok and p then
-      local n, total = workday(p, today)
+      local n, total = M.workday(p, today)
       local name = p.kind == "sprint" and p.key or "week"
       table.insert(parts, ("%s %d/%d"):format(name, n, total))
     end
