@@ -104,7 +104,12 @@ Options ~
                  tasks to show. `min_column_width` (24): narrower, columns stack.
                  `stale_days` (7): cards this long in a column fade.
                  `collapsed` ({}): column keys folded when the board opens.
+                 `icons` ("unicode"|"nerd"|"ascii"), `compact` (false),
+                 `lanes` (false: rows per project), `open` ("window"|"tab").
                  A column may set `limit` (WIP limit; In progress: 3) and `hl`.
+  keymaps        (boolean|table) false. `true` installs a `<leader>j…` set
+                 (`{ prefix = "<leader>n" }` for another prefix); keys you
+                 mapped yourself are never replaced.
   timestamps     (table)       `created` (true), `modified` (true): add
                  `created:`/`modified:` (local time, 2026-10-15T18:57) to new
                  notes. `modified:` is bumped when logpose changes a note and
@@ -306,6 +311,13 @@ are then marked `- [>]` (migrated) in the earlier note. See `series`.
     or week. Cached (cheap on every redraw), refreshed when logpose changes
     anything. {opts}: `project`, `tasks`, `period` (booleans), `separator`.
 
+                                                              *:Logpose-today*
+:Logpose today
+    The day at a glance: today's meetings, cards in progress and blocked,
+    tasks due within three days, overdue action items, and what's left
+    under Today in the daily note. <CR> opens an item; d daily, b board,
+    r refresh, q close.
+
                                                               *:Logpose-board*
 :Logpose board [{filters}...]
     The task files as a Kanban board in the current window. See
@@ -338,6 +350,7 @@ that logpose appends to on every move. Keys on the board:
   K             peek at the task in a float     D     delete the card (asks first)
   z             fold / unfold the column        gg G  first / last card
   u             undo the last board change      <C-r> redo
+  c             compact one-line cards          s     rows per project
   <CR>          open the task file              /     filter (find filters)
   p             this project / all              r     refresh
   q             close                           ?     help

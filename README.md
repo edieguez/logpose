@@ -84,6 +84,7 @@ it (if any); the ones you use most come first when usage stats are on.
 | `meeting [type] [DATE]` | New meeting note (picker without a type). `DATE` backfills. |
 | `project [name\|none]` | Pin the active project, or go back to auto-detection. |
 | `board [filters]` | The Kanban board of task files. |
+| `today` | The day at a glance: meetings, in progress, blocked, due soon, overdue actions. |
 | `capture[!] [text]` | New task file in Backlog for the active project (`!` opens it). |
 | `done` | In a task file: move it to Done. On checkboxes: check them off. |
 | `promote` | Turn the checkbox under the cursor into a task file it links to. |
@@ -154,6 +155,14 @@ the daily-note link is prefixed (`- acme-api: [[…|Retro]]`), captures get `#ac
 series never mix across projects. `meeting_subdir = ""` keeps all meetings in one folder.
 `require("logpose").project()` returns the active project.
 
+**Today.** `:Logpose today` shows the day at a glance: the day and where it sits in the sprint,
+today's meetings, what's in progress and blocked, tasks due within three days (overdue first),
+overdue action items, and what's left under Today in the daily note. `<CR>` opens an item at
+its line; `d` daily note, `b` board, `r` refresh, `q` close.
+
+**Notifications** carry a `logpose` title, so snacks' notifier, nvim-notify or noice show them as
+titled toasts (the `logpose:` prefix is dropped there; plain messages keep it).
+
 **Statusline.** `require("logpose").statusline()` returns the board at a glance, e.g.
 `acme · 2 in progress · 1 blocked · sprint-43 2/10` (the active project, cards in progress and
 blocked for it, and the workday of the current sprint or week). It's cached, so it's cheap to
@@ -218,6 +227,7 @@ of them.
 | `K` | peek: the task in a floating window | `D` | delete the card (asks first) |
 | `z` | fold / unfold the column | `gg` `G` | first / last card |
 | `u` | undo the last board change | `<C-r>` | redo |
+| `c` | compact one-line cards | `s` | rows per project |
 | `<CR>` | open the task file | `/` | filter (`find` filters) |
 | `p` | this project / all | `r` `q` `?` | refresh, close, help |
 
@@ -226,7 +236,12 @@ Each card shows how long it has been in its column (`4d`, from its log); cards u
 `In progress (2/3)` and turns the count red above it (In progress has a limit of 3 by default).
 Columns scroll on their own (`↑ 3 more` / `↓ 5 more`), keeping the focused card in view, and
 `z` folds a column to a narrow strip with its count (`board.collapsed = { "done" }` starts it
-folded). Every change made on the board (moves, blocks, reorders, new and deleted cards) can be undone
+folded). The title, scope, filter and modes sit in the window's top bar. `c` switches to one-line cards
+to see more at once, and `s` groups the cards into a row per project (handy when viewing all
+projects). Glyphs can be `board.icons = "nerd"` (Nerd Font) or `"ascii"`; `board.open = "tab"`
+opens the board in its own tab page (`q` closes it). A card you move flashes briefly.
+
+Every change made on the board (moves, blocks, reorders, new and deleted cards) can be undone
 with `u` and redone with `<C-r>`, exactly, log lines included; undo refuses if the task was
 edited since. `K` opens the task in a floating window to read or edit its context without leaving
 the board; `q` closes it, saves, and the board picks up the change.
@@ -486,7 +501,12 @@ require("logpose").setup({
     min_column_width = 24,               -- narrower than this, columns stack
     stale_days = 7,                      -- cards this long in a column fade
     collapsed = {},                      -- columns folded when the board opens
+    icons = "unicode",                   -- or "nerd" (Nerd Font) or "ascii"
+    compact = false,                     -- start with one-line cards (c toggles)
+    lanes = false,                       -- start with rows per project (s toggles)
+    open = "window",                     -- or "tab"
   },
+  keymaps = false,                       -- true: a <leader>j… set; { prefix = "<leader>n" }
   timestamps = {
     created = true,                      -- `created:` in new notes (local time, 2026-10-15T18:57)
     modified = true,                     -- `modified:`, bumped on every change
@@ -546,7 +566,22 @@ checkboxes instead of `tasks/`.
 
 ## Keymaps
 
-None are set by default. For example:
+None are set by default. `setup({ keymaps = true })` installs a set under `<leader>j` (or
+`keymaps = { prefix = "<leader>n" }`), labelled for which-key; keys you've mapped yourself are
+never replaced:
+
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `<leader>jj` | command menu | `<leader>jd` | daily note |
+| `<leader>jy` | today | `<leader>js` | standup |
+| `<leader>jk` | board | `<leader>jm` | meeting note |
+| `<leader>jc` | capture a task | `<leader>jx` | mark done (normal / visual) |
+| `<leader>jp` | promote to task file | `<leader>jn` | topic note |
+| `<leader>jf` | find notes | `<leader>jt` | open tasks |
+| `<leader>ja` | action items | `<leader>jb` | backlinks |
+| `<leader>jr` | report | `<leader>j/` | grep the journal |
+
+Or map the `<Plug>` mappings yourself, for example:
 
 ```lua
 local map = vim.keymap.set
