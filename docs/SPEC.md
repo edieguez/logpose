@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -379,7 +379,8 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 - Switching to a project (switcher, manager `<CR>`, `:Logpose project <name>`) opens its board
   unless `projects.open_board = false` or the current buffer is already a board, which follows
   the switch itself (0.28.0). Unpinning doesn't open it.
-- **Project manager** (`:Logpose projects`, `projects.lua`, 0.26.0, reworked in 0.27.0): one
+- **Project manager** (`:Logpose projects`, `projects/`: `summary`, `manager`, `switcher`;
+  0.26.0, reworked in 0.27.0): one
   row per project with open tasks (and how many are in the start column), overdue, due soon
   (3 days), blocked, meetings, notes, and the newest change as "3d ago"; most recently active
   first; no change for `review.stale_days` fades the row. `<Tab>` expands a project in place:
@@ -889,7 +890,8 @@ a real task has. Tasks become files and the board becomes the place you see and 
   `blocked: <reason>` / `unblocked`. Writes follow §3 (an unsaved buffer gets the edit).
 - `tasks.mode = "files"` (default) or `"inbox"` (the F3/O2 INBOX/DONE flow, unchanged).
 
-**Board** (`board.lua`): `:Logpose board [filters]`
+**Board** (`board/`: `text`, `cards`, `collect`, `view`, `history`, `actions`, `keys`, and
+`init`, which opens boards and re-exports the parts; split in 0.28.1): `:Logpose board [filters]`
 - A scratch buffer (`filetype=logpose-board`) in the current window. Default columns:
   Backlog · TODO · In progress · Follow-up · Done (`board.columns`, a list of `{ key, label }`).
   Columns sit side by side; when a column would be narrower than `board.min_column_width`
