@@ -642,13 +642,8 @@ function M.show(model, opts)
   vim.bo[buf].filetype = "logpose-edit"
   vim.bo[buf].omnifunc = "v:lua.require'logpose.edit.form'.omnifunc"
   vim.b[buf].logpose_edit = { root = model.root, kind = model.kind, path = model.path }
-  -- our own popup, not a completion plugin's
+  -- our own popup, not a completion plugin's (nvim-cmp is turned off once the form is current)
   vim.b[buf].completion = false -- blink.cmp
-  if package.loaded["cmp"] then
-    pcall(function()
-      require("cmp").setup.buffer({ enabled = false })
-    end)
-  end
 
   local label_w = 10
   for _, key in ipairs(model.keys) do
@@ -676,6 +671,12 @@ function M.show(model, opts)
     footer = " <C-s> save · q cancel · ? keys ",
     footer_pos = "right",
   })
+  if package.loaded["cmp"] then
+    -- setup.buffer applies to the current buffer: the form, now that its window is open
+    pcall(function()
+      require("cmp").setup.buffer({ enabled = false })
+    end)
+  end
   vim.wo[win].wrap = false
   vim.wo[win].number = false
   vim.wo[win].relativenumber = false
@@ -811,10 +812,26 @@ function M.show(model, opts)
     return vim.fn.pumvisible() == 1 and "<C-p>" or "<Cmd>lua require('logpose.edit.form').tab(-1)<CR>"
   end, "Previous", true)
   map("i", "<CR>", function()
-    if vim.fn.pumvisible() == 1 and vim.fn.complete_info({ "selected" }).selected ~= -1 then
-      return "<C-y>"
+    local next_field = "<Cmd>lua require('logpose.edit.form').next_field(1)<CR>"
+    local blink = package.loaded["blink.cmp"]
+    local blink_visible = blink and (blink.is_menu_visible or blink.is_visible)
+    if blink_visible and pcall(blink_visible) and blink_visible() then
+      -- blink.cmp should be off here (vim.b.completion); if its menu shows anyway, accept from it
+      return "<Cmd>lua require('blink.cmp').accept()<CR>"
     end
-    return "<Cmd>lua require('logpose.edit.form').next_field(1)<CR>"
+    if vim.fn.pumvisible() == 1 then
+      local info = vim.fn.complete_info({ "selected", "items" })
+      if info.selected ~= -1 then
+        return "<C-y>" -- the highlighted item
+      end
+      local start = at_cursor(f)
+      local col = vim.api.nvim_win_get_cursor(0)[2]
+      if start and col > start and #info.items > 0 then
+        return "<C-n><C-y>" -- something typed: its best match
+      end
+      return "<C-e>" .. next_field -- nothing typed yet: close the menu, move on
+    end
+    return next_field
   end, "Accept or next field", true)
 
   -- start on the first value
