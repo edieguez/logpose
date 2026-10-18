@@ -409,45 +409,6 @@ function M.choose_project(root, current, fn)
   )
 end
 
---- `:Logpose move [project|none]` in a task file: move the task to another project.
----@param opts logpose.CommandOpts
-function M.move_command(opts)
-  local root = config.root()
-  local path = vim.api.nvim_buf_get_name(0)
-  local taskfile = require("logpose.taskfile")
-  if not taskfile.is_task_file(path, root) then
-    error("logpose: :Logpose move works in a task file (on the board, press m)", 0)
-  end
-  local function apply(target)
-    if taskfile.set_project(path, target) then
-      vim.cmd("silent! checktime")
-      require("logpose.project").changed()
-      ui.notify(("logpose: moved to %s"):format(target or "no project"), vim.log.levels.INFO)
-    end
-  end
-  local arg = vim.trim(table.concat(opts.args, " "))
-  if arg == "none" then
-    return apply(nil)
-  elseif arg ~= "" then
-    local slug = require("logpose.project").normalize(arg)
-    if not slug then
-      error(("logpose: invalid project name %q"):format(arg), 0)
-    end
-    return apply(slug)
-  end
-  local fm = require("logpose.index").frontmatter(vim.api.nvim_buf_get_lines(0, 0, -1, false))
-  M.choose_project(root, type(fm.project) == "string" and fm.project ~= "" and fm.project or nil, apply)
-end
-
-function M.complete_move(_, args)
-  if #args > 0 then
-    return {}
-  end
-  local items = require("logpose.project").known(config.resolve_root())
-  table.insert(items, "none")
-  return items
-end
-
 function M.done_command(opts)
   local line1, line2 = opts.line1, opts.line2
   if opts.range == 0 or line1 == 0 then

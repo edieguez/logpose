@@ -249,8 +249,8 @@ T["done_window can be a number of days"] = function()
   H.contains(screen(), "Old work")
 end
 
-T["triage opens the board on Backlog; ? shows help"] = function()
-  child.cmd("Logpose triage")
+T["x finishes the card; ? shows help"] = function()
+  child.cmd("Logpose board") -- focused on Backlog: Read paper
   eq(child.bo.filetype, "logpose-board")
   child.type_keys("x")
   eq(status(root .. "/tasks/read-paper.md"), "done")
