@@ -1567,6 +1567,22 @@ function M.open_board(root, opts)
       end
     end,
   })
+  -- The active project changed (:Logpose project, the project manager): follow it.
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "LogposeProjectChanged",
+    callback = function()
+      if not vim.api.nvim_buf_is_valid(buf) then
+        return true
+      end
+      b.project = require("logpose.project").resolve(root)
+      b.all = b.project == nil
+      b.focus = { col = b.focus.col, row = 1 }
+      if vim.fn.bufwinid(buf) ~= -1 then
+        M.refresh(b)
+      end
+    end,
+  })
   -- Any window that starts showing the board gets the board's window options.
   vim.api.nvim_create_autocmd("BufWinEnter", {
     group = group,
