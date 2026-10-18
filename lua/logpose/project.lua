@@ -307,16 +307,169 @@ local function remember(name)
   state.set("recent_projects", list)
 end
 
+-- Colours for projects without a `color:`: the colour scheme's own hues, taken from groups
+-- every scheme defines, without those the board gives a meaning to (errors and overdue in red,
+-- due soon and idle in yellow, marked cards in green) and without plain text and comments.
+local PALETTE_GROUPS = {
+  "Function",
+  "String",
+  "Type",
+  "Constant",
+  "Keyword",
+  "Special",
+  "Statement",
+  "PreProc",
+  "DiagnosticInfo",
+  "DiagnosticHint",
+  "Number",
+  "Character",
+  "Identifier",
+}
+local RESERVED_GROUPS = { "Normal", "Comment", "DiagnosticError", "DiagnosticWarn", "DiagnosticOk" }
+local palette_cache = { key = nil, groups = {}, assigned = {}, used = {} }
+
+--- Hue (0-360) and chroma (0-1: how far from grey; near-white text has little) of a 0xRRGGBB
+--- colour.
+---@param c integer
+---@return number hue, number chroma
+local function hue_sat(c)
+  local r, g, b = math.floor(c / 65536) % 256 / 255, math.floor(c / 256) % 256 / 255, c % 256 / 255
+  local max, min = math.max(r, g, b), math.min(r, g, b)
+  local d = max - min
+  if d == 0 then
+    return 0, 0
+  end
+  local h
+  if max == r then
+    h = ((g - b) / d) % 6
+  elseif max == g then
+    h = (b - r) / d + 2
+  else
+    h = (r - g) / d + 4
+  end
+  return h * 60, d
+end
+
+--- Distinct-coloured highlight groups for projects, for the current colour scheme: one per
+--- clearly different hue (two cyans count as one), none that's grey.
+---@return string[]
+function M.palette()
+  local key = (vim.g.colors_name or "") .. "/" .. vim.o.background .. "/" .. tostring(vim.o.termguicolors)
+  if palette_cache.key == key then
+    return palette_cache.groups
+  end
+  local gui = vim.o.termguicolors
+  local function colour(name)
+    local h = vim.api.nvim_get_hl(0, { name = name, link = false })
+    return gui and h.fg or h.ctermfg
+  end
+  local kept = {} -- colours (or hues, in the GUI) already taken
+  local function distinct(c)
+    if not gui then
+      return not kept[c]
+    end
+    local hue, sat = hue_sat(c)
+    if sat < 0.3 then
+      return false -- greyish: reads as plain text
+    end
+    for _, k in ipairs(kept) do
+      local d = math.abs(hue - k)
+      if math.min(d, 360 - d) < 20 then
+        return false
+      end
+    end
+    return true
+  end
+  local function keep(c)
+    if gui then
+      table.insert(kept, (hue_sat(c)))
+    else
+      kept[c] = true
+    end
+  end
+  for _, g in ipairs(RESERVED_GROUPS) do
+    local c = colour(g)
+    if c and (gui and (select(2, hue_sat(c)) >= 0.3) or not gui) then
+      keep(c)
+    end
+  end
+  local groups = {}
+  for _, g in ipairs(PALETTE_GROUPS) do
+    local c = colour(g)
+    if c and distinct(c) then
+      keep(c)
+      table.insert(groups, g)
+    end
+  end
+  palette_cache = { key = key, groups = groups, assigned = {}, used = {} }
+  return groups
+end
+
+---@param name string
+---@return integer
+local function hash(name)
+  local h = 5381
+  for i = 1, #name do
+    h = (h * 33 + name:byte(i)) % 4294967296
+  end
+  return h
+end
+
+--- Give the journal's projects their colours in one go (sorted, each in its hash's slot or the
+--- next free one), so the projects you have get different colours while there are enough.
+---@param root string
+function M.assign_colours(root)
+  local palette = M.palette()
+  if #palette == 0 then
+    return
+  end
+  local names = M.known(root, { archived = true })
+  table.sort(names)
+  for _, name in ipairs(names) do
+    M.auto_hl(name)
+  end
+end
+
+--- A project's automatic colour: the same name always gets the same palette colour, unless
+--- another project already took it (then the next free one).
+---@param name string
+---@return string? group
+function M.auto_hl(name)
+  local palette = M.palette()
+  if #palette == 0 then
+    return nil -- a scheme without distinct colours: the plain project colour
+  end
+  local group = "LogposeProject_" .. name:gsub("[^%w]", "_")
+  local slot = palette_cache.assigned[name]
+  if not slot then
+    local n = #palette
+    slot = hash(name) % n + 1
+    local tries = 0
+    while palette_cache.used[slot] and tries < n do
+      slot, tries = slot % n + 1, tries + 1
+    end
+    if tries == n then
+      slot = hash(name) % n + 1 -- more projects than colours: share
+    end
+    palette_cache.assigned[name], palette_cache.used[slot] = slot, true
+  end
+  vim.api.nvim_set_hl(0, group, { link = palette[slot], default = false })
+  return group
+end
+
 --- Highlight group for a project's colour (nil when its page sets none).
 ---@param root string
 ---@param name string
 ---@param pages? table<string, logpose.ProjectPage>
 ---@return string?
 function M.hl(root, name, pages)
+  if root and not next(palette_cache.assigned) then
+    M.assign_colours(root)
+  end
   local page = (pages or M.pages(root))[name]
   local color = page and page.color
   if not color then
-    return nil
+    return M.auto_hl(name)
   end
   local group = "LogposeProject_" .. name:gsub("[^%w]", "_")
   if color:match("^#%x%x%x%x%x%x$") then
