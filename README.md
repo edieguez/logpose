@@ -189,7 +189,8 @@ that's wrong, `:Logpose edit last` fixes it.
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
 shows its title and, under it, `◆ project · due Tue · #tags`. The project is in its own colour,
 picked from your colour scheme (or set with `color:` on its project page, `e` in
-`:Logpose projects`), so you can tell projects apart at a glance. The rest is in a quiet colour.
+`:Logpose projects`), so you can tell projects apart at a glance. Tags are chips, on a soft
+background, so they stand out in any colour scheme. The rest is in a quiet colour.
 
 Colour is kept for what needs your attention:
 
@@ -203,9 +204,9 @@ Colour is kept for what needs your attention:
 
 On a board showing one project, cards leave the project out, since it's in the board's title.
 When a card is narrow, the date stays whole, the project name gets shorter and tags are left
-out. Each card's border is tinted with its project's colour (cards without a project get a
-neutral one); `board = { border = "neutral" }` makes all borders one quiet colour, and
-`border = "column"` gives each card its column's colour.
+out. Each card's border is in its column's colour, so you see a card's state at a glance;
+`board = { border = "project" }` tints borders with the project's colour instead, and
+`border = "neutral"` makes them all one quiet colour.
 
 In progress has a work-in-progress limit of 3: its header shows `(2/3)`, and the count turns red
 above the limit.
@@ -752,7 +753,7 @@ board = {
   min_column_width = 24,   -- below this width, columns stack vertically
   stale_days = 7,          -- cards untouched this long fade
   collapsed = {},          -- column keys folded when the board opens, e.g. { "done" }
-  border = "project",      -- card borders tinted with the project's colour; "neutral" or "column"
+  border = "column",       -- card borders in the column's colour; "project" or "neutral"
   icons = "unicode",       -- or "nerd" (Nerd Font) or "ascii"
   compact = false,         -- start with one-line cards (c toggles)
   lanes = false,           -- start with one row per project (s toggles)
