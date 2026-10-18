@@ -101,11 +101,16 @@ end
 ---@param old string
 ---@param new string
 ---@return logpose.Change[]
-function M.plan_project(root, old, new)
+---@param opts? { merge?: boolean } merge into an existing project instead of renaming
+function M.plan_project(root, old, new, opts)
+  local merge = opts and opts.merge
   local project = require("logpose.project")
   old, new = project.normalize(old) or old, project.normalize(new)
   if not new then
     error("logpose: invalid new project name", 0)
+  end
+  if old == new then
+    error("logpose: that's the same project", 0)
   end
   local link = require("logpose.link")
   local moves = {}
@@ -114,16 +119,39 @@ function M.plan_project(root, old, new)
   local page_old = fs.join(config.path("projects", root), old .. ".md")
   local page_new = fs.join(config.path("projects", root), new .. ".md")
   local rel_prefixes = {}
+  local merged_dir -- a meeting folder emptied by a merge, removed after the moves
+  -- When merging into a project that has a page, the old page stays (archived, pointing at
+  -- the new one) so links to it keep working.
+  local keep_page = merge and fs.exists(page_old) and fs.exists(page_new) and page_old or nil
   if config.get().meeting_subdir:find("{project}", 1, true) and fs.is_dir(meetings_old) then
-    if fs.exists(meetings_new) then
-      error(("logpose: %s already exists"):format(link.relpath(root, meetings_new)), 0)
+    if fs.exists(meetings_new) and not merge then
+      error(
+        ("logpose: %s already exists (merge-project combines two projects)"):format(link.relpath(root, meetings_new)),
+        0
+      )
     end
-    moves[meetings_old] = meetings_new
+    if fs.exists(meetings_new) then
+      merged_dir = meetings_old
+      for entry, kind in vim.fs.dir(meetings_old) do
+        if kind == "file" then
+          local to = fs.join(meetings_new, entry)
+          if fs.exists(to) then
+            error(("logpose: both projects have %s"):format(link.relpath(root, to)), 0)
+          end
+          moves[fs.join(meetings_old, entry)] = to
+        end
+      end
+    else
+      moves[meetings_old] = meetings_new
+    end
     table.insert(rel_prefixes, { link.relpath(root, meetings_old) .. "/", link.relpath(root, meetings_new) .. "/" })
   end
-  if fs.exists(page_old) then
+  if fs.exists(page_old) and not keep_page then
     if fs.exists(page_new) then
-      error(("logpose: %s already exists"):format(link.relpath(root, page_new)), 0)
+      error(
+        ("logpose: %s already exists (merge-project combines two projects)"):format(link.relpath(root, page_new)),
+        0
+      )
     end
     moves[page_old] = page_new
     local o, n = link.relpath(root, page_old):gsub("%.md$", ""), link.relpath(root, page_new):gsub("%.md$", "")
@@ -134,10 +162,34 @@ function M.plan_project(root, old, new)
   for _, path in ipairs(index.files(root)) do
     local lines = fs.read_lines(path) or {}
     local total, in_fm = 0, lines[1] == "---"
+    local kept = path == keep_page
+    if kept and in_fm then
+      -- the old page: archived and pointing at the project it was merged into
+      local close
+      for j = 2, #lines do
+        if lines[j] == "---" then
+          close = j
+          break
+        end
+      end
+      for j = (close or 1) - 1, 2, -1 do
+        if lines[j]:match("^archived:") or lines[j]:match("^merged_into:") then
+          table.remove(lines, j)
+          close = close - 1
+        end
+      end
+      if close then
+        table.insert(lines, close, "merged_into: " .. new)
+        table.insert(lines, close, "archived: true")
+        total = 2
+      end
+    end
     for i, line in ipairs(lines) do
       local n = 0
       if in_fm and i > 1 and line == "---" then
         in_fm = false
+      elseif in_fm and kept and (line:match("^project:") or line:match("^tags:")) then
+        n = 0 -- the old page keeps its name
       elseif in_fm and line:match("^project:%s*") then
         if vim.trim(line:gsub("^project:%s*", "")):lower() == old then
           lines[i], n = "project: " .. new, 1
@@ -181,6 +233,9 @@ function M.plan_project(root, old, new)
   for from, to in pairs(moves) do
     table.insert(changes, { path = from, move_to = to, count = 0 })
   end
+  if merged_dir then
+    table.insert(changes, { path = merged_dir, rmdir = true, count = 0 })
+  end
   table.sort(changes, function(a, b)
     return a.path < b.path
   end)
@@ -217,6 +272,11 @@ function M.apply(changes)
       end
     end
   end
+  for _, c in ipairs(changes) do
+    if c.rmdir then
+      (vim.uv or vim.loop).fs_rmdir(c.path) -- only succeeds when it's empty
+    end
+  end
   index.clear_cache()
 end
 
@@ -246,7 +306,9 @@ local function confirm_and_apply(root, changes, title, bang, after)
   end
   local lines = { title, "" }
   for _, c in ipairs(changes) do
-    if c.move_to then
+    if c.rmdir then
+      table.insert(lines, ("  remove the empty folder %s/"):format(rel(root, c.path)))
+    elseif c.move_to then
       table.insert(lines, ("  move %s → %s"):format(rel(root, c.path), rel(root, c.move_to)))
     else
       table.insert(lines, ("  %s (%d change%s)"):format(rel(root, c.path), c.count, c.count == 1 and "" or "s"))
@@ -294,22 +356,23 @@ function M.rename_tag_command(opts)
   end))
 end
 
----@param opts logpose.CommandOpts
-function M.rename_project_command(opts)
-  local old, new = two_args(opts, "rename-project[!] old new")
+--- Rename `old` to `new`, or with `merge` fold `old` into the existing project `new`.
+---@param old string
+---@param new string
+---@param opts { bang?: boolean, merge?: boolean, after?: fun() }
+function M.move_project(old, new, opts)
   config.with_root(ui.safely(function(root)
     local project = require("logpose.project")
     local o, n = project.normalize(old) or old, project.normalize(new) or new
     confirm_and_apply(
       root,
-      M.plan_project(root, old, new),
-      ("Rename project %s → %s"):format(o, n),
+      M.plan_project(root, old, new, { merge = opts.merge }),
+      (opts.merge and "Merge project %s into %s" or "Rename project %s → %s"):format(o, n),
       opts.bang,
       function()
         if require("logpose.state").get("project") == o then
           require("logpose.state").set("project", n)
         end
-        project.changed()
         for dir, name in pairs(config.get().projects.paths) do
           if project.normalize(name) == o then
             require("logpose.util.ui").notify(
@@ -318,9 +381,25 @@ function M.rename_project_command(opts)
             )
           end
         end
+        project.changed()
+        if opts.after then
+          opts.after()
+        end
       end
     )
   end))
+end
+
+---@param opts logpose.CommandOpts
+function M.rename_project_command(opts)
+  local old, new = two_args(opts, "rename-project[!] old new")
+  M.move_project(old, new, { bang = opts.bang })
+end
+
+---@param opts logpose.CommandOpts
+function M.merge_project_command(opts)
+  local old, new = two_args(opts, "merge-project[!] from into")
+  M.move_project(old, new, { bang = opts.bang, merge = true })
 end
 
 function M.complete_tags(_, args)
@@ -337,7 +416,7 @@ function M.complete_tags(_, args)
 end
 
 function M.complete_projects(_, args)
-  if #args > 0 then
+  if #args > 1 then
     return {}
   end
   local root = config.resolve_root()
