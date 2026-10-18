@@ -292,7 +292,9 @@ function M.edit(b)
           if #keys == 0 then
             return
           end
+          -- one undo step per save (the form stays open for more)
           history.record(b, "edit", before)
+          before = history.snapshot(b)
           M.count(b, "edit")
           view.refresh(b, (view.focused(b) or {}).file)
         end,
@@ -306,7 +308,9 @@ function M.edit(b)
       if #keys == 0 then
         return
       end
+      -- one undo step per save (the form stays open for more)
       history.record(b, "edit", before)
+      before = history.snapshot(b)
       M.count(b, "edit")
       view.refresh(b, path)
     end,

@@ -161,7 +161,15 @@ T["saving a task goes through the board's logic"] = function()
   set("due", "+3d")
   set("blocked", "waiting on Ana")
   child.cmd("write")
-  eq(child.bo.filetype, "markdown") -- the form closed
+  -- the form stays open, showing what was written, ready for more changes
+  eq(child.bo.filetype, "logpose-edit")
+  eq(
+    values(),
+    { "Fix the flaky checkout test", "in-progress", "thesis-work", "ci, flaky", "2026-10-18", "waiting on Ana" }
+  )
+  eq(drawn().below[1], "no changes yet")
+  child.type_keys("q")
+  eq(child.bo.filetype, "markdown")
   local text = H.read(root .. "/tasks/fix.md")
   H.contains(text, 'title: "Fix the flaky checkout test"')
   H.contains(text, "status: in-progress")
@@ -172,8 +180,34 @@ T["saving a task goes through the board's logic"] = function()
   H.contains(text, "started: 2026-10-15")
   H.contains(text, "TODO → In progress")
   H.contains(text, "project: acme → thesis-work")
-  H.contains(last_msg(), "updated")
+  H.contains(last_msg(), "saved")
   H.contains(table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n"), "status: in-progress")
+end
+
+T["saving keeps the form open; q warns about unsaved changes; :wq saves and closes"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  edit(root .. "/tasks/fix.md")
+  set("due", "fri")
+  child.cmd("write")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(last_msg(), "logpose: saved due")
+  eq(values()[5], "2026-10-16") -- as written
+  child.type_keys("u") -- nothing to undo: the form starts over after a save
+  eq(values()[5], "2026-10-16")
+  -- unsaved changes: the first q warns, the second discards
+  set("blocked", "waiting on Ana")
+  child.type_keys("q")
+  eq(child.bo.filetype, "logpose-edit")
+  H.contains(last_msg(), "unsaved changes")
+  child.type_keys("q")
+  eq(child.bo.filetype, "markdown")
+  H.contains(H.read(root .. "/tasks/fix.md"), "blocked:\n")
+  -- :wq saves and closes
+  child.cmd("Logpose edit")
+  set("blocked", "waiting on Ana")
+  child.cmd("wq")
+  eq(child.bo.filetype, "markdown")
+  H.contains(H.read(root .. "/tasks/fix.md"), "blocked: waiting on Ana")
 end
 
 T["dd clears a field, extra lines join the field above, u undoes both"] = function()
@@ -320,7 +354,7 @@ T["completion offers what fits each field"] = function()
   eq(child.fn.complete_info({ "items" }).items[1].word, "docs")
   child.type_keys("<C-e>", "<Esc>")
   eq(values()[4], "ci, perf, ")
-  child.type_keys("q")
+  child.type_keys("q", "q") -- unsaved changes: the second q discards them
   edit(root .. "/meetings/x.md")
   _, w = words("attendees", "Ana, ")
   eq(w, { "Luis" })
@@ -346,6 +380,7 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
   -- shown, not edited
   assert(table.concat(d.below, "\n"):find("series%s+acme/retro"), "series shown below")
   child.cmd("write")
+  child.type_keys("q")
   local new = root .. "/meetings/web/2026-10-14 - retro.md"
   eq(vim.fn.filereadable(old), 0)
   eq(vim.fn.isdirectory(root .. "/meetings/acme"), 0)
@@ -381,7 +416,14 @@ T["e on the board edits the card, and u undoes it"] = function()
   eq(child.bo.filetype, "logpose-edit")
   set("project", "thesis")
   child.cmd("write")
+  set("status", "in-progress")
+  child.cmd("write") -- a second change, saved separately
+  child.type_keys("q")
   eq(child.bo.filetype, "logpose-board")
+  H.contains(H.read(root .. "/tasks/fix.md"), "project: thesis")
+  H.contains(H.read(root .. "/tasks/fix.md"), "status: in-progress")
+  child.type_keys("u") -- each save is its own undo step
+  H.contains(H.read(root .. "/tasks/fix.md"), "status: todo")
   H.contains(H.read(root .. "/tasks/fix.md"), "project: thesis")
   child.type_keys("u")
   H.contains(H.read(root .. "/tasks/fix.md"), "project: acme")
@@ -397,6 +439,7 @@ T["e in the projects manager edits the project page"] = function()
   set("title", "Acme API")
   set("description", "Payments")
   child.cmd("write")
+  child.type_keys("q")
   eq(child.bo.filetype, "logpose-projects")
   local page = H.read(root .. "/projects/acme.md")
   H.contains(page, 'title: "Acme API"')
@@ -460,7 +503,8 @@ T[":Logpose edit on quickfix lines edits those tasks together"] = function()
     H.contains(text, "due: 2026-10-16")
     H.contains(text, "status: todo")
   end
-  eq(last_msg(), "logpose: updated due, project, tags on 2 of 2 tasks")
+  eq(last_msg(), "logpose: saved due, project, tags on 2 of 2 tasks")
+  eq(values(), { "todo", "", "review", "2026-10-16", "" }) -- read back: now shared
 end
 
 return T
