@@ -153,6 +153,11 @@ function M.write_file(path, content, opts)
   end
 
   M.reload(path)
+  -- Every write logpose makes goes through here: let the index know (only if it's loaded).
+  local index = package.loaded["logpose.index"]
+  if type(index) == "table" then
+    index.clear_cache()
+  end
   return true
 end
 
