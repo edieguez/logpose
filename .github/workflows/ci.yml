@@ -21,6 +21,8 @@ jobs:
           version: ${{ matrix.neovim }}
       - name: Run tests
         run: make test
+      - name: No accidental globals
+        run: make lint-globals
 
   lint:
     runs-on: ubuntu-latest
