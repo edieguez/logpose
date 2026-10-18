@@ -233,11 +233,10 @@ PROJECTS                                                    *logpose-projects*
 One journal, many projects, kept apart automatically.
 
 Switching ~
-`:Logpose project` (or `P` on the board) opens a switcher in the picker: the
-active project first, then the ones you switched to recently, each previewing
-its work in progress, blocked tasks, what's due and its last meeting.
-`:Logpose project {name}` switches directly; `none` unpins. Switching opens
-the project's board (on the board, it switches in place) and takes effect
+`:Logpose project` (or `P` on the board) opens the projects screen
+(|:Logpose-projects|); <CR> on a project switches to it. `:Logpose project
+{name}` switches directly; `none` (or `c` on the screen) unpins. Switching
+brings back the board on that project, as you left it, and takes effect
 everywhere else at once. `projects.open_board = false` stays where you are.
 
 The active project is, in order:
@@ -277,8 +276,8 @@ The active project is marked with `●`.
 
                                                         *logpose-project-page*
 Project pages ~
-`projects/{name}.md` is where a project lives. The manager and the switcher
-read its frontmatter, which you can also edit by hand: >markdown
+`projects/{name}.md` is where a project lives. The projects screen reads
+its frontmatter, which you can edit by hand or with `e` there: >markdown
   ---
   title: "Acme API"
   project: acme
@@ -288,15 +287,16 @@ read its frontmatter, which you can also edit by hand: >markdown
   ---
 <
   `title`        the name you see (`project` is the short name)
-  `description`  one line, shown in the switcher and the manager
+  `description`  one line, shown on the projects screen
   `paths`        repo folders that belong to the project; working in one makes
                  it the active project
   `color`        hex colour or highlight group for its cards on the board
   `archived`     `true` when archived (|logpose-project-manager|)
   `merged_into`  set on a project merged into another
 
-Moving tasks: `m` on the board or |:Logpose-move| in a task file moves a task
-to another project. The move is logged, and `u` on the board undoes it.
+Moving tasks: `m` on the board, or `project` in the edit form
+(|logpose-edit|), moves a task to another project. The move is logged, and
+`u` on the board undoes it.
 
 Merging (`M`, |:Logpose-merge-project|) moves one project's tasks, notes,
 meetings (files and series) and links into another, with a preview. The old
@@ -304,8 +304,8 @@ project page stays, archived and marked `merged_into`, so links to it work.
 
 Archiving sets `archived: true` in the project's page (creating the page if
 needed). Its tasks and notes stay where they are and stay searchable, but it
-leaves completion, the switcher and the all-projects board, and is unpinned
-if it was pinned. `U` restores it.
+leaves completion, the projects screen (until `A`) and the all-projects
+board, and is unpinned if it was pinned. `U` restores it.
 
 Known projects come from the pinned project, `projects.paths`, project pages,
 meeting folders and the `project:` of any note or task.
@@ -529,19 +529,6 @@ Tasks ~
     `tasks.promote_status` (TODO), with the note's project and a `From:`
     link back, and replace the checkbox text with a link to the task.
 
-                                                               *:Logpose-move*
-:Logpose move [{project}|none]
-    In a task file: move the task to another project (choose one without an
-    argument; `none` removes its project). The move is logged in the task.
-
-                                                             *:Logpose-triage*
-:Logpose triage [{filters}...]
-    Open the board on the Backlog column.
-    With `tasks.mode = "inbox"`: go through open INBOX items one at a time,
-    oldest first (`## Someday` is skipped), and set a project, tag, due date
-    or owner, move the item into a note, mark it done, defer it to someday,
-    drop it or skip it. Ends with a summary.
-
                                                             *:Logpose-migrate*
 :Logpose migrate[!]
     Turn open INBOX.md items into task files in Backlog and remove them
@@ -607,7 +594,8 @@ Notes and projects ~
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
     Switch to project {name} ({name} is slugified), or `none` to go back to
-    detection (|logpose-projects|). Without an argument, opens the switcher.
+    detection (|logpose-projects|). Without an argument, opens the projects
+    screen (|:Logpose-projects|).
 
                                                            *:Logpose-projects*
 :Logpose projects
@@ -702,7 +690,7 @@ Sprints and maintenance ~
   s             one row per project
   /             filter, with |logpose-filters|
   p             this project / all projects
-  P             switch project (|logpose-projects|)
+  P             the projects screen: switch there (|logpose-projects|)
   m             move the card to another project
   e             edit the card's fields (|logpose-edit|)
   v             mark / unmark the card; with cards marked, H L 1-9 x b m e
@@ -715,8 +703,8 @@ Sprints and maintenance ~
 ==============================================================================
 6. SEARCH FILTERS                                            *logpose-filters*
 
-Used by |:Logpose-find|, |:Logpose-board|, |:Logpose-actions|,
-|:Logpose-report| and |:Logpose-triage|. Every filter must match.
+Used by |:Logpose-find|, |:Logpose-board|, |:Logpose-actions| and
+|:Logpose-report|. Every filter must match.
 
   project:{name}          the item's project, or a `#{name}` tag
   #{tag}  tag:{tag}       tagged items
@@ -745,7 +733,7 @@ you have mapped yourself are never replaced.
   <leader>jj  command menu          <leader>jd  daily note
   <leader>jy  today                 <leader>js  standup
   <leader>jk  board                 <leader>jm  meeting note
-  <leader>jw  switch project        <leader>jP  manage projects
+  <leader>jP  projects (switch, manage)
   <leader>je  edit frontmatter
   <leader>jc  capture a task        <leader>jx  mark done (normal, visual)
   <leader>jp  promote to task file  <leader>jn  topic note
