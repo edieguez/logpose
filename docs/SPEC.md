@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -406,6 +406,17 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   `status`/`project`/`blocked` through `taskfile.set_*` (logged), and moves a meeting to its new
   project's folder (`series`, links via `maintenance.rewrite_links`, the daily `- project:` label,
   the emptied folder). A project page's `project` is refused (rename with `R`).
+- **Card design** (0.32.0, `board/cards.lua`): colour only where it means something. Borders use
+  `LogposeBoardBorder` (`board.border = "column"` restores column colours); the focused card has
+  a heavy border in Normal's foreground plus `LogposeBoardFocusBg` (CursorLine) under its rows,
+  drawn by the view at a low priority so other colours stay on top. `cards.state` decides the
+  look: done (dimmed title with ✓, `LogposeBoardDoneBorder`), blocked (red left edge `┃` and
+  reason; never faded), stale (faded title, `idle Nd` in `LogposeBoardStale`; only once past
+  `board.stale_days`). `cards.details` fits the details line by importance, not by cutting
+  the end: the due text (`cards.due_text`: `overdue Nd`, `due today`/`due tomorrow`, the weekday
+  within a week, else `due D Mon`) and idle time always; then the project (shortened, or only
+  its colour mark below six cells; left off on a one-project board and in rows per project);
+  then whole tags.
 - **Bulk edits** (0.30.0): `v` marks cards on the board (`b.marked`, by file; pruned to visible
   cards on render; `V`/`<Esc>` clear). `H` `L` `1`–`9` `x` `b` `m` `e` act on every marked card as
   one undo step (`actions.targets`, `with_card`). `e` with marks, or `:'<,'>Logpose edit` in a
