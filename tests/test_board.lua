@@ -80,7 +80,7 @@ T["shows columns side by side with cards, counts and meta"] = function()
     H.contains(headers, h) -- "Old work" finished last week: not in Done
   end
   H.contains(s, "⊘ waiting on ana")
-  H.contains(s, "◆ acme · overdue 1d · #perf") -- details: project, when it's due, tags
+  H.contains(s, "◆ acme · overdue 1d  #perf ") -- details: project, when it's due, tag chips
   H.contains(s, "✓ Ship it") -- done
   H.contains(s, "╭─") -- cards are boxes
   H.contains(s, "┏━") -- the focused one has a heavy border
@@ -441,8 +441,8 @@ T["details fit by importance: the date stays whole, then the project, then whole
       require('logpose.board.cards').details(%s, '2026-10-15', true, %d)))]]):format(it, width))
   end
   local it = "{ project = 'thesis-work', due = '2026-10-16', status = 'todo', tags = { 'writing', 'ch3' } }"
-  eq(details(it, 60), "◆ thesis-work · due tomorrow · #writing · #ch3")
-  eq(details(it, 40), "◆ thesis-work · due tomorrow · #writing")
+  eq(details(it, 60), "◆ thesis-work · due tomorrow  #writing   #ch3 ") -- tags are chips
+  eq(details(it, 40), "◆ thesis-work · due tomorrow  #writing ")
   eq(details(it, 24), "◆ thesis… · due tomorrow")
   eq(details(it, 18), "◆ due tomorrow") -- too short for a name: the colour mark alone
 end
@@ -455,7 +455,7 @@ T["the focused card has a background; a one-project board leaves the project off
   eq(title(), "Board · acme")
   local s = screen()
   eq(s:find("◆ acme", 1, true), nil)
-  H.contains(s, "overdue 1d · #perf")
+  H.contains(s, "overdue 1d  #perf ")
   child.type_keys("l") -- Backlog is empty on this board: go to a card
   local bg_rows = child.lua_get([[(function()
     local rows = {}
@@ -471,7 +471,7 @@ T["the focused card has a background; a one-project board leaves the project off
   H.contains(screen(), "◆ acme")
 end
 
-T["card borders: the project's colour by default, or neutral, or the column's"] = function()
+T["card borders: the column's colour by default, or the project's, or neutral"] = function()
   local function border_groups()
     return child.lua_get([[(function()
       local seen = {}
@@ -483,8 +483,14 @@ T["card borders: the project's colour by default, or neutral, or the column's"] 
   end
   child.o.termguicolors = true
   child.cmd("Logpose board")
-  child.type_keys("l") -- off the thesis card: the focused one has the focus border
   local g = border_groups()
+  eq(g.LogposeBoardBorder, nil)
+  eq(g.LogposeBoardColumn2, true) -- the TODO card, in TODO's colour
+  child.cmd("bwipeout")
+  setup("{ board = { border = 'project' } }")
+  child.cmd("Logpose board")
+  child.type_keys("l") -- off the thesis card: the focused one has the focus border
+  g = border_groups()
   eq(g.LogposeProjectBorder_acme, true)
   eq(g.LogposeProjectBorder_thesis, true)
   -- the project's colour, mixed with the background: a different colour from the project's own
@@ -498,15 +504,19 @@ T["card borders: the project's colour by default, or neutral, or the column's"] 
   child.cmd("Logpose board")
   g = border_groups()
   eq({ g.LogposeBoardBorder, g.LogposeProjectBorder_acme }, { true, nil })
-  child.cmd("bwipeout")
-  setup("{ board = { border = 'column' } }")
-  child.cmd("Logpose board")
-  g = border_groups()
-  eq(g.LogposeBoardBorder, nil)
-  eq(g.LogposeBoardColumn2, true)
   MiniTest.expect.error(function()
     setup("{ board = { border = 'rainbow' } }")
   end, "board.border")
+end
+
+T["tags are chips: their own background, readable in any colour scheme"] = function()
+  child.o.termguicolors = true
+  child.cmd("Logpose board")
+  local hl = child.lua_get("vim.api.nvim_get_hl(0, { name = 'LogposeBoardTag', link = false })")
+  local normal = child.lua_get("vim.api.nvim_get_hl(0, { name = 'Normal', link = false })")
+  eq(hl.fg, normal.fg) -- plain text colour, not a dim one
+  eq(hl.bg ~= nil and hl.bg ~= normal.bg, true)
+  eq(hl.italic, nil)
 end
 
 T["compact cards follow the same rules"] = function()

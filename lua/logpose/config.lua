@@ -170,10 +170,10 @@ M.defaults = {
     stale_days = 7,
     --- Columns folded to a narrow strip when the board opens (`z` toggles), e.g. { "done" }.
     collapsed = {},
-    --- Card borders: "project" (tinted with the card's project colour), "neutral" (one quiet
-    --- colour) or "column" (each card in its column's colour).
-    ---@type "project"|"neutral"|"column"
-    border = "project",
+    --- Card borders: "column" (each card in its column's colour), "project" (tinted with the
+    --- card's project colour) or "neutral" (one quiet colour).
+    ---@type "column"|"project"|"neutral"
+    border = "column",
     --- Glyphs: "unicode", "nerd" (needs a Nerd Font) or "ascii".
     ---@type "unicode"|"nerd"|"ascii"
     icons = "unicode",

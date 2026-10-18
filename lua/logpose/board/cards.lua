@@ -10,6 +10,20 @@ local M = {}
 ---@type table<string, string>
 M.project_hl = {}
 
+--- `a` mixed with `b` (0xRRGGBB colours): `amount` of `a`, the rest `b`.
+---@param a integer
+---@param b integer
+---@param amount number
+---@return integer
+function M.mix(a, b, amount)
+  local out = 0
+  for _, shift in ipairs({ 65536, 256, 1 }) do
+    local x, y = math.floor(a / shift) % 256, math.floor(b / shift) % 256
+    out = out + math.floor(x * amount + y * (1 - amount) + 0.5) * shift
+  end
+  return out
+end
+
 --- A project's colour mixed with the background: for card borders, coloured but quieter than
 --- the text. Without true colours, the project's colour itself.
 ---@param name string
@@ -24,11 +38,7 @@ function M.project_border(name)
   end
   local bg = vim.api.nvim_get_hl(0, { name = "Normal", link = false }).bg
     or (vim.o.background == "light" and 0xffffff or 0x000000)
-  local function mix(shift)
-    local a, b = math.floor(fg / shift) % 256, math.floor(bg / shift) % 256
-    return math.floor(a * 0.6 + b * 0.4 + 0.5)
-  end
-  vim.api.nvim_set_hl(0, group, { fg = mix(65536) * 65536 + mix(256) * 256 + mix(1) })
+  vim.api.nvim_set_hl(0, group, { fg = M.mix(fg, bg, 0.6) })
   return group
 end
 
@@ -47,7 +57,7 @@ M.HL = {
   LogposeBoardFocus = false, -- Normal's text colour, without its background (see below)
   LogposeBoardFocusTitle = { bold = true },
   LogposeBoardProject = "Identifier",
-  LogposeBoardTag = "Comment",
+  LogposeBoardTag = false, -- a chip: text on a soft background (see below)
   LogposeBoardDue = "Comment",
   LogposeBoardOverdue = "DiagnosticError",
   LogposeBoardBlocked = "DiagnosticError",
@@ -77,6 +87,14 @@ function M.define_highlights()
   -- background would hide the focused card's own.
   local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
   vim.api.nvim_set_hl(0, "LogposeBoardFocus", { fg = normal.fg, bold = true, default = true })
+  -- Tags are chips: plain text on a background mixed a little toward the text colour, so they
+  -- read clearly in any colour scheme without taking a colour of their own.
+  if vim.o.termguicolors and normal.fg then
+    local bg = normal.bg or (vim.o.background == "light" and 0xffffff or 0x000000)
+    vim.api.nvim_set_hl(0, "LogposeBoardTag", { fg = normal.fg, bg = M.mix(normal.fg, bg, 0.22), default = true })
+  else
+    vim.api.nvim_set_hl(0, "LogposeBoardTag", { link = "Visual", default = true })
+  end
   for name, link in pairs(M.HL) do
     if link then
       local spec = type(link) == "table" and vim.tbl_extend("force", { default = true }, link)
@@ -255,18 +273,20 @@ function M.details(it, today, show_project, width)
   local tags = {}
   for _, t in ipairs(it.tags or {}) do
     if t ~= it.project then
-      local tw = w("#" .. t) + ((used > 0) and sep_w or 0)
+      local chip = " #" .. t .. " "
+      local tw = w(chip) + ((used > 0) and 1 or 0)
       if used + tw <= room then
-        table.insert(tags, { "#" .. t, "LogposeBoardTag" })
+        table.insert(tags, { chip, "LogposeBoardTag" })
         used = used + tw
       end
     end
   end
   local out = {}
-  local function add(chunks)
+  local function add(chunks, chip)
     if #out > 0 then
-      -- a lone colour mark is followed by a space, not a separator
-      table.insert(out, { (project and #project == 1 and #out == 1) and " " or ic.sep, "LogposeBoardMeta" })
+      -- a lone colour mark, or a tag chip, is set apart by a space, not a separator
+      local plain = chip or (project and #project == 1 and #out == 1)
+      table.insert(out, { plain and " " or ic.sep, "LogposeBoardMeta" })
     end
     vim.list_extend(out, chunks)
   end
@@ -277,7 +297,7 @@ function M.details(it, today, show_project, width)
     add({ d })
   end
   for _, t in ipairs(tags) do
-    add({ t })
+    add({ t }, true)
   end
   return out
 end
