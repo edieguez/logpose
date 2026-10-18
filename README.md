@@ -271,7 +271,9 @@ item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q` 
 `:Logpose project` (or `P` on the board) opens a switcher in your picker. The active project
 comes first, then the ones you switched to recently, and each one previews what's going on in
 it: work in progress, blocked tasks with their reasons, what's due and the last meeting.
-Switching takes effect everywhere at once, including on a board that's already open.
+Switching opens that project's board (if you're already on the board, it switches in place),
+and takes effect everywhere else at once. `projects = { open_board = false }` switches without
+leaving where you are.
 
 ```vim
 :Logpose project          " the switcher
@@ -646,6 +648,7 @@ require("logpose").setup({
   projects = {
     detect = true,         -- the git repo you're in is the project
     paths = {},            -- { ["~/work/acme-api"] = "acme" }; the longest match wins
+    open_board = true,     -- switching project opens its board
   },
   link_style = "wiki",     -- or "markdown"
   picker = "auto",         -- "snacks" | "fzf_lua" | "telescope" | "select"

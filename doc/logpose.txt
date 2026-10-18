@@ -222,8 +222,9 @@ Switching ~
 `:Logpose project` (or `P` on the board) opens a switcher in the picker: the
 active project first, then the ones you switched to recently, each previewing
 its work in progress, blocked tasks, what's due and its last meeting.
-`:Logpose project {name}` switches directly; `none` unpins. Switching takes
-effect everywhere at once, including on an open board.
+`:Logpose project {name}` switches directly; `none` unpins. Switching opens
+the project's board (on the board, it switches in place) and takes effect
+everywhere else at once. `projects.open_board = false` stays where you are.
 
 The active project is, in order:
 
@@ -700,7 +701,8 @@ General ~
                  Default "wiki".
   projects       (table)       `detect` (true): the git repo of the current
                  buffer or directory is the project. `paths` ({}): folder ->
-                 project name; the longest match wins.
+                 project name; the longest match wins. `open_board` (true):
+                 switching project opens its board.
 
 Sprints and periods ~
 
