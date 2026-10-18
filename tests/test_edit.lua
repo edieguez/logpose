@@ -131,7 +131,7 @@ T["values are checked as you type, and the summary says what saving will do"] = 
   local d = drawn()
   eq(d.rows[2].eol, "") -- typed the column's name: nothing to add
   eq(d.rows[3].eol, "saved as thesis-work · new project")
-  eq(d.rows[5].eol, "Fri 16 Oct · tomorrow")
+  eq(d.rows[5].eol, "Fri 16 Oct · due tomorrow") -- worded as on the board
   eq(d.below[1], "saving will:")
   eq(d.below[2], "• move it to In progress, setting started (logged)")
   eq(d.below[3], "• project acme → thesis-work (logged)")

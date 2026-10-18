@@ -267,12 +267,8 @@ function M.details(e, indent)
     return "  " .. x.note, nil, "DiagnosticError"
   end)
   section("Due", e.due_list, function(x)
-    if x.days < 0 then
-      return ("  overdue %dd"):format(-x.days), nil, "DiagnosticError"
-    elseif x.days == 0 then
-      return "  today", nil, "DiagnosticWarn"
-    end
-    return ("  in %dd"):format(x.days), nil, "DiagnosticWarn"
+    local text, urgency = date.due(x.due)
+    return "  " .. text, nil, urgency == "overdue" and "DiagnosticError" or "DiagnosticWarn"
   end)
   if e.last_meeting then
     section("Last meeting", { e.last_meeting }, function(x)
