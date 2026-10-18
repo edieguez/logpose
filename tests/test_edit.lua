@@ -240,7 +240,7 @@ end
 
 T["completion offers what fits each field"] = function()
   H.write(root .. "/tasks/fix.md", TASK)
-  H.write(root .. "/tasks/other.md", "---\ntitle: other\nstatus: todo\nproject: thesis\ntags: [perf]\n---\n")
+  H.write(root .. "/tasks/other.md", "---\ntitle: other\nstatus: todo\nproject: thesis\ntags: [perf, docs]\n---\n")
   H.write(
     root .. "/meetings/x.md",
     '---\ntype: retro\ndate: 2026-10-01\ntitle: "R"\nattendees: [Ana, Luis]\n---\n## Notes\n'
@@ -250,9 +250,10 @@ T["completion offers what fits each field"] = function()
   local function words(key, text)
     set(key, text)
     on(key)
-    child.api.nvim_win_set_cursor(0, { child.api.nvim_win_get_cursor(0)[1], #text })
+    child.type_keys("A") -- at the end of the value, in insert mode, as when typing
     local start = child.lua_get("require('logpose.edit').omnifunc(1, '')")
     local items = child.lua_get("require('logpose.edit').omnifunc(0, '')")
+    child.type_keys("<Esc>")
     return start, vim.tbl_map(function(i)
       return i.word
     end, items)
@@ -270,8 +271,23 @@ T["completion offers what fits each field"] = function()
   on("project")
   child.type_keys("S", "th")
   eq(child.fn.pumvisible(), 1)
-  child.type_keys("<Tab>", "<CR>", "<Esc>")
+  child.type_keys("<Tab>", "<CR>")
+  eq(child.fn.pumvisible(), 0) -- accepting closes the menu; it doesn't open again
+  eq(child.fn.mode(), "i")
+  child.type_keys("<Esc>")
   eq(values()[3], "thesis")
+  -- the same in a list: closed after accepting, open again for the next item
+  set("tags", "ci")
+  on("tags")
+  child.type_keys("A", ", p")
+  eq(child.fn.pumvisible(), 1)
+  child.type_keys("<Tab>", "<CR>")
+  eq(child.fn.pumvisible(), 0)
+  child.type_keys(", ")
+  eq(child.fn.pumvisible(), 1) -- the next item: offered again, without the ones already there
+  eq(child.fn.complete_info({ "items" }).items[1].word, "docs")
+  child.type_keys("<C-e>", "<Esc>")
+  eq(values()[4], "ci, perf, ")
   child.type_keys("q")
   edit(root .. "/meetings/x.md")
   _, w = words("attendees", "Ana, ")

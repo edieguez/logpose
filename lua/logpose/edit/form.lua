@@ -25,6 +25,7 @@ local track = vim.api.nvim_create_namespace("logpose.edit.track")
 ---@field help boolean
 ---@field links? integer
 ---@field on_save? fun(path: string|string[], keys: string[])
+---@field accepted? string  the line as a completion left it (the menu isn't reopened for it)
 
 ---@type table<integer, logpose.EditForm>
 M.forms = {}
@@ -728,6 +729,11 @@ function M.show(model, opts)
     buffer = buf,
     callback = function()
       M.render(f)
+      local line = vim.api.nvim_get_current_line()
+      if f.accepted == line then
+        return -- the text a choice just put there: don't offer it again
+      end
+      f.accepted = nil
       if vim.fn.pumvisible() == 0 then
         popup(f)
       end
@@ -737,7 +743,12 @@ function M.show(model, opts)
   vim.api.nvim_create_autocmd({ "CompleteDone", "InsertLeave" }, {
     group = group,
     buffer = buf,
-    callback = function()
+    callback = function(ev)
+      if ev.event == "CompleteDone" then
+        -- an item was chosen: the menu stays closed until something new is typed
+        local item = vim.v.completed_item
+        f.accepted = (type(item) == "table" and item.word) and vim.api.nvim_get_current_line() or nil
+      end
       vim.schedule(function()
         if M.forms[buf] then
           M.render(f)
