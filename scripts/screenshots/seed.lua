@@ -40,6 +40,14 @@ local tasks = {
 }
 write(root .. "/.logpose", "")
 write(
+  root .. "/projects/acme.md",
+  '---\ntitle: "Acme API"\ntype: project\nproject: acme\ndescription: Payments API for the Acme storefront\npaths: [~/work/acme-api]\ncolor: "#e0af68"\n---\n## Overview\n'
+)
+write(
+  root .. "/projects/thesis.md",
+  '---\ntitle: "Master\'s thesis"\ntype: project\nproject: thesis\n---\n## Overview\n'
+)
+write(
   root .. "/projects/legacy-billing.md",
   '---\ntitle: "Legacy billing"\ntype: project\nproject: legacy-billing\narchived: true\n---\n## Overview\n'
 )

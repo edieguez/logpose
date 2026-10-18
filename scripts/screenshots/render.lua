@@ -18,6 +18,9 @@ require("logpose.util.date")._now = function()
 end
 vim.cmd("cd " .. _G.ROOT)
 vim.cmd(_G.CMD or "Logpose board")
+if _G.KEYS and _G.KEYS ~= "" then
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(_G.KEYS, true, false, true), "x", false)
+end
 vim.wait(300, function()
   return false
 end)

@@ -18,6 +18,7 @@ CONTENTS                                                    *logpose-contents*
        Today screen ........................ |logpose-today|
        Projects ............................ |logpose-projects|
        Managing projects ................... |logpose-project-manager|
+       Project pages ....................... |logpose-project-page|
        Search .............................. |logpose-search|
        Action items and people ............. |logpose-actions|
        Topic notes and links ............... |logpose-links|
@@ -215,44 +216,80 @@ under Today in the daily note.
 ------------------------------------------------------------------------------
 PROJECTS                                                    *logpose-projects*
 
-One journal, many projects, kept apart automatically. The active project
-is, in order:
+One journal, many projects, kept apart automatically.
+
+Switching ~
+`:Logpose project` (or `P` on the board) opens a switcher in the picker: the
+active project first, then the ones you switched to recently, each previewing
+its work in progress, blocked tasks, what's due and its last meeting.
+`:Logpose project {name}` switches directly; `none` unpins. Switching takes
+effect everywhere at once, including on an open board.
+
+The active project is, in order:
 
   1. the one pinned with |:Logpose-project|;
   2. a match in `projects.paths` (the longest match wins);
-  3. the git repo of the current buffer, or of the current directory
+  3. a folder in a project page's `paths:` (|logpose-project-page|);
+  4. the git repo of the current buffer, or of the current directory
      (`~/work/Acme API` becomes `acme-api`);
-  4. none. Inside the journal itself there is no project, unless pinned.
+  5. none. Inside the journal itself there is no project, unless pinned.
 
 With a project active, meeting notes go to `meetings/{project}/` with
 `project:` in the frontmatter, series stay within the project, captured
 tasks get the project, the board and statusline show its tasks, and the
 daily-note link is prefixed with `{project}: `.
-
-Switching takes effect right away, including on a board that is already
-open. `require("logpose").project()` returns the active project.
+`require("logpose").project()` returns the active project.
 
                                                      *logpose-project-manager*
 Managing projects ~
-|:Logpose-projects| lists every project: its open tasks (and how many are in
-progress), blocked and done tasks, meetings, other notes, and the date of its
-latest change. The active project is marked with `●`.
+|:Logpose-projects| lists every project with what needs attention: open
+tasks (and how many are in progress), overdue, due soon (within 3 days) and
+blocked tasks, meetings, notes, and how long ago anything changed. The most
+recently active come first; projects untouched for `review.stale_days` fade.
+The active project is marked with `●`.
 
-  <CR>  switch to the project          c  back to auto-detect
-  b     its board                      n  its project page (notes)
-  t     its open tasks                 f  its notes
-  a     add a project                  R  rename it everywhere
-  D     archive it                     U  restore an archived one
-  A     show / hide archived           r  refresh
-  q     close                          ?  help
+  <CR>   switch to the project; on a detail line, open that task or note
+  <Tab>  show / hide what's going on in the project
+  b      its board                     n  its project page
+  t      its open tasks                f  its notes
+  a      add a project (name, then repo folder)
+  p      link another repo folder      R  rename it everywhere
+  M      merge it into another one     c  back to auto-detect
+  D      archive it                    U  restore an archived one
+  A      show / hide archived          r  refresh
+  q      close                         ?  help
 
-Adding a project creates its project page, so it exists before it has any
-tasks. Renaming shows the same preview as |:Logpose-rename-project|.
+                                                        *logpose-project-page*
+Project pages ~
+`projects/{name}.md` is where a project lives. The manager and the switcher
+read its frontmatter, which you can also edit by hand: >markdown
+  ---
+  title: "Acme API"
+  project: acme
+  description: Payments API for the Acme storefront
+  paths: [~/work/acme-api, ~/work/acme-web]
+  color: "#e0af68"
+  ---
+<
+  `title`        the name you see (`project` is the short name)
+  `description`  one line, shown in the switcher and the manager
+  `paths`        repo folders that belong to the project; working in one makes
+                 it the active project
+  `color`        hex colour or highlight group for its cards on the board
+  `archived`     `true` when archived (|logpose-project-manager|)
+  `merged_into`  set on a project merged into another
+
+Moving tasks: `m` on the board or |:Logpose-move| in a task file moves a task
+to another project. The move is logged, and `u` on the board undoes it.
+
+Merging (`M`, |:Logpose-merge-project|) moves one project's tasks, notes,
+meetings (files and series) and links into another, with a preview. The old
+project page stays, archived and marked `merged_into`, so links to it work.
 
 Archiving sets `archived: true` in the project's page (creating the page if
 needed). Its tasks and notes stay where they are and stay searchable, but it
-leaves completion, the project picker and the all-projects board, and is
-unpinned if it was pinned. `U` restores it.
+leaves completion, the switcher and the all-projects board, and is unpinned
+if it was pinned. `U` restores it.
 
 Known projects come from the pinned project, `projects.paths`, project pages,
 meeting folders and the `project:` of any note or task.
@@ -421,6 +458,11 @@ Tasks ~
     `tasks.promote_status` (TODO), with the note's project and a `From:`
     link back, and replace the checkbox text with a link to the task.
 
+                                                               *:Logpose-move*
+:Logpose move [{project}|none]
+    In a task file: move the task to another project (choose one without an
+    argument; `none` removes its project). The move is logged in the task.
+
                                                              *:Logpose-triage*
 :Logpose triage [{filters}...]
     Open the board on the Backlog column.
@@ -485,8 +527,8 @@ Notes and projects ~
 
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
-    Pin the active project ({name} is slugified), or `none` to go back to
-    detection (|logpose-projects|). Without an argument, pick one.
+    Switch to project {name} ({name} is slugified), or `none` to go back to
+    detection (|logpose-projects|). Without an argument, opens the switcher.
 
                                                            *:Logpose-projects*
 :Logpose projects
@@ -520,6 +562,13 @@ Sprints and maintenance ~
     a preview first; [!] skips it. Nothing is written if an affected file
     has unsaved changes.
 
+                                                      *:Logpose-merge-project*
+:Logpose merge-project[!] {old} {new}
+    Merge project {old} into the existing project {new}: `project:`
+    frontmatter, `#old` tags, series names, meeting files and links. The
+    old project page stays, archived with `merged_into: {new}`. Preview and
+    [!] as for |:Logpose-rename-tag|.
+
                                                          *:Logpose-rename-tag*
 :Logpose rename-tag[!] {old} {new}
     Rename inline `#old` tags and frontmatter `tags:` entries everywhere
@@ -542,9 +591,10 @@ Sprints and maintenance ~
 
                                                               *:Logpose-stats*
 :Logpose stats[!] [{days}]
-    Local usage stats (on unless `telemetry.enabled = false`): uses per command
-    (and scope for find, actions, report and daily), the last 7 days against
-    the previous 7, errors, and commands you haven't used. [!] resets them.
+    Local usage stats (on unless `telemetry.enabled = false`): uses per
+    command (and scope for find, actions, report and daily), the last 7 days
+    against the previous 7, errors, and commands you haven't used. [!]
+    resets them.
     Data lives in `stdpath("data")/logpose/usage.json` and holds only
     command names, keywords and daily counts, never note content or paths.
 
@@ -571,6 +621,8 @@ Sprints and maintenance ~
   s             one row per project
   /             filter, with |logpose-filters|
   p             this project / all projects
+  P             switch project (|logpose-projects|)
+  m             move the card to another project
   r             refresh
   q             close
   ?             help
@@ -608,7 +660,7 @@ you have mapped yourself are never replaced.
   <leader>jj  command menu          <leader>jd  daily note
   <leader>jy  today                 <leader>js  standup
   <leader>jk  board                 <leader>jm  meeting note
-  <leader>jP  projects
+  <leader>jw  switch project        <leader>jP  manage projects
   <leader>jc  capture a task        <leader>jx  mark done (normal, visual)
   <leader>jp  promote to task file  <leader>jn  topic note
   <leader>jf  find notes            <leader>jt  open tasks

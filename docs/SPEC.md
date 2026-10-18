@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -368,12 +368,30 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   `project:` of any note or task; archived projects are left out (search still lists them).
 - Switching (or archiving, renaming) fires `User LogposeProjectChanged`; an open board
   re-resolves its project and redraws, and the statusline cache is cleared.
-- **Project manager** (`:Logpose projects`, `projects.lua`, 0.26.0): a screen listing every
-  project with open tasks (and how many are in the start column), blocked, done, meetings,
-  other notes and the date of its latest change; the active one is marked. Keys: `<CR>` pin,
-  `c` unpin, `b` its board, `n` its project page, `t` open tasks, `f` notes, `a` add (creates the
-  project page, unopened), `R` rename (the `rename-project` preview), `D` archive, `U` restore,
-  `A` show archived, `r` refresh, `q` close, `?` help.
+- **Project pages are the registry** (0.27.0): `projects/<name>.md` frontmatter holds `title`
+  (display name), `description`, `paths` (repo folders: detection checks them after
+  `projects.paths` and before the git repo, source `page`), `color` (hex or highlight group,
+  used for the project's cards and lanes on the board), `archived` and `merged_into`.
+- **Switcher** (`:Logpose project` without a name, `P` on the board, 0.27.0): the picker
+  lists the active project, then recently switched-to ones (`recent_projects` in state), then
+  the rest by activity; each item previews the project's details (below). "+ New project…"
+  creates a page and switches; "Auto-detect" unpins.
+- **Project manager** (`:Logpose projects`, `projects.lua`, 0.26.0, reworked in 0.27.0): one
+  row per project with open tasks (and how many are in the start column), overdue, due soon
+  (3 days), blocked, meetings, notes, and the newest change as "3d ago"; most recently active
+  first; no change for `review.stale_days` fades the row. `<Tab>` expands a project in place:
+  description, name, repo folders, in-progress, blocked (with reasons), due, last meeting and
+  recent notes; `<CR>` on those lines opens them. Keys: `<CR>` pin, `c` unpin, `b` board, `n`
+  page, `t` open tasks, `f` notes, `a` add (name, then repo folder, suggested from the
+  previous window's repo), `p` link a repo folder, `R` rename, `M` merge, `D` archive, `U`
+  restore, `A` show archived, `r` refresh, `q` close, `?` help.
+- **Moving tasks** (0.27.0): `m` on the board (undoable) and `:Logpose move [project|none]` in
+  a task file set `project:` and log `project: old → new`.
+- **Merging** (`M`, `:Logpose merge-project old new`, 0.27.0): the rename plan with `merge`:
+  meeting files move into the existing folder one by one (a name clash aborts), the emptied
+  folder is removed, links and series follow; if both projects have pages the old page stays
+  with `archived: true` and `merged_into: new`. Renaming onto an existing project is refused
+  with a pointer to merge.
 - **Archiving** sets `archived: true` in the project page (created if missing). Notes and tasks
   stay in place and searchable; the project leaves completion, the project picker and the
   all-projects board, and is unpinned if it was pinned. A board scoped to it still shows it.
