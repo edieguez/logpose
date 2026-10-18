@@ -226,28 +226,14 @@ function M.set_page_field(root, name, key, value)
   local page = M.pages(root)[slug]
   local path = page and page.path or require("logpose.notes.topic").project_page(root, slug, { open = false })
   local ok, err = fs.update_lines(path, function(lines)
-    local close
-    for i = 2, #lines do
-      if lines[i] == "---" then
-        close = i
-        break
-      end
-    end
-    if lines[1] ~= "---" or not close then
+    if not require("logpose.frontmatter").close(lines) then
       return nil
     end
-    local at = close
-    for i = 2, close - 1 do
-      if lines[i]:match("^" .. vim.pesc(key) .. ":") then
-        table.remove(lines, i)
-        close, at = close - 1, i
-        break
-      end
+    local v = value
+    if v == nil then
+      v = false -- removed
     end
-    if value ~= nil then
-      table.insert(lines, at, key .. ": " .. value)
-    end
-    return lines
+    return require("logpose.frontmatter").set(lines, { [key] = v })
   end, { tidy = true })
   if not ok then
     error(err, 0)
@@ -264,7 +250,7 @@ end
 ---@param archived boolean
 function M.set_archived(root, name, archived)
   local slug = M.normalize(name)
-  M.set_page_field(root, name, "archived", archived and "true" or nil)
+  M.set_page_field(root, name, "archived", archived or nil)
   if archived and state.get("project") == slug then
     state.set("project", nil)
   end
@@ -283,7 +269,7 @@ function M.add(root, title, paths)
   end
   require("logpose.notes.topic").project_page(root, title, { open = false })
   if paths and #paths > 0 then
-    M.set_page_field(root, slug, "paths", "[" .. table.concat(paths, ", ") .. "]")
+    M.set_page_field(root, slug, "paths", paths)
   end
   M.changed()
   return slug
