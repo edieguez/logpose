@@ -135,7 +135,7 @@ end
 
 --- Task items on the board, by column.
 ---@param root string
----@param opts { project?: string, filter?: string, today?: string }
+---@param opts { project?: string, filter?: string, today?: string, hidden?: table<string, boolean> }
 ---@return { key: string, label: string, cards: logpose.Item[] }[]
 function M.collect(root, opts)
   local index = require("logpose.index")
@@ -157,7 +157,12 @@ function M.collect(root, opts)
   local since = done_since(today)
   for _, it in ipairs(index.build(root)) do
     if it.kind == "note" and it.note_type == "task" and not it.archived then
-      local in_scope = not opts.project or it.project == opts.project or vim.tbl_contains(it.tags, opts.project)
+      local in_scope
+      if opts.project then
+        in_scope = it.project == opts.project or vim.tbl_contains(it.tags, opts.project)
+      else
+        in_scope = not (it.project and opts.hidden and opts.hidden[it.project])
+      end
       local recent = it.status ~= cfg.board.done or not it.done_date or it.done_date >= since
       if in_scope and recent and query.match(it, q) then
         it.order = orders[it.file]
@@ -873,7 +878,13 @@ end
 ---@param b logpose.Board
 ---@param path? string
 function M.refresh(b, path)
-  b.columns = M.collect(b.root, { project = (not b.all) and b.project or nil, filter = b.filter })
+  local scoped = (not b.all) and b.project or nil
+  b.columns = M.collect(b.root, {
+    project = scoped,
+    filter = b.filter,
+    -- archived projects stay out of the all-projects view
+    hidden = not scoped and require("logpose.project").archived(b.root) or nil,
+  })
   if b.lanes then
     -- Group each column by project so j/k follow the cards as drawn.
     for _, col in ipairs(b.columns) do
@@ -1490,11 +1501,11 @@ end
 
 --- Open the board in the current window.
 ---@param root string
----@param opts? { filter?: string, column?: string }
+---@param opts? { filter?: string, column?: string, project?: string }
 ---@return logpose.Board
 function M.open_board(root, opts)
   opts = opts or {}
-  local project = require("logpose.project").resolve(root)
+  local project = opts.project or require("logpose.project").resolve(root)
   local name = "logpose://board"
   local existing = vim.fn.bufnr(name)
   if existing > 0 then
