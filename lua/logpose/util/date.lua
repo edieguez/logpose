@@ -121,6 +121,57 @@ function M.resolve(expr, today)
   return nil
 end
 
+M.MONTHS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+
+--- A date in short words: "Fri 16 Oct", with the year when it isn't this year.
+---@param iso string
+---@param today? string
+---@return string
+function M.short(iso, today)
+  today = today or M.today()
+  local y, m, d = iso:match("^(%d+)-(%d+)-(%d+)$")
+  local out = ("%s %d %s"):format(M.weekday_name(iso):sub(1, 3), tonumber(d), M.MONTHS[tonumber(m)])
+  return y == today:sub(1, 4) and out or (out .. " " .. y)
+end
+
+--- How far a date is from today: "today", "tomorrow", "yesterday", "in 5 days", "3 days ago".
+---@param iso string
+---@param today? string
+---@return string
+function M.relative(iso, today)
+  local d = M.diff_days(today or M.today(), iso)
+  if d == 0 then
+    return "today"
+  elseif d == 1 then
+    return "tomorrow"
+  elseif d == -1 then
+    return "yesterday"
+  end
+  return d > 1 and ("in %d days"):format(d) or ("%d days ago"):format(-d)
+end
+
+--- How a due date reads everywhere it's shown, and how urgent it is: "overdue 2d" (overdue),
+--- "due today" / "due tomorrow" (soon), "due Tue" within a week (week), "due 3 Nov" (later).
+---@param iso string
+---@param today? string
+---@return string text, "overdue"|"soon"|"week"|"later" urgency
+function M.due(iso, today)
+  today = today or M.today()
+  local d = M.diff_days(today, iso)
+  if d < 0 then
+    return ("overdue %dd"):format(-d), "overdue"
+  elseif d == 0 then
+    return "due today", "soon"
+  elseif d == 1 then
+    return "due tomorrow", "soon"
+  elseif d < 7 then
+    return "due " .. M.weekday_name(iso):sub(1, 3), "week"
+  end
+  local y, m, day = iso:match("^(%d+)-(%d+)-(%d+)$")
+  local text = ("due %d %s"):format(tonumber(day), M.MONTHS[tonumber(m)])
+  return y == today:sub(1, 4) and text or (text .. " " .. y), "later"
+end
+
 --- Weekday names, Monday first, for `M.resolve_due`.
 M.WEEKDAYS = { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" }
 

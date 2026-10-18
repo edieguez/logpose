@@ -72,8 +72,8 @@ T["today shows the day at a glance and opens what you pick"] = function()
   H.contains(s, "## Meetings (1)\n\n- Retro  ◆ acme")
   H.contains(s, "## In progress (1)\n\n- Fix flaky  ◆ acme")
   H.contains(s, "## Blocked (1)\n\n- Queue: waiting on ana")
-  H.contains(s, "## Due soon (2)\n\n- Fix flaky  (overdue 2d)  ◆ acme\n- Queue  (in 2d)")
-  H.contains(s, "## Overdue action items (1)\n\n- write ADR @ana  (due 2026-10-10)  ◆ acme")
+  H.contains(s, "## Due soon (2)\n\n- Fix flaky  (overdue 2d)  ◆ acme\n- Queue  (due Sun)") -- as on the board
+  H.contains(s, "## Overdue action items (1)\n\n- write ADR @ana  (overdue 6d)  ◆ acme")
   H.contains(s, "## Left in today's note (1)\n\n- [ ] review PR")
   eq(s:find("Later", 1, true), nil)
   -- <CR> opens the item at its line

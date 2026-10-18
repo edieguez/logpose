@@ -300,33 +300,15 @@ function M.load_bulk(paths, root)
   }
 end
 
-local MONTHS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
-
---- "Fri 23 Oct · in 5 days" (or "today", "overdue by 2 days" for a due date).
+--- What a date in the form means: "Fri 16 Oct · due tomorrow" for a due date (worded as on the
+--- board), "Wed 14 Oct · yesterday" for another date.
 ---@param iso string
 ---@param key string
 ---@return string
 function M.describe_date(iso, key)
   local today = date.today()
-  local d = date.diff_days(today, iso)
-  local y, m, day = iso:match("^(%d+)-(%d+)-(%d+)$")
-  local when = ("%s %d %s"):format(date.weekday_name(iso):sub(1, 3), tonumber(day), MONTHS[tonumber(m)])
-  if tonumber(y) ~= tonumber(today:sub(1, 4)) then
-    when = when .. " " .. y
-  end
-  local rel
-  if d == 0 then
-    rel = "today"
-  elseif d == 1 then
-    rel = "tomorrow"
-  elseif d == -1 then
-    rel = key == "due" and "overdue by a day" or "yesterday"
-  elseif d > 1 then
-    rel = ("in %d days"):format(d)
-  else
-    rel = key == "due" and ("overdue by %d days"):format(-d) or ("%d days ago"):format(-d)
-  end
-  return when .. " · " .. rel
+  local rel = key == "due" and (date.due(iso, today)) or date.relative(iso, today)
+  return date.short(iso, today) .. " · " .. rel
 end
 
 ---@class logpose.EditCtx

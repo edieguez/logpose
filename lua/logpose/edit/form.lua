@@ -99,8 +99,7 @@ function M.candidates(root, kind, key, partial)
     local today = date.today()
     for d = 0, 13 do
       local iso = date.add_days(today, d)
-      local label = d == 0 and "today" or d == 1 and "tomorrow" or ("in %dd"):format(d)
-      add(iso, date.weekday_name(iso):sub(1, 3) .. " · " .. label)
+      add(iso, date.weekday_name(iso):sub(1, 3) .. " · " .. date.relative(iso, today))
     end
   elseif key == "paths" then
     for _, dir in ipairs(vim.fn.getcompletion(partial ~= "" and partial or "~/", "dir")) do

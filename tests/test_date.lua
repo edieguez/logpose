@@ -142,4 +142,19 @@ T["resolve_due adds weekday names: the next one, today included"] = function()
   eq(date.resolve("fri", thu), nil) -- search filters keep their meaning
 end
 
+T["dates read the same everywhere: due, relative, short"] = function()
+  local thu = "2026-10-15"
+  eq({ date.due("2026-10-13", thu) }, { "overdue 2d", "overdue" })
+  eq({ date.due(thu, thu) }, { "due today", "soon" })
+  eq({ date.due("2026-10-16", thu) }, { "due tomorrow", "soon" })
+  eq({ date.due("2026-10-20", thu) }, { "due Tue", "week" })
+  eq({ date.due("2026-11-03", thu) }, { "due 3 Nov", "later" })
+  eq({ date.due("2027-01-05", thu) }, { "due 5 Jan 2027", "later" })
+  eq(date.relative("2026-10-14", thu), "yesterday")
+  eq(date.relative("2026-10-20", thu), "in 5 days")
+  eq(date.relative("2026-10-10", thu), "5 days ago")
+  eq(date.short("2026-10-16", thu), "Fri 16 Oct")
+  eq(date.short("2027-01-05", thu), "Tue 5 Jan 2027")
+end
+
 return T

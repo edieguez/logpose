@@ -188,8 +188,8 @@ function M.age(it, today)
   return math.max(0, date.diff_days(it.since, today))
 end
 
---- When a task is due, in words, and how it should look: overdue (red), due today or
---- tomorrow (yellow), this week (the weekday) or later (the date), both muted. Done tasks: nil.
+--- When a task is due, in words (`date.due`), and its colour: overdue red, due today or
+--- tomorrow yellow, later muted. Done tasks: nil.
 ---@param it logpose.Item
 ---@param today string
 ---@return string?, string?
@@ -197,19 +197,11 @@ function M.due_text(it, today)
   if not it.due or not date.is_iso(it.due) or it.status == config.get().board.done then
     return nil
   end
-  local d = date.diff_days(today, it.due)
-  if d < 0 then
-    return ("overdue %dd"):format(-d), "LogposeBoardOverdue"
-  elseif d == 0 then
-    return "due today", "LogposeBoardDueSoon"
-  elseif d == 1 then
-    return "due tomorrow", "LogposeBoardDueSoon"
-  elseif d < 7 then
-    return "due " .. date.weekday_name(it.due):sub(1, 3), "LogposeBoardDue"
-  end
-  local months = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
-  local _, m, day = it.due:match("^(%d+)-(%d+)-(%d+)$")
-  return ("due %d %s"):format(tonumber(day), months[tonumber(m)]), "LogposeBoardDue"
+  local text, urgency = date.due(it.due, today)
+  local hl = urgency == "overdue" and "LogposeBoardOverdue"
+    or urgency == "soon" and "LogposeBoardDueSoon"
+    or "LogposeBoardDue"
+  return text, hl
 end
 
 --- The card's state, which decides how it looks.
