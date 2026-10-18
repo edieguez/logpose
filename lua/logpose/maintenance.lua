@@ -101,6 +101,38 @@ end
 ---@param old string
 ---@param new string
 ---@return logpose.Change[]
+--- Point links at moved notes and folders. `pairs` are journal-relative { old, new }: a folder
+--- ends with "/", a note has no ".md" (it must end there, so projects/acme doesn't match
+--- projects/acme-api). Wiki links and relative markdown links are understood.
+---@param line string
+---@param pairs string[][]
+---@return string line, integer changed number of pairs that matched
+function M.rewrite_links(line, pairs)
+  local n = 0
+  for _, pair in ipairs(pairs) do
+    local o, nw = pair[1], pair[2]
+    local is_dir = o:sub(-1) == "/"
+    local tail = is_dir and "()" or "([|%]%.#)>])"
+    local before = line
+    line = line
+      :gsub("%[%[" .. vim.pesc(o) .. tail, function(t)
+        return "[[" .. nw .. (type(t) == "string" and t or "")
+      end)
+      :gsub("(%]%(<?[%./]*)" .. vim.pesc(o) .. tail, function(pre, t)
+        return pre .. nw .. (type(t) == "string" and t or "")
+      end)
+    if is_dir then
+      -- markdown links from sibling folders (../acme/x.md)
+      local o_base, n_base = vim.fs.basename(o:sub(1, -2)), vim.fs.basename(nw:sub(1, -2))
+      line = line:gsub("(%]%(<?%.%./)" .. vim.pesc(o_base) .. "/", "%1" .. n_base .. "/")
+    end
+    if line ~= before then
+      n = n + 1
+    end
+  end
+  return line, n
+end
+
 ---@param opts? { merge?: boolean } merge into an existing project instead of renaming
 function M.plan_project(root, old, new, opts)
   local merge = opts and opts.merge
@@ -201,28 +233,9 @@ function M.plan_project(root, old, new, opts)
       elseif not in_fm then
         lines[i], n = M.replace_tag(line, old, new)
         -- Links into the moved folder / page (wiki paths and markdown relative paths).
-        for _, pair in ipairs(rel_prefixes) do
-          local o, nw = pair[1], pair[2]
-          local is_dir = o:sub(-1) == "/"
-          -- A page path must end there (so projects/acme doesn't match projects/acme-api).
-          local tail = is_dir and "()" or "([|%]%.#)>])"
-          local before = lines[i]
-          lines[i] = lines[i]
-            :gsub("%[%[" .. vim.pesc(o) .. tail, function(t)
-              return "[[" .. nw .. (type(t) == "string" and t or "")
-            end)
-            :gsub("(%]%(<?[%./]*)" .. vim.pesc(o) .. tail, function(pre, t)
-              return pre .. nw .. (type(t) == "string" and t or "")
-            end)
-          if is_dir then
-            -- markdown links from sibling folders (../acme/x.md)
-            local o_base, n_base = vim.fs.basename(o:sub(1, -2)), vim.fs.basename(nw:sub(1, -2))
-            lines[i] = lines[i]:gsub("(%]%(<?%.%./)" .. vim.pesc(o_base) .. "/", "%1" .. n_base .. "/")
-          end
-          if lines[i] ~= before then
-            n = n + 1
-          end
-        end
+        local moved
+        lines[i], moved = M.rewrite_links(lines[i], rel_prefixes)
+        n = n + moved
       end
       total = total + n
     end
