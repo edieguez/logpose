@@ -203,7 +203,9 @@ Colour is kept for what needs your attention:
 
 On a board showing one project, cards leave the project out, since it's in the board's title.
 When a card is narrow, the date stays whole, the project name gets shorter and tags are left
-out. `board = { border = "column" }` gives each card its column's colour instead.
+out. Each card's border is tinted with its project's colour (cards without a project get a
+neutral one); `board = { border = "neutral" }` makes all borders one quiet colour, and
+`border = "column"` gives each card its column's colour.
 
 In progress has a work-in-progress limit of 3: its header shows `(2/3)`, and the count turns red
 above the limit.
@@ -750,7 +752,7 @@ board = {
   min_column_width = 24,   -- below this width, columns stack vertically
   stale_days = 7,          -- cards untouched this long fade
   collapsed = {},          -- column keys folded when the board opens, e.g. { "done" }
-  border = "neutral",      -- or "column": each card in its column's colour
+  border = "project",      -- card borders tinted with the project's colour; "neutral" or "column"
   icons = "unicode",       -- or "nerd" (Nerd Font) or "ascii"
   compact = false,         -- start with one-line cards (c toggles)
   lanes = false,           -- start with one row per project (s toggles)
