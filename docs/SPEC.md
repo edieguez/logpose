@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -992,6 +992,26 @@ a real task has. Tasks become files and the board becomes the place you see and 
   go through `markdown.tidy` (blank lines around headings, lists, tables, fences; no blank runs;
   no trailing spaces). User text is never reflowed; only reports wrap their own long items.
 - No behaviour change to earlier features unless the spec says so.
+- `make lint` passes (StyLua, and `scripts/check-globals.lua`: no global assignments).
+
+### Performance
+
+Measured with `scripts/bench/` on generated journals (2 years ≈ 1,900 files; 5 years ≈ 4,600).
+Targets for a 2-year journal, with caches warm: anything that runs while typing (statusline,
+completion, resolving the project) under 30 ms; a board action under 100 ms; a screen (today,
+projects, standup) under 100 ms. The first command of a session builds the index (≈0.4 s at 2
+years).
+
+- **Index**: files are parsed once and cached by mtime (ns) and size; an entry is only trusted
+  once it was cached two seconds after the file's mtime (git's "racily clean" rule), so writes
+  don't flush the cache: `index.clear_cache()` only bumps `generation`. Within one event-loop
+  tick, later builds reuse the last one while `generation` is unchanged (`fs.write_file` and
+  saving a markdown buffer bump it), so a command builds the index once.
+- **Task files**: `taskfile.list` caches parsed tasks the same way and doesn't walk
+  `tasks/archive/` unless archived tasks are asked for (the statusline, the board's refresh and
+  its undo snapshots all list tasks).
+- 2-year journal, before → after 0.28.2 (warm): board move 730 → 57 ms, undo 530 → 62 ms,
+  board refresh 125 → 35 ms, statusline refresh 80 → 4 ms, standup 97 → 42 ms, today 85 → 50 ms.
 
 ## 7. Release notes
 

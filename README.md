@@ -833,14 +833,21 @@ Checkboxes in notes: `- [ ]` open, `- [x]` done, `- [>]` carried to a newer note
 ```sh
 make test                               # full suite (fetches mini.nvim into deps/ the first time)
 make test-file FILE=tests/test_date.lua
-make lint                               # stylua --check
+make lint                               # stylua --check, and no accidental globals
 make lint-md                            # markdownlint on templates and generated notes
 make format
 ```
 
+To check speed on a big journal, generate one and time the everyday operations:
+
+```sh
+python3 scripts/bench/gen_journal.py /tmp/journal --years 5
+nvim --headless -u NONE -i NONE --cmd "set rtp^=$PWD" -l scripts/bench/bench.lua /tmp/journal
+```
+
 Tests use [mini.test](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-test.md).
 Each case runs in a fresh child Neovim, with `TZ=America/New_York` so date math crosses real
-daylight-saving changes. CI runs Neovim 0.10, stable and nightly. `scripts/screenshots.sh`
+daylight-saving changes. The suite takes seconds. CI runs Neovim 0.10, stable and nightly. `scripts/screenshots.sh`
 regenerates the images in this README from a demo journal.
 
 The design and roadmap are in [`docs/SPEC.md`](docs/SPEC.md). Releases are tagged
