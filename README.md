@@ -187,13 +187,21 @@ where the task will go (`Capture → acme (this repo)`), and so does the message
 that's wrong, `:Logpose edit last` fixes it.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
-shows:
+shows its title, with the details under it in a quiet colour: `◆ project · due Tue · #tags`.
 
-- the title;
-- `◆ project`, `#tags` and `◷ due date`, with overdue dates in red;
-- `⊘ reason` and a red border when the task is blocked;
-- how long the card has been in its column (`4d`). Cards untouched for a week fade, so
-  forgotten work stands out.
+Colour is kept for what needs your attention:
+
+- **Due dates** read as words: `due Tue`, `due 3 Nov`; `due today` and `due tomorrow` in yellow;
+  `overdue 2d` in red.
+- **Blocked** cards have a red left edge and the reason in red: `⊘ waiting on Ana`.
+- **Untouched** cards (a week by default) fade and say for how long: `idle 9d`. A blocked card
+  doesn't fade.
+- **Done** cards are dimmed, with a `✓`.
+- **The focused card** has a heavy border and a background.
+
+On a board showing one project, cards leave the project out, since it's in the board's title.
+When a card is narrow, the date stays whole, the project name gets shorter and tags are left
+out. `board = { border = "column" }` gives each card its column's colour instead.
 
 In progress has a work-in-progress limit of 3: its header shows `(2/3)`, and the count turns red
 above the limit.
@@ -740,6 +748,7 @@ board = {
   min_column_width = 24,   -- below this width, columns stack vertically
   stale_days = 7,          -- cards untouched this long fade
   collapsed = {},          -- column keys folded when the board opens, e.g. { "done" }
+  border = "neutral",      -- or "column": each card in its column's colour
   icons = "unicode",       -- or "nerd" (Nerd Font) or "ascii"
   compact = false,         -- start with one-line cards (c toggles)
   lanes = false,           -- start with one row per project (s toggles)
@@ -752,10 +761,12 @@ tasks = {
 },
 ```
 
-Colours come from highlight groups linked to your colour scheme's diagnostic colours. Override
-`LogposeBoardColumn1` to `LogposeBoardColumn5`, `LogposeBoardFocus`, `LogposeBoardBlocked`,
-`LogposeBoardOverdue`, `LogposeBoardProject`, `LogposeBoardTag`, `LogposeBoardTitle` or
-`LogposeBoardHint` to change them.
+Colours come from highlight groups linked to your colour scheme. Override
+`LogposeBoardColumn1` to `LogposeBoardColumn5` (column headers), `LogposeBoardBorder`,
+`LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta` (card details),
+`LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`, `LogposeBoardStale`,
+`LogposeBoardDone`, `LogposeBoardMarked`, `LogposeBoardProject`, `LogposeBoardTag`,
+`LogposeBoardTitle` or `LogposeBoardHint` to change them.
 
 </details>
 
