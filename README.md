@@ -453,7 +453,7 @@ Each line holds one value, with the field's name beside it, so you only ever edi
 | Key | Does |
 |---|---|
 | `<Tab>` | Open the menu (or go to the next field when there's nothing to complete). `<S-Tab>` goes back. |
-| `<CR>` | In insert mode, the next field. In normal mode, pick a value from a list (status, project, type, tags…). |
+| `<CR>` | In insert mode with the menu open, accept the highlighted item (or the best match for what you typed); otherwise go to the next field. In normal mode, pick a value from a list (status, project, type, tags…). |
 | `<C-a>` `<C-x>` | Next / previous status, project or meeting type; a day later / earlier for dates. |
 | `dd` | Clear the field. |
 | `+` | Add a field the form doesn't show. |
