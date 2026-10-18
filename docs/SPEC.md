@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -362,8 +362,21 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 - **Active project** (first match wins): set with `:Logpose project <name>` (kept in state until
   changed or cleared) → longest `projects.paths` prefix of the current buffer/cwd → the git repo
   name (slugified) of the current buffer/cwd, unless that repo is the journal itself → none.
-- `:Logpose project [name|none]`: set or clear; no argument → pick from known projects (config
-  paths + subdirectories of `meetings/`) or type a new one. Completion lists known projects.
+- `:Logpose project [name|none]`: set or clear; no argument → pick from known projects or type
+  a new one. Completion lists known projects. **Known projects** (0.26.0): the pinned one,
+  `projects.paths`, project pages (`projects/*.md`), subdirectories of `meetings/`, and the
+  `project:` of any note or task; archived projects are left out (search still lists them).
+- Switching (or archiving, renaming) fires `User LogposeProjectChanged`; an open board
+  re-resolves its project and redraws, and the statusline cache is cleared.
+- **Project manager** (`:Logpose projects`, `projects.lua`, 0.26.0): a screen listing every
+  project with open tasks (and how many are in the start column), blocked, done, meetings,
+  other notes and the date of its latest change; the active one is marked. Keys: `<CR>` pin,
+  `c` unpin, `b` its board, `n` its project page, `t` open tasks, `f` notes, `a` add (creates the
+  project page, unopened), `R` rename (the `rename-project` preview), `D` archive, `U` restore,
+  `A` show archived, `r` refresh, `q` close, `?` help.
+- **Archiving** sets `archived: true` in the project page (created if missing). Notes and tasks
+  stay in place and searchable; the project leaves completion, the project picker and the
+  all-projects board, and is unpinned if it was pinned. A board scoped to it still shows it.
 - Meeting notes (F1): saved under `meetings/<project>/` when a project is active; frontmatter
   gains `project: acme`; `{project}` template variable; the series key is project-scoped
   (`acme/retro`) so recurring meetings never mix across projects. The daily-note link is
@@ -816,8 +829,9 @@ records, and the links between notes.
 Strictly local: nothing ever leaves the machine.
 
 **Design** (`telemetry.lua`)
-- Opt-in: `telemetry = { enabled = true }` (off by default, so other users are never counted
-  without knowing); documented in the README and health.
+- On by default (opt-out with `telemetry = { enabled = false }`): the data is local to the
+  current user and never leaves the machine. Documented in the README and health. (Opt-in
+  until 0.26.0.)
 - Recorded per event: subcommand (and scope/mode for `find`, `actions`, `report`), date, and
   whether it succeeded. No note content, paths, titles, tags or arguments beyond the
   scope/mode keyword.
@@ -959,6 +973,7 @@ a real task has. Tasks become files and the board becomes the place you see and 
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.26.0: local usage stats are on by default; `telemetry = { enabled = false }` turns them off.
 - 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
 - 0.25.0: the board's title line moved into the window's top bar (winbar).
 - 0.24.0: `:Logpose` without a subcommand opens the command menu (it used to print usage).

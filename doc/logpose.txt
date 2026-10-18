@@ -17,6 +17,7 @@ CONTENTS                                                    *logpose-contents*
        Tasks and the board ................. |logpose-board|
        Today screen ........................ |logpose-today|
        Projects ............................ |logpose-projects|
+       Managing projects ................... |logpose-project-manager|
        Search .............................. |logpose-search|
        Action items and people ............. |logpose-actions|
        Topic notes and links ............... |logpose-links|
@@ -228,7 +229,33 @@ With a project active, meeting notes go to `meetings/{project}/` with
 tasks get the project, the board and statusline show its tasks, and the
 daily-note link is prefixed with `{project}: `.
 
-`require("logpose").project()` returns the active project.
+Switching takes effect right away, including on a board that is already
+open. `require("logpose").project()` returns the active project.
+
+                                                     *logpose-project-manager*
+Managing projects ~
+|:Logpose-projects| lists every project: its open tasks (and how many are in
+progress), blocked and done tasks, meetings, other notes, and the date of its
+latest change. The active project is marked with `●`.
+
+  <CR>  switch to the project          c  back to auto-detect
+  b     its board                      n  its project page (notes)
+  t     its open tasks                 f  its notes
+  a     add a project                  R  rename it everywhere
+  D     archive it                     U  restore an archived one
+  A     show / hide archived           r  refresh
+  q     close                          ?  help
+
+Adding a project creates its project page, so it exists before it has any
+tasks. Renaming shows the same preview as |:Logpose-rename-project|.
+
+Archiving sets `archived: true` in the project's page (creating the page if
+needed). Its tasks and notes stay where they are and stay searchable, but it
+leaves completion, the project picker and the all-projects board, and is
+unpinned if it was pinned. `U` restores it.
+
+Known projects come from the pinned project, `projects.paths`, project pages,
+meeting folders and the `project:` of any note or task.
 
 Options: `projects`, `meeting_subdir`.
 
@@ -461,6 +488,11 @@ Notes and projects ~
     Pin the active project ({name} is slugified), or `none` to go back to
     detection (|logpose-projects|). Without an argument, pick one.
 
+                                                           *:Logpose-projects*
+:Logpose projects
+    The project manager: switch, add, rename, archive and restore projects.
+    See |logpose-project-manager|.
+
                                                        *:Logpose-project-page*
 :Logpose project-page [{name}]
     Create (from the `project` template) or open `projects/{name}.md`.
@@ -510,7 +542,7 @@ Sprints and maintenance ~
 
                                                               *:Logpose-stats*
 :Logpose stats[!] [{days}]
-    Local usage stats, when `telemetry.enabled` is set: uses per command
+    Local usage stats (on unless `telemetry.enabled = false`): uses per command
     (and scope for find, actions, report and daily), the last 7 days against
     the previous 7, errors, and commands you haven't used. [!] resets them.
     Data lives in `stdpath("data")/logpose/usage.json` and holds only
@@ -576,6 +608,7 @@ you have mapped yourself are never replaced.
   <leader>jj  command menu          <leader>jd  daily note
   <leader>jy  today                 <leader>js  standup
   <leader>jk  board                 <leader>jm  meeting note
+  <leader>jP  projects
   <leader>jc  capture a task        <leader>jx  mark done (normal, visual)
   <leader>jp  promote to task file  <leader>jn  topic note
   <leader>jf  find notes            <leader>jt  open tasks
@@ -699,7 +732,7 @@ Search and action items ~
   tickets        (table)       `pattern`: Lua pattern of ticket IDs
                  (default "%u[%u%d]+%-%d+", e.g. PROJ-123). `url`: URL with
                  {id}; when set, `gx` on a ticket opens it.
-  telemetry      (table)       `enabled` (false): count command use
+  telemetry      (table)       `enabled` (true): count command use
                  locally. `retention_days` (180). See |:Logpose-stats|.
 
 Folders and file names ~

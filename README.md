@@ -279,7 +279,30 @@ With a project active:
 - the board and the statusline show that project's tasks;
 - daily-note links are prefixed: `- acme-api: [[…|Retro]]`.
 
-`:Logpose project none` goes back to automatic detection.
+`:Logpose project none` goes back to automatic detection. Switching takes effect right away,
+including on a board that's already open.
+
+### Managing projects
+
+`:Logpose projects` lists every project with what's going on in it, and lets you manage them:
+
+![The projects screen: each project with its open, in-progress and blocked tasks, meetings and last change](docs/images/projects.png)
+
+| Key | Does |
+|---|---|
+| `<CR>` | Switch to the project. `c` goes back to automatic detection. |
+| `b` | Open the project's board. |
+| `n` | Open its project page: the place for notes, links, decisions and open questions. |
+| `t` / `f` | Search its open tasks / its notes. |
+| `a` | Add a project. It gets a project page, so it exists before it has any tasks. |
+| `R` | Rename it everywhere: tasks, notes, tags, its meeting folder and page, and links (with a preview). |
+| `D` | Archive it. |
+| `U` | Restore an archived project (`A` shows them). |
+
+**Archiving** hides a project you're done with, without losing anything. Its tasks and notes
+stay where they are and remain searchable, but it no longer appears in completion, the project
+picker or the all-projects board. logpose records this as `archived: true` in the project's page,
+so it travels with your journal, and `U` undoes it.
 
 > **Configure:** `projects = { paths = { ["~/work/api"] = "acme" } }` names a folder's project.
 > `meeting_subdir = ""` keeps all meetings in one folder.
@@ -435,8 +458,8 @@ changes and ask first.
 
 ### Usage stats
 
-Off by default, and they never leave your machine. With `telemetry = { enabled = true }`,
-logpose counts which commands you use per day. It records command names only, never note
+On by default, and they never leave your machine: logpose counts which commands you use per
+day, in a file only you can read. Turn them off with `telemetry = { enabled = false }`. It records command names only, never note
 content or paths. `:Logpose stats` shows the counts and the commands you haven't tried. The
 `:Logpose` menu also uses them to list your most-used commands first.
 
@@ -484,6 +507,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 |---|---|
 | `note [TITLE]` | Create or open a topic note. |
 | `project [NAME\|none]` | Pin the active project, or go back to detection. |
+| `projects` | Manage projects: switch, rename, archive, add. |
 | `project-page [NAME]` | Create or open a project page. |
 
 ### Sprints and maintenance
@@ -543,6 +567,7 @@ and it never replaces a key you've mapped yourself.
 | `<leader>jj` | command menu | `<leader>jd` | daily note |
 | `<leader>jy` | today | `<leader>js` | standup |
 | `<leader>jk` | board | `<leader>jm` | meeting note |
+| `<leader>jP` | projects | | |
 | `<leader>jc` | capture a task | `<leader>jx` | mark done (normal and visual) |
 | `<leader>jp` | promote to task file | `<leader>jn` | topic note |
 | `<leader>jf` | find notes | `<leader>jt` | open tasks |
@@ -662,7 +687,7 @@ actions = {
 },
 review = { stale_days = 14 },          -- "in progress for too long" in reports
 tickets = { pattern = "%u[%u%d]+%-%d+", url = nil },
-telemetry = { enabled = false, retention_days = 180 },
+telemetry = { enabled = true, retention_days = 180 },  -- local only; false to turn off
 ```
 
 </details>
