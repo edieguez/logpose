@@ -345,32 +345,49 @@ Options: `me`, `actions`.
 ------------------------------------------------------------------------------
 EDITING A NOTE'S DETAILS                                        *logpose-edit*
 
-|:Logpose-edit| (or `e` on a board card, or `e` on a project in
-|:Logpose-projects|) opens the note's frontmatter as a form in a floating
-window, one `key: value` per line. Lists (`tags`, `attendees`, `paths`) are
-written `a, b`. Fields logpose keeps itself (`created`, `modified`,
-`started`, `done`, `series`) are shown below as comments and can't be edited.
+|:Logpose-edit| (or `e` on a board card, `e` on a project in
+|:Logpose-projects|, or `:Logpose edit last` for the task captured last)
+opens the note's frontmatter as a form in a floating window. Each line holds
+one value; the field's name is drawn beside it and can't be edited. Lists
+(`tags`, `attendees`, `paths`) are written `a, b`. Fields logpose keeps
+itself (`created`, `modified`, `started`, `done`, `series`) are shown below.
 
-As you type a value, a menu offers what fits the field: projects, board
-columns (`status`), existing tags, people, meeting types, the next two weeks
-(`due`, `date`) and folders (`paths`). In a list it completes the next item.
-Before the colon it offers fields the form doesn't have yet. <C-x><C-o> also
-works.
+As you type, a menu offers what fits the field: projects, board columns
+(`status`), existing tags, people, meeting types, the next two weeks (`due`,
+`date`) and folders (`paths`). In a list it completes the next item.
+<C-x><C-o> also works.
 
-  <Tab> <S-Tab>  open / move through the menu     <CR>  accept
-  <C-s>  :w      save                             q <Esc>  cancel (normal)
+Every value is checked as you type: a problem shows beside the field, a
+valid value gets a note (what a date means, a project's name, "new project"),
+and an empty field shows what to type. Below the fields, a summary says what
+saving will do (set `started`, log a project change, move a meeting note and
+fix N links to it). Nothing is saved while a field shows a problem.
+
+  <Tab> <S-Tab>  open / move through the menu, or next / previous field
+  <CR>           insert mode: next field; normal mode: pick a value
+  <C-a> <C-x>    next / previous status, project or type; dates: +1 / -1 day
+  dd             clear the field          +      add a field
+  <C-s>  :w      save                     q <Esc>  cancel (normal mode)
+  ?              show these keys in the form
 
 Saving applies the changes the way logpose would:
   - a task's `status`, `project` and `blocked` go through the board's code:
     logged in the task, `started`/`done` kept; `u` on the board undoes an
     edit made there;
-  - dates accept YYYY-MM-DD, `today`, `tomorrow`, `+3d`, `+1w`;
+  - dates accept YYYY-MM-DD, `today`, `tomorrow`, a weekday (`fri`), `+3d`,
+    `+1w`;
   - a meeting moved to another project moves into that project's folder,
     its `series` follows, and links to it (with the `- project:` label in
     daily notes) are fixed;
   - a project page's `project` can't change here: rename with `R` in
     |:Logpose-projects|.
-Invalid values are reported and the form stays open.
+
+Several tasks at once ~
+Mark cards on the board with `v` and press `e`, or run `:'<,'>Logpose edit`
+on lines of a quickfix list of tasks. Fields the tasks share start filled
+in; the others start empty, meaning "leave each task as it is". In `tags`,
+`+a -b` adds and removes tags (each task keeps its others); `none` clears a
+project, due date or blocker.
 
 ------------------------------------------------------------------------------
 TOPIC NOTES AND LINKS                                          *logpose-links*
@@ -470,8 +487,12 @@ Tasks ~
                                                             *:Logpose-capture*
 :Logpose capture[!] [{text}]
     Create a task in `tasks.capture_status` (Backlog) for the active
-    project. `#tags` and `due:YYYY-MM-DD` in {text} go into the frontmatter.
-    [!] opens the new file. Without {text}, prompts.
+    project, or the one named with `+name` in {text} (`+none`: no project).
+    `#tags` and `due:` (a date, `today`, `tomorrow`, `fri`, `+3d`) go into
+    the frontmatter. <Tab> completes `+projects`, `#tags` and `due:`, also in
+    the prompt. The message after it names the project and how it was chosen;
+    |:Logpose-edit| `last` fixes a wrong one. [!] opens the new file. Without
+    {text}, prompts.
     With `tasks.mode = "inbox"`: add `- [ ] {text}` under today's section of
     INBOX.md instead.
 
@@ -559,9 +580,12 @@ Notes and projects ~
     without {title}.
 
                                                                *:Logpose-edit*
-:Logpose edit
-    Edit the current note's frontmatter in a form with completion. See
-    |logpose-edit|.
+:Logpose edit [last]
+:[range]Logpose edit
+    Edit the current note's frontmatter in a form. With `last`, or when the
+    current buffer isn't a journal note, the task captured last in this
+    session. In a quickfix window, the tasks on the [range] of lines,
+    together. See |logpose-edit|.
 
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
@@ -646,7 +670,9 @@ Sprints and maintenance ~
   <C-j> <C-k>   move the card down / up within its column
   x             done
   b             block (asks for the reason) / unblock
-  a             add a card to this column
+  a             add a card to this column (with rows per project: to the
+                row you're in); `+name`, `#tags` and `due:` work as in
+                |:Logpose-capture|
   D             delete the card (asks first)
   K             peek: the task file in a floating window; `q` saves and
                 closes it, and the board picks up the change
@@ -662,6 +688,9 @@ Sprints and maintenance ~
   P             switch project (|logpose-projects|)
   m             move the card to another project
   e             edit the card's fields (|logpose-edit|)
+  v             mark / unmark the card; with cards marked, H L 1-9 x b m e
+                act on all of them, as one undo step
+  V  <Esc>      unmark all
   r             refresh
   q             close
   ?             help

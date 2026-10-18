@@ -175,9 +175,16 @@ are marked `- [>]`.
 **Every task is a markdown file, so it has room for context. The board is how you move them.**
 
 ```vim
-:Logpose capture Fix flaky test #ci due:2026-10-20   " new task in Backlog
-:Logpose board                                       " the Kanban board
+:Logpose capture Fix flaky test #ci due:fri   " new task in Backlog, for the active project
+:Logpose capture Write chapter 3 +thesis      " … or for another one
+:Logpose board                                " the Kanban board
 ```
+
+A capture goes to the active project unless the text names one with `+name` (`+none` for no
+project). `due:` takes a date, `today`, `tomorrow`, a weekday (`fri`) or `+3d`. `<Tab>`
+completes `+projects`, `#tags` and `due:`, on the command line and in the prompt. The prompt says
+where the task will go (`Capture → acme (this repo)`), and so does the message after it. If
+that's wrong, `:Logpose edit last` fixes it.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
 shows:
@@ -205,11 +212,18 @@ board):
 | `a` | Add a card to this column. |
 | `K` | Peek: open the task in a floating window to read or edit it. |
 | `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
+| `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` then act on every marked card at once. |
 | `<CR>` | Open the task file. |
 | `u` / `<C-r>` | Undo / redo the last board change, exactly, log lines included. |
 
 In a project's repo, the board shows that project's tasks. `p` shows all projects, `P` switches to
-another project, and `m` moves the focused card to another project.
+another project, and `m` moves the focused card to another project. With one row per project
+(`s`), `a` adds the card to the row you're in.
+
+To fix several cards at once, mark them with `v` and press `e`. Fields the cards share start
+filled in; the others start empty, meaning "leave each card as it is". In `tags`, `+urgent -ci`
+adds and removes tags and keeps each card's others; `none` clears a project, due date or blocker.
+The whole change is one `u`.
 
 ### What a task file looks like
 
@@ -244,7 +258,7 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 | From | Do | Result |
 |---|---|---|
-| Anywhere | `:Logpose capture text #tag due:DATE` | A Backlog task for the active project (`capture!` opens it). |
+| Anywhere | `:Logpose capture text #tag +project due:DATE` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
 | A checkbox in a meeting or daily note | `:Logpose promote` | A TODO task with a `From:` link back, and the checkbox becomes a link to it. |
 | A task file | `:Logpose done` | The task moves to Done. |
 | A checkbox in any note | `:Logpose done` | The checkbox is checked off (works on a visual selection too). |
@@ -419,31 +433,41 @@ everyone with how much involves them; pick a person to see all of it.
 
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
 
-`:Logpose edit` (or `e` on a board card, or `e` on a project in `:Logpose projects`) opens the
-note's frontmatter as a small form, one field per line:
+`:Logpose edit` opens the current note's frontmatter as a form. It also opens from `e` on a
+board card, `e` on a project in `:Logpose projects`, and `:Logpose edit last` for the task you
+just captured:
 
-![The edit form for a task, with the project field's completion menu open](docs/images/edit.png)
+![The edit form for a task: field names beside the values, the project's name and the due date in words beside them, a hint in the empty field, and what saving will do](docs/images/edit.png)
 
-As you type a value, a menu offers what fits that field: your projects (with their names), the
-board's columns, tags you already use, people from your meetings, meeting types, and the next
-two weeks for dates. Lists like `tags` and `attendees` are written `a, b`, and the menu offers
-the next item. Before the colon, it offers the fields the form doesn't have yet. `<Tab>` opens
-or moves through the menu, `<CR>` accepts, `<C-s>` (or `:w`) saves and `q` cancels.
+Each line holds one value, with the field's name beside it, so you only ever edit values:
 
-Saving does what logpose would do:
+- **As you type**, a menu offers what fits the field: your projects, the board's columns, tags
+  you already use, people from your meetings, meeting types, and the next two weeks for dates.
+  In `tags` and `attendees` (written `a, b`) it offers the next item.
+- **Every value is checked as you type.** A problem shows beside the field
+  (`✗ not a date: try today, fri, +3d`). A valid value gets a note: what a date means
+  (`Fri 16 Oct · tomorrow`), a project's name, or `new project`. An empty field shows what to type.
+- **Below the fields**, a summary says what saving will do: move the task to In progress and
+  set `started`, change the project (logged), or move a meeting note and fix the links to it.
 
-- a task's **status**, **project** and **blocked** go through the board's code, so they're
-  logged in the task and `started`/`done` are kept up to date (and `u` on the board undoes an
-  edit made there);
-- **dates** accept `today`, `tomorrow`, `+3d` or `+1w` and are saved as dates;
-- moving a **meeting** to another project moves the note into that project's folder, follows
-  its series, and fixes links to it, including the `- project:` label in your daily note;
-- on a **project page**, you can change its name, description, repo folders and colour
-  (renaming the project itself is `R` in `:Logpose projects`, since that updates every note).
+| Key | Does |
+|---|---|
+| `<Tab>` | Open the menu (or go to the next field when there's nothing to complete). `<S-Tab>` goes back. |
+| `<CR>` | In insert mode, the next field. In normal mode, pick a value from a list (status, project, type, tags…). |
+| `<C-a>` `<C-x>` | Next / previous status, project or meeting type; a day later / earlier for dates. |
+| `dd` | Clear the field. |
+| `+` | Add a field the form doesn't show. |
+| `<C-s>` or `:w` | Save. Nothing is saved while a field shows a problem. |
+| `q` | Cancel. `?` shows these keys in the form. |
 
-Fields logpose keeps itself (`created`, `modified`, `started`, `done`, `series`) are shown at the
-bottom for reference. Anything invalid, like an unknown status, is reported and the form stays
-open, so nothing you typed is lost.
+Saving does what logpose would do. A task's status, project and blocker go through the board's
+code, so they're logged and `started`/`done` stay right, and `u` on the board undoes an edit made
+there. Moving a meeting to another project moves the note into that project's folder, follows its
+series, and fixes links to it, including the `- project:` label in your daily note. Renaming a
+project is `R` in `:Logpose projects`, since that updates every note.
+
+Several tasks at once: mark cards on the board with `v`, or select lines of a quickfix list of
+tasks and run `:'<,'>Logpose edit` (see [Working on the board](#working-on-the-board)).
 
 ## Topic notes and links
 
@@ -562,7 +586,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `board [FILTERS]` | The Kanban board. |
-| `capture[!] [TEXT]` | New task in Backlog. `!` opens it. |
+| `capture[!] [TEXT]` | New task in Backlog. `+name` picks the project. `!` opens it. |
 | `done` | In a task file: move it to Done. On checkboxes: check them off. |
 | `promote` | Turn the checkbox under the cursor into a task file. |
 | `move [PROJECT\|none]` | In a task file: move the task to another project. |
@@ -588,7 +612,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `project [NAME\|none]` | Switch project (a picker without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
-| `edit` | Edit this note's frontmatter in a form, with completion. |
+| `edit [last]` | Edit this note's frontmatter (or the last captured task's, or the tasks on selected quickfix lines) in a form. |
 
 ### Sprints and maintenance
 
@@ -617,8 +641,11 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `<CR>` | open the task file | `/` | filter (same filters as `find`) |
 | `p` | this project / all projects | `P` | switch project |
 | `m` | move the card to another project | `e` | edit the card's fields |
+| `v` | mark / unmark the card | `V` `<Esc>` | unmark all |
 | `r` | refresh | `q` | close |
 | `?` | help | | |
+
+With cards marked, `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` act on all of them as one undo step.
 
 ## Search filters
 
