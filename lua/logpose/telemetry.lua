@@ -1,4 +1,4 @@
---- Local, opt-in usage counts: which commands you use, per day. Nothing leaves your machine;
+--- Local usage counts (on by default, `telemetry = { enabled = false }` turns them off): which commands you use, per day. Nothing leaves your machine;
 --- no note content, paths or arguments are stored — only the command and, for a few commands,
 --- the scope/mode keyword (e.g. "find tasks").
 local config = require("logpose.config")
@@ -203,7 +203,7 @@ function M.command(opts)
   end
   if not config.get().telemetry.enabled and not fs.exists(M.path()) then
     require("logpose.util.ui").notify(
-      "logpose: usage stats are off; enable with setup({ telemetry = { enabled = true } })",
+      "logpose: usage stats are off (telemetry.enabled = false in your config)",
       vim.log.levels.INFO
     )
     return
