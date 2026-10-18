@@ -23,19 +23,60 @@ local TASK = "---\n"
   .. "created: 2026-10-14T09:00\nmodified: 2026-10-14T09:00\n---\n"
   .. "## Context\n\n## Log\n\n- 2026-10-14 09:00: created in Backlog\n"
 
-local function form()
+--- The form's values, one per field.
+local function values()
   return child.api.nvim_buf_get_lines(0, 0, -1, false)
 end
 
---- Replace the form line that starts with `key:`.
-local function set(key, value)
-  child.lua(([[(function()
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    for i, l in ipairs(lines) do
-      if l:match('^' .. %q .. ':') then lines[i] = %q end
+--- What the form draws: per row its label and end-of-line text, and the lines below it.
+local function drawn()
+  return child.lua_get([[(function()
+    local ns = vim.api.nvim_get_namespaces()["logpose.edit"]
+    local rows, below = {}, {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns, 0, -1, { details = true })) do
+      local row, d = m[2] + 1, m[4]
+      rows[row] = rows[row] or { label = "", eol = "" }
+      local text = table.concat(vim.tbl_map(function(c) return c[1] end, d.virt_text or {}))
+      if d.virt_text_pos == "inline" then
+        rows[row].label = vim.trim(text)
+      elseif d.virt_text_pos == "eol" then
+        rows[row].eol = vim.trim(text)
+      end
+      for _, vl in ipairs(d.virt_lines or {}) do
+        local l = vim.trim(table.concat(vim.tbl_map(function(c) return c[1] end, vl)))
+        if l ~= "" then
+          table.insert(below, l)
+        end
+      end
     end
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
-  end)()]]):format(key, key .. ": " .. value))
+    return { rows = rows, below = below }
+  end)()]])
+end
+
+--- Set the value on the row of field `key`.
+local function set(key, value)
+  local d = drawn()
+  for row, r in pairs(d.rows) do
+    if r.label == key then
+      child.api.nvim_buf_set_lines(0, row - 1, row, false, { value })
+      child.lua(
+        "require('logpose.edit.form').render(require('logpose.edit.form').forms[vim.api.nvim_get_current_buf()])"
+      )
+      return
+    end
+  end
+  error("no field " .. key)
+end
+
+--- Put the cursor on field `key`.
+local function on(key)
+  for row, r in pairs(drawn().rows) do
+    if r.label == key then
+      child.api.nvim_win_set_cursor(0, { row, 0 })
+      return
+    end
+  end
+  error("no field " .. key)
 end
 
 local function edit(path)
@@ -43,29 +84,64 @@ local function edit(path)
   child.cmd("Logpose edit")
 end
 
-T["the form shows the note's fields, with logpose's own as comments"] = function()
+local function last_msg()
+  local n = child.notifications()
+  return n[#n] and n[#n].msg or ""
+end
+
+T["the form: values only, field names beside them, hints, logpose's own fields below"] = function()
   H.write(root .. "/tasks/fix.md", TASK)
   edit(root .. "/tasks/fix.md")
   eq(child.bo.filetype, "logpose-edit")
-  eq(form(), {
-    "title: Fix flaky test",
-    "status: todo",
-    "project: acme",
-    "tags: ci",
-    "due: ",
-    "blocked: ",
-    "",
-    "# created: 2026-10-14T09:00",
-    "# modified: 2026-10-14T09:00",
-  })
+  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "", "" })
+  local d = drawn()
+  eq(
+    vim.tbl_map(function(r)
+      return r.label
+    end, d.rows),
+    { "title", "status", "project", "tags", "due", "blocked" }
+  )
+  H.contains(d.rows[5].eol, "today, fri, +3d") -- a hint in the empty due field
+  H.contains(d.rows[6].eol, "waiting on")
+  eq(d.below, { "no changes yet", "created   2026-10-14T09:00", "modified  2026-10-14T09:00" })
   eq(child.api.nvim_win_get_config(0).relative, "editor") -- a float
+  eq(child.api.nvim_win_get_cursor(0), { 1, #"Fix flaky test" - 1 }) -- on its last character
+end
+
+T["values are checked as you type, and the summary says what saving will do"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  edit(root .. "/tasks/fix.md")
+  set("status", "In progress")
+  set("project", "Thesis Work")
+  set("due", "fri")
+  local d = drawn()
+  eq(d.rows[2].eol, "") -- typed the column's name: nothing to add
+  eq(d.rows[3].eol, "saved as thesis-work · new project")
+  eq(d.rows[5].eol, "Fri 16 Oct · tomorrow")
+  eq(d.below[1], "saving will:")
+  eq(d.below[2], "• move it to In progress, setting started (logged)")
+  eq(d.below[3], "• project acme → thesis-work (logged)")
+  eq(d.below[4], "• update due")
+  set("status", "nope")
+  set("due", "someday")
+  d = drawn()
+  eq(d.rows[2].eol, "✗ not a board column · <CR> to pick")
+  H.contains(d.rows[5].eol, "✗ not a date")
+  eq(d.below[1], "✗ fix 2 fields to save")
+  -- saving refuses, says why and goes to the field; nothing is written
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.cmd("write")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(last_msg(), "logpose: status: not a board column · <CR> to pick")
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
+  H.contains(H.read(root .. "/tasks/fix.md"), "status: todo")
 end
 
 T["saving a task goes through the board's logic"] = function()
   H.write(root .. "/tasks/fix.md", TASK)
   edit(root .. "/tasks/fix.md")
   set("title", "Fix the flaky checkout test")
-  set("status", "In progress") -- a column label works too
+  set("status", "In progress")
   set("project", "Thesis Work")
   set("tags", "ci, #flaky")
   set("due", "+3d")
@@ -82,29 +158,124 @@ T["saving a task goes through the board's logic"] = function()
   H.contains(text, "started: 2026-10-15")
   H.contains(text, "TODO → In progress")
   H.contains(text, "project: acme → thesis-work")
-  H.contains(child.notifications()[#child.notifications()].msg, "updated")
-  -- and the open buffer shows it
+  H.contains(last_msg(), "updated")
   H.contains(table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n"), "status: in-progress")
 end
 
-T["clearing a value and bad input"] = function()
+T["dd clears a field, extra lines join the field above, u undoes both"] = function()
   H.write(root .. "/tasks/fix.md", TASK:gsub("due:\n", "due: 2026-10-20\n"))
   edit(root .. "/tasks/fix.md")
-  set("due", "")
+  on("tags")
+  child.type_keys("dd")
+  eq(values(), { "Fix flaky test", "todo", "acme", "", "2026-10-20", "" })
+  child.type_keys("u")
+  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "2026-10-20", "" })
+  -- the last field too
+  on("blocked")
+  child.type_keys("dd")
+  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "2026-10-20", "" })
+  -- a pasted line joins the field above it
+  on("title")
+  child.fn.setreg("z", "and more\n", "l")
+  child.type_keys('"zp')
+  eq(values()[1], "Fix flaky test and more")
+  eq(#values(), 6)
   child.cmd("write")
-  H.contains(H.read(root .. "/tasks/fix.md"), "\ndue:\n")
+  local text = H.read(root .. "/tasks/fix.md")
+  H.contains(text, 'title: "Fix flaky test and more"')
+end
+
+T["<C-a> and <C-x> cycle a field's values and step dates; <CR> picks one"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  H.write(root .. "/projects/thesis.md", '---\ntitle: "Master thesis"\nproject: thesis\n---\n')
   edit(root .. "/tasks/fix.md")
-  set("status", "nope")
-  child.cmd("write")
-  H.contains(child.notifications()[#child.notifications()].msg, 'unknown status "nope"')
-  eq(child.bo.filetype, "logpose-edit") -- still open, nothing lost
-  set("status", "todo")
-  set("due", "someday")
-  child.cmd("write")
-  H.contains(child.notifications()[#child.notifications()].msg, "isn't a date")
+  on("status")
+  child.type_keys("<C-a>")
+  eq(values()[2], "in-progress")
+  child.type_keys("2<C-x>")
+  eq(values()[2], "backlog")
+  on("due")
+  child.type_keys("<C-a>") -- empty: today
+  eq(values()[5], "2026-10-15")
+  child.type_keys("<C-a>")
+  eq(values()[5], "2026-10-16")
+  child.type_keys("<C-x><C-x>")
+  eq(values()[5], "2026-10-14")
+  on("project")
+  child.lua([[vim.ui.select = function(items, opts, cb)
+    _G.picked = vim.tbl_map(opts.format_item, items)
+    cb(items[3])
+  end]])
+  child.type_keys("<CR>")
+  eq(child.lua_get("_G.picked"), { "—  no project", "acme", "thesis  Master thesis" })
+  eq(values()[3], "thesis")
+  -- a list field gets the item added
+  on("tags")
+  child.lua([[vim.ui.select = function(items, opts, cb)
+    for _, it in ipairs(items) do if it.word == 'perf' then cb(it) end end
+  end]])
+  H.write(root .. "/tasks/other.md", "---\ntitle: o\nstatus: todo\ntags: [perf]\n---\n")
+  child.lua("require('logpose.index').clear_cache()")
+  child.type_keys("<CR>")
+  eq(values()[4], "ci, perf")
+  -- the title has nothing to pick: <CR> starts typing at its end
+  on("title")
+  child.type_keys("<CR>", "!", "<Esc>")
+  eq(values()[1], "Fix flaky test!")
+end
+
+T["in insert mode, <CR> and <Tab> go to the next field"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  edit(root .. "/tasks/fix.md")
+  child.type_keys("A", "<CR>")
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
+  eq(child.fn.mode(), "i")
+  child.type_keys("<S-Tab>")
+  eq(child.api.nvim_win_get_cursor(0)[1], 1)
+  child.type_keys("<Tab>") -- nothing to complete in the title
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
+  eq(#values(), 6) -- no new lines
+  child.type_keys("<Esc>")
+end
+
+T["completion offers what fits each field"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  H.write(root .. "/tasks/other.md", "---\ntitle: other\nstatus: todo\nproject: thesis\ntags: [perf]\n---\n")
+  H.write(
+    root .. "/meetings/x.md",
+    '---\ntype: retro\ndate: 2026-10-01\ntitle: "R"\nattendees: [Ana, Luis]\n---\n## Notes\n'
+  )
+  H.write(root .. "/projects/thesis.md", '---\ntitle: "Master thesis"\nproject: thesis\n---\n')
+  edit(root .. "/tasks/fix.md")
+  local function words(key, text)
+    set(key, text)
+    on(key)
+    child.api.nvim_win_set_cursor(0, { child.api.nvim_win_get_cursor(0)[1], #text })
+    local start = child.lua_get("require('logpose.edit').omnifunc(1, '')")
+    local items = child.lua_get("require('logpose.edit').omnifunc(0, '')")
+    return start, vim.tbl_map(function(i)
+      return i.word
+    end, items)
+  end
+  local start, w = words("project", "th")
+  eq({ start, w }, { 0, { "thesis" } })
+  _, w = words("status", "in")
+  eq(w, { "in-progress" })
+  start, w = words("tags", "ci, p") -- the last item of a list, without the ones already there
+  eq({ start, w }, { 4, { "perf" } })
+  _, w = words("due", "")
+  eq(w[1], "2026-10-15")
+  eq(#w, 14)
+  -- as you type: the menu opens, <Tab> picks, <CR> accepts
+  on("project")
+  child.type_keys("S", "th")
+  eq(child.fn.pumvisible(), 1)
+  child.type_keys("<Tab>", "<CR>", "<Esc>")
+  eq(values()[3], "thesis")
   child.type_keys("q")
-  eq(child.bo.filetype, "markdown")
-  H.contains(H.read(root .. "/tasks/fix.md"), "status: todo")
+  edit(root .. "/meetings/x.md")
+  _, w = words("attendees", "Ana, ")
+  eq(w, { "Luis" })
 end
 
 T["moving a meeting to another project moves the note and fixes links"] = function()
@@ -121,6 +292,11 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
   edit(old)
   set("project", "web")
   set("attendees", "Ana, Maria")
+  local d = drawn()
+  eq(d.below[2], "• move the note to meetings/web/, fixing 1 link to it")
+  eq(d.below[3], "• update attendees")
+  -- shown, not edited
+  assert(table.concat(d.below, "\n"):find("series%s+acme/retro"), "series shown below")
   child.cmd("write")
   local new = root .. "/meetings/web/2026-10-14 - retro.md"
   eq(vim.fn.filereadable(old), 0)
@@ -133,39 +309,21 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
   eq(child.api.nvim_buf_get_name(0), new)
 end
 
-T["completion offers what fits each field"] = function()
-  H.write(root .. "/tasks/fix.md", TASK)
-  H.write(root .. "/tasks/other.md", "---\ntitle: other\nstatus: todo\nproject: thesis\ntags: [perf]\n---\n")
-  H.write(
-    root .. "/meetings/x.md",
-    '---\ntype: retro\ndate: 2026-10-01\ntitle: "R"\nattendees: [Ana, Luis]\n---\n## Notes\n'
-  )
-  H.write(root .. "/projects/thesis.md", '---\ntitle: "Master thesis"\nproject: thesis\n---\n')
-  edit(root .. "/tasks/fix.md")
-  local function words(line, col)
-    child.api.nvim_buf_set_lines(0, 0, 1, false, { line })
-    child.api.nvim_win_set_cursor(0, { 1, col or #line })
-    local start = child.lua_get("require('logpose.edit').omnifunc(1, '')")
-    local items = child.lua_get("require('logpose.edit').omnifunc(0, '')")
-    return start, vim.tbl_map(function(i)
-      return i.word
-    end, items)
-  end
-  local start, w = words("project: th")
-  eq({ start, w }, { 9, { "thesis" } })
-  _, w = words("status: in")
-  eq(w, { "in-progress" })
-  start, w = words("tags: ci, p") -- the last item of a list, without the ones already there
-  eq({ start, w }, { 10, { "perf" } })
-  _, w = words("due: ")
-  eq(w[1], "2026-10-15")
-  eq(#w, 14)
-  _, w = words("des", 3) -- a field name the form doesn't have yet
-  eq(w, { "description: " })
-  _, w = words("bl", 2) -- one it already has isn't offered again
-  eq(w, {})
-  local _, people = words("attendees: ")
-  eq(people, { "Ana", "Luis" })
+T["+ adds a field and ? shows the keys"] = function()
+  H.write(root .. "/notes/q.md", '---\ntitle: "Queue design"\n---\n## Notes\n')
+  edit(root .. "/notes/q.md")
+  child.lua([[vim.ui.input = function(_, cb) cb('status') end]])
+  child.type_keys("+")
+  eq(drawn().rows[4].label, "status")
+  eq(child.fn.mode(), "i")
+  child.type_keys("draft", "<Esc>")
+  child.lua([[vim.ui.input = function(_, cb) cb('created') end]])
+  child.type_keys("+")
+  H.contains(last_msg(), "kept by logpose")
+  child.type_keys("?")
+  H.contains(table.concat(drawn().below, "\n"), "<C-a> <C-x>")
+  child.cmd("write")
+  H.contains(H.read(root .. "/notes/q.md"), "status: draft")
 end
 
 T["e on the board edits the card, and u undoes it"] = function()
@@ -187,7 +345,7 @@ T["e in the projects manager edits the project page"] = function()
   child.fn.search("acme")
   child.type_keys("e")
   eq(child.bo.filetype, "logpose-edit")
-  H.contains(table.concat(form(), "\n"), "paths: ")
+  eq(drawn().rows[3].label, "paths")
   set("title", "Acme API")
   set("description", "Payments")
   child.cmd("write")
@@ -195,18 +353,66 @@ T["e in the projects manager edits the project page"] = function()
   local page = H.read(root .. "/projects/acme.md")
   H.contains(page, 'title: "Acme API"')
   H.contains(page, "description: Payments")
-  H.contains(table.concat(form(), "\n"), "Acme API")
-  -- renaming a project belongs to R
+  H.contains(table.concat(values(), "\n"), "Acme API")
+  -- the project's own name isn't offered: renaming belongs to R
   child.type_keys("e")
+  eq(
+    vim.tbl_contains(
+      vim.tbl_map(function(r)
+        return r.label
+      end, drawn().rows),
+      "project"
+    ),
+    true
+  )
   set("project", "other")
-  child.cmd("write")
-  H.contains(child.notifications()[#child.notifications()].msg, "rename a project with R")
+  local msg
+  for _, r in pairs(drawn().rows) do
+    if r.label == "project" then
+      msg = r.eol
+    end
+  end
+  eq(msg, "✗ rename a project with R in :Logpose projects (it updates every note)")
 end
 
 T[":Logpose edit outside the journal says so"] = function()
   child.cmd("enew")
   child.cmd("Logpose edit")
-  H.contains(child.notifications()[#child.notifications()].msg, "works on a journal note")
+  H.contains(last_msg(), "works on a journal note")
+  child.cmd("Logpose edit last")
+  H.contains(last_msg(), "nothing captured yet")
+end
+
+T[":Logpose edit on quickfix lines edits those tasks together"] = function()
+  H.write(root .. "/tasks/a.md", TASK:gsub("Fix flaky test", "A"))
+  H.write(root .. "/tasks/b.md", TASK:gsub("Fix flaky test", "B"):gsub("project: acme", "project: thesis"))
+  child.lua(
+    ([[vim.fn.setqflist({ { filename = %q, lnum = 1, text = 'A' }, { filename = %q, lnum = 1, text = 'B' } })]]):format(
+      root .. "/tasks/a.md",
+      root .. "/tasks/b.md"
+    )
+  )
+  child.cmd("copen")
+  child.cmd("1,2Logpose edit")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(values(), { "todo", "", "ci", "", "" }) -- project differs: left empty, meaning "as is"
+  H.contains(drawn().rows[2].eol, "unchanged")
+  set("project", "none")
+  set("tags", "-ci +review")
+  set("due", "fri")
+  local d = drawn()
+  eq(d.rows[2].eol, "clears it")
+  eq(d.rows[3].eol, "adds review · removes ci")
+  eq(d.below[2], "• remove the project (logged)")
+  child.cmd("write")
+  for _, name in ipairs({ "a", "b" }) do
+    local text = H.read(root .. "/tasks/" .. name .. ".md")
+    H.contains(text, "project:\n")
+    H.contains(text, "tags: [review]")
+    H.contains(text, "due: 2026-10-16")
+    H.contains(text, "status: todo")
+  end
+  eq(last_msg(), "logpose: updated due, project, tags on 2 of 2 tasks")
 end
 
 return T
