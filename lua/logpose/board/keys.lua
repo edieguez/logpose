@@ -20,6 +20,8 @@ M.HELP = {
   "  c            compact cards on / off      s       rows per project on / off",
   "  p            this project / all          P       switch project",
   "  m            move the card to a project  e       edit the card's fields",
+  "  v            mark / unmark the card      V <Esc> unmark all",
+  "               (H L 1-9 x b m e then act on every marked card)",
   "  r            refresh                     q       close",
   "  ?            this help",
 }
@@ -149,7 +151,16 @@ function M.attach(b)
   end, "Switch project")
   map("e", function()
     actions.edit(b)
-  end, "Edit the card's frontmatter")
+  end, "Edit the card's (or marked cards') fields")
+  map("v", function()
+    actions.toggle_mark(b)
+  end, "Mark / unmark the card")
+  map("V", function()
+    actions.clear_marks(b)
+  end, "Unmark all")
+  map("<Esc>", function()
+    actions.clear_marks(b)
+  end, "Unmark all")
   map("m", function()
     actions.move_to_project(b)
   end, "Move the card to a project")

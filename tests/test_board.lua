@@ -544,6 +544,48 @@ T["c switches to one-line cards"] = function()
   eq(status(root .. "/tasks/fix-flaky.md"), "in-progress")
 end
 
+T["v marks cards; H/L, x and e then act on all of them, as one undo step"] = function()
+  child.cmd("Logpose board")
+  local function marked_files()
+    return child.lua_get([[vim.tbl_keys(require('logpose.board').boards[vim.fn.bufnr('logpose://board')].marked)]])
+  end
+  child.type_keys("v") -- Read paper, in Backlog
+  H.contains(title(), "1 marked")
+  H.contains(screen(), "━ ✓ ━") -- on the top border (still focused: the only card here)
+  child.type_keys("l", "v") -- Fix flaky test, in TODO
+  H.contains(title(), "2 marked")
+  eq(#marked_files(), 2)
+  child.type_keys("L")
+  eq(status(root .. "/tasks/read-paper.md"), "todo")
+  eq(status(root .. "/tasks/fix-flaky.md"), "in-progress")
+  H.contains(child.notifications()[#child.notifications()].msg, "moved 2 of 2 marked cards · u undoes")
+  child.type_keys("u") -- both at once
+  eq(status(root .. "/tasks/read-paper.md"), "backlog")
+  eq(status(root .. "/tasks/fix-flaky.md"), "todo")
+  -- e edits them together: fields they share are filled in, the others left "as is"
+  child.type_keys("e")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(child.api.nvim_buf_get_lines(0, 0, -1, false), { "", "", "", "", "" })
+  child.api.nvim_buf_set_lines(0, 1, 2, false, { "thesis" })
+  child.api.nvim_buf_set_lines(0, 2, 3, false, { "+urgent" })
+  child.cmd("write")
+  eq(child.bo.filetype, "logpose-board")
+  local fix = H.read(root .. "/tasks/fix-flaky.md")
+  H.contains(fix, "project: thesis")
+  H.contains(fix, "tags: [perf, urgent]") -- kept its own tag
+  H.contains(H.read(root .. "/tasks/read-paper.md"), "tags: [urgent]")
+  eq(status(root .. "/tasks/fix-flaky.md"), "todo") -- status left as it was
+  child.type_keys("u")
+  H.contains(H.read(root .. "/tasks/fix-flaky.md"), "project: acme")
+  -- x finishes both; V unmarks
+  child.type_keys("x")
+  eq(status(root .. "/tasks/read-paper.md"), "done")
+  eq(status(root .. "/tasks/fix-flaky.md"), "done")
+  child.type_keys("V")
+  eq(#marked_files(), 0)
+  eq(title():find("marked", 1, true), nil)
+end
+
 T["s groups the cards into rows per project"] = function()
   child.cmd("Logpose board")
   child.type_keys("s")

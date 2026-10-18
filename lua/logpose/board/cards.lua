@@ -29,6 +29,7 @@ M.HL = {
   LogposeBoardOverLimit = "DiagnosticError",
   LogposeBoardMore = "Comment",
   LogposeBoardFlash = "IncSearch",
+  LogposeBoardMarked = "DiagnosticOk",
 }
 --- Column colours by position (a column's `hl` overrides): grey, blue, yellow, purple, green.
 M.COLUMN_HL = { "Comment", "DiagnosticInfo", "DiagnosticWarn", "DiagnosticHint", "DiagnosticOk" }
@@ -66,6 +67,7 @@ M.ICONS = {
     down = "↓",
     focus = "▶",
     card = "•",
+    marked = "✓",
     empty = "· empty ·",
     box = UNICODE_BOX,
   },
@@ -79,6 +81,7 @@ M.ICONS = {
     down = "",
     focus = "",
     card = "•",
+    marked = "✓",
     empty = "· empty ·",
     box = UNICODE_BOX,
   },
@@ -92,6 +95,7 @@ M.ICONS = {
     down = "v",
     focus = ">",
     card = "-",
+    marked = "x",
     empty = "- empty -",
     box = {
       normal = { tl = "+", tr = "+", bl = "+", br = "+", h = "-", v = "|" },
@@ -124,13 +128,15 @@ end
 ---@param focused boolean
 ---@param compact? boolean one line, no box
 ---@return logpose.Chunk[][]
-function M.card_lines(it, w, today, col_hl, focused, compact)
+function M.card_lines(it, w, today, col_hl, focused, compact, marked)
   local ic = M.icons()
   if compact then
-    return { M.compact_line(it, w, today, col_hl, focused) }
+    return { M.compact_line(it, w, today, col_hl, focused, marked) }
   end
   local box = focused and ic.box.focus or ic.box.normal
-  local border = focused and "LogposeBoardFocus" or (it.blocked and "LogposeBoardBlocked" or col_hl)
+  local border = focused and "LogposeBoardFocus"
+    or (marked and "LogposeBoardMarked")
+    or (it.blocked and "LogposeBoardBlocked" or col_hl)
   local inner = math.max(w - 4, 1)
   local age = M.age(it, today)
   local stale = age and age >= config.get().board.stale_days
@@ -141,7 +147,18 @@ function M.card_lines(it, w, today, col_hl, focused, compact)
     table.insert(line, { " " .. box.v, border })
     table.insert(out, line)
   end
-  table.insert(out, { { box.tl .. string.rep(box.h, w - 2) .. box.tr, border } })
+  if marked and w >= 8 then
+    -- a check on the top border: ╭─ ✓ ───╮
+    local chip = " " .. ic.marked .. " "
+    local rest = math.max(w - 3 - vim.fn.strdisplaywidth(chip), 0)
+    table.insert(out, {
+      { box.tl .. box.h, border },
+      { chip, "LogposeBoardMarked" },
+      { string.rep(box.h, rest) .. box.tr, border },
+    })
+  else
+    table.insert(out, { { box.tl .. string.rep(box.h, w - 2) .. box.tr, border } })
+  end
   local title_hl = focused and "LogposeBoardFocusTitle" or (stale and "LogposeBoardFaded" or nil)
   for _, l in ipairs(text.wrap(it.text, inner, 2)) do
     row({ { l, title_hl } })
@@ -186,11 +203,14 @@ end
 ---@param col_hl string
 ---@param focused boolean
 ---@return logpose.Chunk[]
-function M.compact_line(it, w, today, col_hl, focused)
+function M.compact_line(it, w, today, col_hl, focused, marked)
   local ic = M.icons()
   local marker, marker_hl = ic.card, col_hl
   if it.blocked then
     marker, marker_hl = ic.blocked, "LogposeBoardBlocked"
+  end
+  if marked then
+    marker, marker_hl = ic.marked, "LogposeBoardMarked"
   end
   if focused then
     marker, marker_hl = ic.focus, "LogposeBoardFocus"

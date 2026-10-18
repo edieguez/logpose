@@ -52,7 +52,8 @@ local function column_block(b, ci, w, avail, today)
   end
   local lines = {}
   for ri, it in ipairs(col.cards) do
-    lines[ri] = cards.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row, b.compact)
+    lines[ri] =
+      cards.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row, b.compact, b.marked[it.file])
   end
   -- Do cards first..last fit, counting the "more" markers they'd need?
   local function fits(first, last)
@@ -154,7 +155,17 @@ function M.render_lanes(b, add_row, today)
           if lane_of(it) == lane then
             local focused = ci == b.focus.col and ri == b.focus.row
             for _, l in
-              ipairs(cards.card_lines(it, b.widths[ci], today, "LogposeBoardColumn" .. ci, focused, b.compact))
+              ipairs(
+                cards.card_lines(
+                  it,
+                  b.widths[ci],
+                  today,
+                  "LogposeBoardColumn" .. ci,
+                  focused,
+                  b.compact,
+                  b.marked[it.file]
+                )
+              )
             do
               table.insert(block, { chunks = l, card = ri })
             end
@@ -220,9 +231,27 @@ function M.render(b, width, height)
   -- columns and rows per project don't scroll on their own: the buffer does.
   local avail = (b.stacked or b.lanes or not height) and math.huge or math.max(height - 1, 5)
 
+  -- Marks only cover cards on the board (a filter or the project scope drops the others).
+  local visible, marked = {}, 0
+  for _, col in ipairs(b.columns) do
+    for _, it in ipairs(col.cards) do
+      visible[it.file] = true
+    end
+  end
+  for file in pairs(b.marked) do
+    if visible[file] then
+      marked = marked + 1
+    else
+      b.marked[file] = nil
+    end
+  end
+
   -- The window's top bar: title, scope, filter, modes, help.
   local scope = b.all and "all projects" or (b.project or "all projects")
   local modes = {}
+  if marked > 0 then
+    table.insert(modes, ("%d marked"):format(marked))
+  end
   if b.lanes then
     table.insert(modes, "by project")
   end

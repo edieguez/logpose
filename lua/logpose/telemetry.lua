@@ -38,6 +38,7 @@ local KEYWORDS = {
     "project",
     "switch",
     "edit",
+    "mark",
   }, -- recorded by the board's keys
 }
 
