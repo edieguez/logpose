@@ -569,6 +569,7 @@ T["v marks cards; H/L, x and e then act on all of them, as one undo step"] = fun
   child.api.nvim_buf_set_lines(0, 1, 2, false, { "thesis" })
   child.api.nvim_buf_set_lines(0, 2, 3, false, { "+urgent" })
   child.cmd("write")
+  child.type_keys("q")
   eq(child.bo.filetype, "logpose-board")
   local fix = H.read(root .. "/tasks/fix-flaky.md")
   H.contains(fix, "project: thesis")
