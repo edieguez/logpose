@@ -28,10 +28,14 @@ end
 ---@param vars table
 ---@param fm string[][]
 ---@param root string
-local function create(path, tpl, vars, fm, root)
+---@param no_open? boolean only create it
+---@return string path
+local function create(path, tpl, vars, fm, root, no_open)
   if fs.exists(path) then
-    open(path)
-    return
+    if not no_open then
+      open(path)
+    end
+    return path
   end
   local rendered = template.render(template.load(tpl, root), template.vars(date.today(), vars))
   local lines = { "---" }
@@ -48,7 +52,11 @@ local function create(path, tpl, vars, fm, root)
   if not ok then
     error(err, 0)
   end
-  open(path, cursor)
+  require("logpose.index").clear_cache()
+  if not no_open then
+    open(path, cursor)
+  end
+  return path
 end
 
 --- Topic note `notes/<slug>.md`.
@@ -74,16 +82,25 @@ function M.note(root, title)
   )
 end
 
---- Project page `projects/<slug>.md`.
+--- Project page `projects/<slug>.md`, created if needed and opened (unless `opts.open == false`).
 ---@param root string
 ---@param name string
-function M.project_page(root, name)
+---@param opts? { open?: boolean }
+---@return string path
+function M.project_page(root, name, opts)
   local slug = require("logpose.project").normalize(name)
   if not slug then
     error(("logpose: invalid project name %q"):format(name), 0)
   end
   local fm = { { "title", yaml_string(name) }, { "type", "project" }, { "project", slug }, { "tags", "[]" } }
-  create(fs.join(config.path("projects", root), slug .. ".md"), "project", { title = name, project = slug }, fm, root)
+  return create(
+    fs.join(config.path("projects", root), slug .. ".md"),
+    "project",
+    { title = name, project = slug },
+    fm,
+    root,
+    opts and opts.open == false
+  )
 end
 
 ---@param opts logpose.CommandOpts

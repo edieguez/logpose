@@ -81,9 +81,9 @@ function M.current()
 end
 
 --- Project pages: `projects/<name>.md`, keyed by project. A page is what makes a project exist
---- before it has any notes or tasks.
+--- before it has any notes or tasks, and where `archived: true` is kept.
 ---@param root string
----@return table<string, { path: string, title?: string }>
+---@return table<string, { path: string, archived: boolean, title?: string }>
 function M.pages(root)
   local out = {}
   local dir = config.path("projects", root)
@@ -97,22 +97,45 @@ function M.pages(root)
       local fm = index.frontmatter(fs.read_lines(path) or {})
       local name = M.normalize(type(fm.project) == "string" and fm.project or entry:gsub("%.md$", ""))
       if name then
-        out[name] = { path = path, title = type(fm.title) == "string" and fm.title or nil }
+        out[name] = {
+          path = path,
+          archived = fm.archived == "true" or fm.archived == "yes",
+          title = type(fm.title) == "string" and fm.title or nil,
+        }
       end
     end
   end
   return out
 end
 
---- Every project the journal knows about: the pinned one, `projects.paths`, project pages,
---- meeting folders, and the `project:` of any note or task.
+--- Archived projects (from their pages).
 ---@param root? string
+---@return table<string, boolean>
+function M.archived(root)
+  local out = {}
+  if not root then
+    return out
+  end
+  for name, page in pairs(M.pages(root)) do
+    if page.archived then
+      out[name] = true
+    end
+  end
+  return out
+end
+
+--- Every project the journal knows about: the pinned one, `projects.paths`, project pages,
+--- meeting folders, and the `project:` of any note or task. Archived projects are left out
+--- unless `opts.archived`.
+---@param root? string
+---@param opts? { archived?: boolean }
 ---@return string[]
-function M.known(root)
+function M.known(root, opts)
   local seen, out = {}, {}
+  local archived = (opts and opts.archived) and {} or M.archived(root)
   local function add(name)
     name = name and M.normalize(name)
-    if name and not seen[name] then
+    if name and not seen[name] and not archived[name] then
       seen[name] = true
       table.insert(out, name)
     end
@@ -143,8 +166,54 @@ function M.known(root)
   return out
 end
 
+--- Archive (or restore) a project: `archived: true` in its page, created if it has none. Its
+--- notes and tasks stay where they are and stay searchable; it just drops out of completion,
+--- the project picker and the all-projects board. Archiving the pinned project unpins it.
+---@param root string
+---@param name string
+---@param archived boolean
+function M.set_archived(root, name, archived)
+  local slug = M.normalize(name)
+  if not slug then
+    error(("logpose: invalid project name %q"):format(name), 0)
+  end
+  local page = M.pages(root)[slug]
+  local path = page and page.path or require("logpose.notes.topic").project_page(root, slug, { open = false })
+  local ok, err = fs.update_lines(path, function(lines)
+    local close
+    for i = 2, #lines do
+      if lines[i] == "---" then
+        close = i
+        break
+      end
+    end
+    if lines[1] ~= "---" or not close then
+      return nil
+    end
+    for i = 2, close - 1 do
+      if lines[i]:match("^archived:") then
+        table.remove(lines, i)
+        close = close - 1
+        break
+      end
+    end
+    if archived then
+      table.insert(lines, close, "archived: true")
+    end
+    return lines
+  end, { tidy = true })
+  if not ok then
+    error(err, 0)
+  end
+  require("logpose.index").clear_cache()
+  if archived and state.get("project") == slug then
+    state.set("project", nil)
+  end
+  M.changed()
+end
+
 --- Tell open boards, the statusline and anyone listening (`User LogposeProjectChanged`) that the
---- active project changed.
+--- active project or the list of projects changed.
 function M.changed()
   pcall(function()
     require("logpose.statusline").clear()
