@@ -45,7 +45,7 @@ function M.move_meeting(root, path, from, to)
     if e.key == "series" and type(e.value) == "string" and e.value ~= "" then
       local rest = (from and e.value:match("^" .. vim.pesc(from) .. "/(.+)$")) or e.value
       local series = to and (to .. "/" .. rest) or rest
-      lines = fields.apply_lines(lines, { series = series })
+      lines = require("logpose.frontmatter").set(lines, { series = series })
     end
   end
   table.insert(changes, { path = path, content = table.concat(lines, "\n") .. "\n", count = 1 })
@@ -118,13 +118,9 @@ function M.note(root, path, kind, changed, opts)
       meeting_move.to = nil
     end
   end
-  local rendered = {}
-  for key, v in pairs(changed) do
-    rendered[key] = v and fields.render(key, v) or false
-  end
-  if next(rendered) then
+  if next(changed) then
     local ok, err = fs.update_lines(path, function(lines)
-      return fields.apply_lines(lines, rendered)
+      return require("logpose.frontmatter").set(lines, changed)
     end, { tidy = true })
     if not ok then
       error(err, 0)

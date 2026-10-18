@@ -80,27 +80,6 @@ function M.is_task_file(path, root)
   return vim.startswith(path, dir .. "/") and path:sub(-3) == ".md"
 end
 
----@param s string
-local function yaml_string(s)
-  return '"' .. s:gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
-end
-
----@param key string
----@param value any
----@return string
-local function fm_line(key, value)
-  if value == nil or value == "" or value == false then
-    return key .. ":"
-  end
-  if key == "title" then
-    return "title: " .. yaml_string(value)
-  end
-  if key == "tags" then
-    return "tags: [" .. table.concat(value, ", ") .. "]"
-  end
-  return key .. ": " .. tostring(value)
-end
-
 ---@param s any
 ---@return string?
 local function str(s)
@@ -222,45 +201,16 @@ end
 ---@param value any nil/"" leaves the key empty
 ---@return string[]
 function M.set_field(lines, key, value)
-  local new = fm_line(key, value)
-  if lines[1] ~= "---" then
-    local out = { "---", new, "---" }
-    vim.list_extend(out, lines)
-    return out
-  end
-  local close
-  for i = 2, #lines do
-    if lines[i] == "---" then
-      close = i
-      break
-    end
-    if lines[i]:match("^" .. vim.pesc(key) .. ":") then
-      if key == "order" and (value == nil or value == "") then
-        table.remove(lines, i) -- order only exists while a card is placed by hand
-      else
-        lines[i] = new
-      end
-      return lines
+  -- `order` only exists while a card is placed by hand; other keys are kept, empty, when cleared
+  local v = value
+  if v == nil or v == "" then
+    if key == "order" then
+      v = false -- removed
+    else
+      v = ""
     end
   end
-  if not close or value == nil or value == "" then
-    return lines -- clearing a key that isn't there: nothing to do
-  end
-  -- Insert before the first known key that comes after `key`, else before the closing ---.
-  local rank = {}
-  for i, k in ipairs(M.KEYS) do
-    rank[k] = i
-  end
-  local at = close
-  for i = 2, close - 1 do
-    local k = lines[i]:match("^([%w_%-]+):")
-    if k and rank[k] and rank[key] and rank[k] > rank[key] then
-      at = i
-      break
-    end
-  end
-  table.insert(lines, at, new)
-  return lines
+  return require("logpose.frontmatter").set(lines, { [key] = v }, { order = M.KEYS })
 end
 
 --- Append `entry` to the `## Log` section (created at the end if missing).
@@ -494,7 +444,7 @@ function M.create(root, t)
   }
   for _, k in ipairs(M.KEYS) do
     if k ~= "order" and not (k == "modified" and values.modified == nil) then
-      table.insert(fm, fm_line(k, values[k]))
+      table.insert(fm, require("logpose.frontmatter").line(k, values[k]))
     end
   end
   table.insert(fm, "---")
