@@ -25,6 +25,7 @@ local track = vim.api.nvim_create_namespace("logpose.edit.track")
 ---@field help boolean
 ---@field links? integer
 ---@field on_save? fun(path: string|string[], keys: string[])
+---@field confirm_close? boolean  q was pressed once with unsaved changes
 ---@field accepted? string  the line as a completion left it (the menu isn't reopened for it)
 
 ---@type table<integer, logpose.EditForm>
@@ -49,8 +50,8 @@ M.HELP = {
   { "<C-a> <C-x>", "next / previous value; a day later / earlier" },
   { "dd", "clear a field" },
   { "+", "add a field" },
-  { "<C-s>  :w", "save" },
-  { "q", "cancel" },
+  { "<C-s>  :w", "save (the form stays open)" },
+  { "q  :wq", "close; :wq saves first" },
 }
 
 -- Candidates ---------------------------------------------------------------------------------
@@ -305,6 +306,7 @@ function M.render(f)
     return
   end
   M.repair(f)
+  f.confirm_close = nil
   local model = f.model
   local t = texts(f)
   local r = fields.collect(model, t, f.ctx)
@@ -572,6 +574,71 @@ local function close(f)
   end
 end
 
+--- Has anything been typed that isn't saved?
+---@param f logpose.EditForm
+---@return boolean
+local function dirty(f)
+  local lines = vim.api.nvim_buf_get_lines(f.buf, 0, -1, false)
+  for i, key in ipairs(f.model.keys) do
+    if vim.trim(lines[i] or "") ~= vim.trim(f.model.initial[key] or "") then
+      return true
+    end
+  end
+  return false
+end
+
+--- `q` / `<Esc>`: close; with unsaved changes, only when pressed a second time.
+---@param f logpose.EditForm
+function M.close(f)
+  if dirty(f) and not f.confirm_close then
+    f.confirm_close = true
+    ui.notify("logpose: unsaved changes: <C-s> saves them, q again discards them", vim.log.levels.WARN)
+    return
+  end
+  close(f)
+end
+
+--- The window's title for a model.
+---@param model logpose.EditModel
+---@param width integer
+---@return string
+local function window_title(model, width)
+  if model.bulk then
+    return " Edit " .. model.title .. " "
+  end
+  return " Edit · " .. require("logpose.board.text").fit(model.title, width - 12):gsub("%s+$", "") .. " "
+end
+
+--- After a save: read the note(s) back, so the form shows what was written (dates resolved,
+--- names slugged) and further changes start from there. The form's undo history starts over.
+---@param f logpose.EditForm
+---@param path? string  where the note is now (a meeting may have moved)
+local function reload(f, path)
+  local model = f.model
+  f.model = model.bulk and fields.load_bulk(model.bulk.paths, model.root) or fields.load(path, model.root)
+  f.links, f.accepted, f.confirm_close = nil, nil, nil
+  local lines = {}
+  for _, key in ipairs(f.model.keys) do
+    table.insert(lines, f.model.initial[key] or "")
+    f.label_w = math.max(f.label_w, #key + 2)
+  end
+  local row = vim.api.nvim_win_is_valid(f.win) and vim.api.nvim_win_get_cursor(f.win)[1] or 1
+  vim.bo[f.buf].undolevels = -1
+  vim.api.nvim_buf_set_lines(f.buf, 0, -1, false, lines)
+  vim.bo[f.buf].undolevels = -123456
+  vim.api.nvim_buf_clear_namespace(f.buf, track, 0, -1)
+  f.marks = {}
+  if path then
+    pcall(vim.api.nvim_buf_set_name, f.buf, "logpose://edit/" .. vim.fs.basename(path))
+  end
+  vim.bo[f.buf].modified = false
+  M.render(f)
+  if vim.api.nvim_win_is_valid(f.win) then
+    vim.api.nvim_win_set_config(f.win, { title = window_title(f.model, vim.api.nvim_win_get_width(f.win)) })
+    goto_field(f, row)
+  end
+end
+
 --- Save: refuses (and shows the field) while something doesn't check out.
 ---@param f logpose.EditForm
 function M.save(f)
@@ -585,33 +652,32 @@ function M.save(f)
       end
     end
   end
+  -- the form stays open for more changes: q (or :wq) closes it
   local model = f.model
   if model.bulk then
     local updated, keys = save.bulk(model, r.changed)
-    vim.bo[f.buf].modified = false
-    close(f)
+    reload(f)
     if #keys == 0 then
-      ui.notify("logpose: nothing changed", vim.log.levels.INFO)
+      ui.notify("logpose: nothing to save", vim.log.levels.INFO)
     else
       ui.notify(
-        ("logpose: updated %s on %d of %d tasks"):format(table.concat(keys, ", "), updated, #model.bulk.paths),
+        ("logpose: saved %s on %d of %d tasks"):format(table.concat(keys, ", "), updated, #model.bulk.paths),
         vim.log.levels.INFO
       )
     end
-    if f.on_save then
+    if f.on_save and #keys > 0 then
       f.on_save(model.bulk.paths, keys)
     end
     return
   end
   local path, keys = save.note(model.root, model.path, model.kind, r.changed)
-  vim.bo[f.buf].modified = false
-  close(f)
+  reload(f, path)
   if #keys == 0 then
-    ui.notify("logpose: nothing changed", vim.log.levels.INFO)
+    ui.notify("logpose: nothing to save", vim.log.levels.INFO)
   else
-    ui.notify(("logpose: updated %s"):format(table.concat(keys, ", ")), vim.log.levels.INFO)
+    ui.notify(("logpose: saved %s"):format(table.concat(keys, ", ")), vim.log.levels.INFO)
   end
-  if f.on_save then
+  if f.on_save and #keys > 0 then
     f.on_save(path, keys)
   end
 end
@@ -657,8 +723,7 @@ function M.show(model, opts)
     longest = math.max(longest, vim.fn.strdisplaywidth(l))
   end
   local width = math.min(math.max(72, label_w + longest + 30), math.max(40, vim.o.columns - 6))
-  local title = model.bulk and (" Edit " .. model.title .. " ")
-    or (" Edit · " .. require("logpose.board.text").fit(model.title, width - 12):gsub("%s+$", "") .. " ")
+  local title = window_title(model, width)
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     row = math.floor((vim.o.lines - 2 - #lines) / 2),
@@ -668,7 +733,7 @@ function M.show(model, opts)
     border = "rounded",
     title = title,
     title_pos = "center",
-    footer = " <C-s> save · q cancel · ? keys ",
+    footer = " <C-s> save · q close · ? keys ",
     footer_pos = "right",
   })
   if package.loaded["cmp"] then
@@ -780,11 +845,11 @@ function M.show(model, opts)
     ui.safely(M.save)(f)
   end, "Save")
   map("n", "q", function()
-    close(f)
-  end, "Cancel")
+    M.close(f)
+  end, "Close")
   map("n", "<Esc>", function()
-    close(f)
-  end, "Cancel")
+    M.close(f)
+  end, "Close")
   map("n", "<CR>", M.pick, "Pick a value")
   map("n", "o", function()
     M.next_field(1)
