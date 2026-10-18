@@ -10,6 +10,28 @@ local M = {}
 ---@type table<string, string>
 M.project_hl = {}
 
+--- A project's colour mixed with the background: for card borders, coloured but quieter than
+--- the text. Without true colours, the project's colour itself.
+---@param name string
+---@return string
+function M.project_border(name)
+  local source = M.project_group(name)
+  local group = "LogposeProjectBorder_" .. name:gsub("[^%w]", "_")
+  local fg = vim.api.nvim_get_hl(0, { name = source, link = false }).fg
+  if not (vim.o.termguicolors and fg) then
+    vim.api.nvim_set_hl(0, group, { link = source })
+    return group
+  end
+  local bg = vim.api.nvim_get_hl(0, { name = "Normal", link = false }).bg
+    or (vim.o.background == "light" and 0xffffff or 0x000000)
+  local function mix(shift)
+    local a, b = math.floor(fg / shift) % 256, math.floor(bg / shift) % 256
+    return math.floor(a * 0.6 + b * 0.4 + 0.5)
+  end
+  vim.api.nvim_set_hl(0, group, { fg = mix(65536) * 65536 + mix(256) * 256 + mix(1) })
+  return group
+end
+
 --- A project's colour: its page's `color:`, else an automatic one from the colour scheme.
 ---@param name string
 ---@return string
@@ -284,11 +306,12 @@ function M.card_lines(it, w, today, o)
   end
   local st = M.state(it, today)
   local box = o.focused and ic.box.focus or ic.box.normal
-  local by_column = config.get().board.border == "column"
+  local style = config.get().board.border
   local border = o.focused and "LogposeBoardFocus"
     or (o.marked and "LogposeBoardMarked")
-    or (by_column and (st.blocked and "LogposeBoardBlocked" or o.col_hl))
+    or (style == "column" and (st.blocked and "LogposeBoardBlocked" or o.col_hl))
     or (st.done and "LogposeBoardDoneBorder")
+    or (style == "project" and it.project and M.project_border(it.project))
     or "LogposeBoardBorder"
   -- a blocked card's left edge is red whatever else its border shows
   local left = st.blocked and { ic.edge .. " ", "LogposeBoardBlocked" } or { box.v .. " ", border }
