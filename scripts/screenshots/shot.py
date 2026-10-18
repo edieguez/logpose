@@ -1,7 +1,7 @@
 import re, sys, html, pathlib
 from playwright.sync_api import sync_playwright
 d = pathlib.Path(sys.argv[1])
-views = [("board", "~/journal — :Logpose board"), ("today", ":Logpose today"), ("projects", ":Logpose projects")]
+views = [("board", "~/journal — :Logpose board"), ("today", ":Logpose today"), ("projects", ":Logpose projects"), ("edit", ":Logpose edit — Fix flaky checkout test")]
 out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
 with sync_playwright() as p:
     b = p.chromium.launch()
@@ -18,7 +18,7 @@ with sync_playwright() as p:
             wb = f'<div class="winbar"><b>{html.escape(left.split(" · ")[0])}</b> · {html.escape(" · ".join(left.split(" · ")[1:]))}<span>{html.escape(right.strip())}</span></div>'
         page = f"""<!doctype html><meta charset=utf-8><style>
         body {{ margin:0; background:transparent; }}
-        .win {{ display:inline-block; margin:24px; border-radius:10px; overflow:hidden;
+        .win {{ display:inline-block; margin:24px; min-width:560px; border-radius:10px; overflow:hidden;
                box-shadow: 0 12px 32px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06); }}
         .bar {{ background:#15161e; color:#565f89; font:12px -apple-system, 'DejaVu Sans', sans-serif;
                padding:9px 14px; position:relative; text-align:center; }}
@@ -33,6 +33,24 @@ with sync_playwright() as p:
         {style}
         </style><div class=win><div class=bar><i><b></b><b></b><b></b></i>{html.escape(title)}</div>
         <div class=term>{wb}<pre>{pre}</pre></div></div>"""
+        pum_file = d / f"{name}.pum.json"
+        if pum_file.exists():
+            import json
+            pum = json.loads(pum_file.read_text())
+            c = pum["colors"]
+            rows = []
+            wmax = max(len(it["word"]) for it in pum["items"])
+            for i, it in enumerate(pum["items"]):
+                sel = i == pum["selected"]
+                bg = (c["sel"] if sel else c["menu"])["bg"] or "#2d3149"
+                fg = (c["sel"] if sel else c["menu"])["fg"] or "#c0caf5"
+                extra = c["extra"]["fg"] or "#565f89"
+                rows.append(f'<div style="background:{bg};color:{fg};padding:0 1ch;white-space:pre">'
+                            f'{html.escape(it["word"].ljust(wmax))}<span style="color:{extra};margin-left:2ch">{html.escape(it["menu"])}</span></div>')
+            menu = (f'<div style="position:absolute;top:calc(10px + {pum["row"]} * 1.32em);'
+                    f'left:calc(18px + {pum["col"]}ch);box-shadow:0 6px 16px rgba(0,0,0,.4)">' + "".join(rows) + "</div>")
+            page = page.replace("<pre>", '<pre style="position:static">').replace("</pre></div></div>", "</pre>" + menu + "</div></div>")
+            page = page.replace(".term {", ".term { position:relative;", 1)
         pg.set_content(page)
         pg.locator(".win").screenshot(path=str(out / f"{name}.png"), omit_background=True)
         print("wrote", name)
