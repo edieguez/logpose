@@ -170,10 +170,10 @@ M.defaults = {
     stale_days = 7,
     --- Columns folded to a narrow strip when the board opens (`z` toggles), e.g. { "done" }.
     collapsed = {},
-    --- Card borders: "neutral" (one quiet colour; colour is kept for focus, blocked, due dates)
-    --- or "column" (each card in its column's colour).
-    ---@type "neutral"|"column"
-    border = "neutral",
+    --- Card borders: "project" (tinted with the card's project colour), "neutral" (one quiet
+    --- colour) or "column" (each card in its column's colour).
+    ---@type "project"|"neutral"|"column"
+    border = "project",
     --- Glyphs: "unicode", "nerd" (needs a Nerd Font) or "ascii".
     ---@type "unicode"|"nerd"|"ascii"
     icons = "unicode",
@@ -386,8 +386,8 @@ local function validate(opts)
   check("board.min_column_width", opts.board.min_column_width, "number")
   check("board.stale_days", opts.board.stale_days, "number")
   check("board.collapsed", opts.board.collapsed, "table")
-  if opts.board.border ~= "neutral" and opts.board.border ~= "column" then
-    error('logpose: `board.border` must be "neutral" or "column"', 0)
+  if not vim.tbl_contains({ "project", "neutral", "column" }, opts.board.border) then
+    error('logpose: `board.border` must be "project", "neutral" or "column"', 0)
   end
   if not vim.tbl_contains({ "unicode", "nerd", "ascii" }, opts.board.icons) then
     error('logpose: `board.icons` must be "unicode", "nerd" or "ascii"', 0)

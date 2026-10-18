@@ -471,7 +471,7 @@ T["the focused card has a background; a one-project board leaves the project off
   H.contains(screen(), "◆ acme")
 end
 
-T["board.border = 'column' colours each card like its column"] = function()
+T["card borders: the project's colour by default, or neutral, or the column's"] = function()
   local function border_groups()
     return child.lua_get([[(function()
       local seen = {}
@@ -481,12 +481,27 @@ T["board.border = 'column' colours each card like its column"] = function()
       return seen
     end)()]])
   end
+  child.o.termguicolors = true
   child.cmd("Logpose board")
-  eq(border_groups().LogposeBoardBorder, true)
+  child.type_keys("l") -- off the thesis card: the focused one has the focus border
+  local g = border_groups()
+  eq(g.LogposeProjectBorder_acme, true)
+  eq(g.LogposeProjectBorder_thesis, true)
+  -- the project's colour, mixed with the background: a different colour from the project's own
+  local function fg(name)
+    return child.lua_get(("vim.api.nvim_get_hl(0, { name = %q, link = false }).fg"):format(name))
+  end
+  eq(fg("LogposeProjectBorder_acme") ~= nil, true)
+  eq(fg("LogposeProjectBorder_acme") ~= fg("LogposeProject_acme"), true)
+  child.cmd("bwipeout")
+  setup("{ board = { border = 'neutral' } }")
+  child.cmd("Logpose board")
+  g = border_groups()
+  eq({ g.LogposeBoardBorder, g.LogposeProjectBorder_acme }, { true, nil })
   child.cmd("bwipeout")
   setup("{ board = { border = 'column' } }")
   child.cmd("Logpose board")
-  local g = border_groups()
+  g = border_groups()
   eq(g.LogposeBoardBorder, nil)
   eq(g.LogposeBoardColumn2, true)
   MiniTest.expect.error(function()
