@@ -21,7 +21,8 @@ Requires Neovim 0.10 or later.
 - **Guide:** [Daily notes and standup](#daily-notes-and-standup) · [Meetings](#meetings) ·
   [Tasks and the board](#tasks-and-the-board) · [Today screen](#the-today-screen) ·
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
-  [Links](#topic-notes-and-links) · [Sprints and reports](#sprints-archives-and-reports) ·
+  [Editing a note's details](#editing-a-notes-details) · [Links](#topic-notes-and-links) ·
+  [Sprints and reports](#sprints-archives-and-reports) ·
   [Extras](#extras)
 - **Reference:** [Commands](#commands) · [Board keys](#board-keys) ·
   [Search filters](#search-filters) · [Keymaps](#keymaps) · [Configuration](#configuration) ·
@@ -203,6 +204,7 @@ board):
 | `b` | Block (asks for the reason) or unblock. |
 | `a` | Add a card to this column. |
 | `K` | Peek: open the task in a floating window to read or edit it. |
+| `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
 | `<CR>` | Open the task file. |
 | `u` / `<C-r>` | Undo / redo the last board change, exactly, log lines included. |
 
@@ -312,6 +314,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `t` / `f` | Search its open tasks / its notes. |
 | `a` | Add a project: its name, then its repo folder (suggested from where you came from). |
 | `p` | Link another repo folder to the project. |
+| `e` | Edit its name, description, repo folders and colour in a form. |
 | `R` | Rename it everywhere: tasks, notes, tags, its meeting folder and page, and links. |
 | `M` | Merge it into another project. |
 | `D` / `U` | Archive it / restore it (`A` shows archived projects). |
@@ -411,6 +414,36 @@ in `find`.
 
 **People** come from meeting `attendees:`, 1:1s and `@mentions`. `:Logpose find people` lists
 everyone with how much involves them; pick a person to see all of it.
+
+## Editing a note's details
+
+**Fix a task's project, a meeting's attendees or a due date without editing YAML.**
+
+`:Logpose edit` (or `e` on a board card, or `e` on a project in `:Logpose projects`) opens the
+note's frontmatter as a small form, one field per line:
+
+![The edit form for a task, with the project field's completion menu open](docs/images/edit.png)
+
+As you type a value, a menu offers what fits that field: your projects (with their names), the
+board's columns, tags you already use, people from your meetings, meeting types, and the next
+two weeks for dates. Lists like `tags` and `attendees` are written `a, b`, and the menu offers
+the next item. Before the colon, it offers the fields the form doesn't have yet. `<Tab>` opens
+or moves through the menu, `<CR>` accepts, `<C-s>` (or `:w`) saves and `q` cancels.
+
+Saving does what logpose would do:
+
+- a task's **status**, **project** and **blocked** go through the board's code, so they're
+  logged in the task and `started`/`done` are kept up to date (and `u` on the board undoes an
+  edit made there);
+- **dates** accept `today`, `tomorrow`, `+3d` or `+1w` and are saved as dates;
+- moving a **meeting** to another project moves the note into that project's folder, follows
+  its series, and fixes links to it, including the `- project:` label in your daily note;
+- on a **project page**, you can change its name, description, repo folders and colour
+  (renaming the project itself is `R` in `:Logpose projects`, since that updates every note).
+
+Fields logpose keeps itself (`created`, `modified`, `started`, `done`, `series`) are shown at the
+bottom for reference. Anything invalid, like an unknown status, is reported and the form stays
+open, so nothing you typed is lost.
 
 ## Topic notes and links
 
@@ -555,6 +588,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `project [NAME\|none]` | Switch project (a picker without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
+| `edit` | Edit this note's frontmatter in a form, with completion. |
 
 ### Sprints and maintenance
 
@@ -582,8 +616,9 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `c` | compact one-line cards | `s` | one row per project |
 | `<CR>` | open the task file | `/` | filter (same filters as `find`) |
 | `p` | this project / all projects | `P` | switch project |
-| `m` | move the card to another project | `r` | refresh |
-| `q` | close | `?` | help |
+| `m` | move the card to another project | `e` | edit the card's fields |
+| `r` | refresh | `q` | close |
+| `?` | help | | |
 
 ## Search filters
 
@@ -616,6 +651,7 @@ and it never replaces a key you've mapped yourself.
 | `<leader>jy` | today | `<leader>js` | standup |
 | `<leader>jk` | board | `<leader>jm` | meeting note |
 | `<leader>jw` | switch project | `<leader>jP` | manage projects |
+| `<leader>je` | edit frontmatter | | |
 | `<leader>jc` | capture a task | `<leader>jx` | mark done (normal and visual) |
 | `<leader>jp` | promote to task file | `<leader>jn` | topic note |
 | `<leader>jf` | find notes | `<leader>jt` | open tasks |

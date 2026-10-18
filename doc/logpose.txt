@@ -21,6 +21,7 @@ CONTENTS                                                    *logpose-contents*
        Project pages ....................... |logpose-project-page|
        Search .............................. |logpose-search|
        Action items and people ............. |logpose-actions|
+       Editing a note's details ............ |logpose-edit|
        Topic notes and links ............... |logpose-links|
        Sprints, archives and reports ....... |logpose-sprints|
        Statusline .......................... |logpose-statusline|
@@ -255,6 +256,7 @@ The active project is marked with `●`.
   t      its open tasks                f  its notes
   a      add a project (name, then repo folder)
   p      link another repo folder      R  rename it everywhere
+  e      edit its name, description, repo folders and colour
   M      merge it into another one     c  back to auto-detect
   D      archive it                    U  restore an archived one
   A      show / hide archived          r  refresh
@@ -339,6 +341,36 @@ People come from meeting `attendees:`, the person of a 1:1 and `@mentions`.
 search.
 
 Options: `me`, `actions`.
+
+------------------------------------------------------------------------------
+EDITING A NOTE'S DETAILS                                        *logpose-edit*
+
+|:Logpose-edit| (or `e` on a board card, or `e` on a project in
+|:Logpose-projects|) opens the note's frontmatter as a form in a floating
+window, one `key: value` per line. Lists (`tags`, `attendees`, `paths`) are
+written `a, b`. Fields logpose keeps itself (`created`, `modified`,
+`started`, `done`, `series`) are shown below as comments and can't be edited.
+
+As you type a value, a menu offers what fits the field: projects, board
+columns (`status`), existing tags, people, meeting types, the next two weeks
+(`due`, `date`) and folders (`paths`). In a list it completes the next item.
+Before the colon it offers fields the form doesn't have yet. <C-x><C-o> also
+works.
+
+  <Tab> <S-Tab>  open / move through the menu     <CR>  accept
+  <C-s>  :w      save                             q <Esc>  cancel (normal)
+
+Saving applies the changes the way logpose would:
+  - a task's `status`, `project` and `blocked` go through the board's code:
+    logged in the task, `started`/`done` kept; `u` on the board undoes an
+    edit made there;
+  - dates accept YYYY-MM-DD, `today`, `tomorrow`, `+3d`, `+1w`;
+  - a meeting moved to another project moves into that project's folder,
+    its `series` follows, and links to it (with the `- project:` label in
+    daily notes) are fixed;
+  - a project page's `project` can't change here: rename with `R` in
+    |:Logpose-projects|.
+Invalid values are reported and the form stays open.
 
 ------------------------------------------------------------------------------
 TOPIC NOTES AND LINKS                                          *logpose-links*
@@ -526,6 +558,11 @@ Notes and projects ~
     Create (from the `note` template) or open `notes/{slug}.md`. Prompts
     without {title}.
 
+                                                               *:Logpose-edit*
+:Logpose edit
+    Edit the current note's frontmatter in a form with completion. See
+    |logpose-edit|.
+
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
     Switch to project {name} ({name} is slugified), or `none` to go back to
@@ -624,6 +661,7 @@ Sprints and maintenance ~
   p             this project / all projects
   P             switch project (|logpose-projects|)
   m             move the card to another project
+  e             edit the card's fields (|logpose-edit|)
   r             refresh
   q             close
   ?             help
@@ -662,6 +700,7 @@ you have mapped yourself are never replaced.
   <leader>jy  today                 <leader>js  standup
   <leader>jk  board                 <leader>jm  meeting note
   <leader>jw  switch project        <leader>jP  manage projects
+  <leader>je  edit frontmatter
   <leader>jc  capture a task        <leader>jx  mark done (normal, visual)
   <leader>jp  promote to task file  <leader>jn  topic note
   <leader>jf  find notes            <leader>jt  open tasks

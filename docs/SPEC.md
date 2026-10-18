@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -389,6 +389,18 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   page, `t` open tasks, `f` notes, `a` add (name, then repo folder, suggested from the
   previous window's repo), `p` link a repo folder, `R` rename, `M` merge, `D` archive, `U`
   restore, `A` show archived, `r` refresh, `q` close, `?` help.
+- **Frontmatter editor** (`:Logpose edit`, `edit.lua`, 0.29.0; `e` on the board and in the
+  project manager): a float with one `key: value` per field (per note type, plus keys the note
+  has; lists as `a, b`; managed keys `created modified started done series order merged_into
+  archived` as `#` comments). Completion as you type with the built-in popup (completion plugins
+  are turned off in that buffer): projects, columns, tags, people, meeting types, the next 14
+  days, folders, and missing field names; `omnifunc` too. Save validates (column key or label,
+  slugged project, dates through `date.resolve`, known meeting type), then writes plain fields
+  with `fs.update_lines` and task `status`/`project`/`blocked` through `taskfile.set_*`
+  (logged); a meeting's project change moves the file to the project's meeting folder, rewrites
+  `series` and links (`maintenance.rewrite_links`, also the daily `- project:` label) and removes
+  the emptied folder. A project page's `project` is refused (rename with `R`). On the board the
+  edit is one undo step.
 - **Moving tasks** (0.27.0): `m` on the board (undoable) and `:Logpose move [project|none]` in
   a task file set `project:` and log `project: old → new`.
 - **Merging** (`M`, `:Logpose merge-project old new`, 0.27.0): the rename plan with `merge`:
