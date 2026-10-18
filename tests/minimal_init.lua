@@ -11,6 +11,10 @@ end
 table.insert(rtp, root .. "/deps/mini.nvim")
 vim.opt.rtp = rtp
 vim.opt.packpath = {}
+-- Neovim 0.12 ships netrw as an optional package; with no packpath its plugin stub errors at
+-- startup (E919), and that error costs every child Neovim about a second. Tests don't need it.
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
 vim.o.swapfile = false
 vim.o.shadafile = "NONE"
 
