@@ -166,6 +166,7 @@ M.builtin = {
     complete_fn = "complete_projects",
     desc = "logpose: merge one project into another",
   },
+  edit = { module = "logpose.edit", complete = false, desc = "logpose: edit this note's frontmatter" },
   move = {
     module = "logpose.tasks",
     fn = "move_command",
