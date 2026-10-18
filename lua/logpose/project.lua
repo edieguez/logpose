@@ -80,7 +80,32 @@ function M.current()
   return (M.resolve(root))
 end
 
---- Projects known so far: explicit, configured, and subdirectories of the meetings dir.
+--- Project pages: `projects/<name>.md`, keyed by project. A page is what makes a project exist
+--- before it has any notes or tasks.
+---@param root string
+---@return table<string, { path: string, title?: string }>
+function M.pages(root)
+  local out = {}
+  local dir = config.path("projects", root)
+  if not fs.is_dir(dir) then
+    return out
+  end
+  local index = require("logpose.index")
+  for entry, kind in vim.fs.dir(dir) do
+    if kind == "file" and entry:match("%.md$") then
+      local path = fs.join(dir, entry)
+      local fm = index.frontmatter(fs.read_lines(path) or {})
+      local name = M.normalize(type(fm.project) == "string" and fm.project or entry:gsub("%.md$", ""))
+      if name then
+        out[name] = { path = path, title = type(fm.title) == "string" and fm.title or nil }
+      end
+    end
+  end
+  return out
+end
+
+--- Every project the journal knows about: the pinned one, `projects.paths`, project pages,
+--- meeting folders, and the `project:` of any note or task.
 ---@param root? string
 ---@return string[]
 function M.known(root)
@@ -96,18 +121,35 @@ function M.known(root)
   for _, name in pairs(config.get().projects.paths) do
     add(name)
   end
-  if root and config.get().meeting_subdir:find("{project}", 1, true) then
-    local dir = config.path("meetings", root)
-    if fs.is_dir(dir) then
-      for entry, kind in vim.fs.dir(dir) do
-        if kind == "directory" then
-          add(entry)
+  if root then
+    for name in pairs(M.pages(root)) do
+      add(name)
+    end
+    if config.get().meeting_subdir:find("{project}", 1, true) then
+      local dir = config.path("meetings", root)
+      if fs.is_dir(dir) then
+        for entry, kind in vim.fs.dir(dir) do
+          if kind == "directory" then
+            add(entry)
+          end
         end
       end
+    end
+    for _, item in ipairs(require("logpose.index").build(root)) do
+      add(item.project)
     end
   end
   table.sort(out)
   return out
+end
+
+--- Tell open boards, the statusline and anyone listening (`User LogposeProjectChanged`) that the
+--- active project changed.
+function M.changed()
+  pcall(function()
+    require("logpose.statusline").clear()
+  end)
+  vim.api.nvim_exec_autocmds("User", { pattern = "LogposeProjectChanged", modeline = false })
 end
 
 local SOURCE_LABEL = {
@@ -131,6 +173,7 @@ end
 function M.set(name)
   if name == nil then
     state.set("project", nil)
+    M.changed()
     local root = config.resolve_root()
     require("logpose.util.ui").notify(
       "logpose: project cleared; now " .. M.describe(M.resolve(root)),
@@ -143,6 +186,7 @@ function M.set(name)
     error(("logpose: invalid project name %q"):format(name), 0)
   end
   state.set("project", slug)
+  M.changed()
   require("logpose.util.ui").notify("logpose: project set to " .. slug, vim.log.levels.INFO)
 end
 
