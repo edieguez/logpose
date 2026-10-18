@@ -89,7 +89,7 @@ for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
 end
 run("edit " .. root .. "/tasks/write-the-retro.md")
 run("Logpose done")
--- Inbox mode: capture, done, triage move, migrate, archive.
+-- Inbox mode: capture, done, migrate, archive.
 require("logpose").setup({ root = root, tasks = { mode = "inbox" } })
 at(2026, 10, 6)
 run("Logpose capture old item #acme")

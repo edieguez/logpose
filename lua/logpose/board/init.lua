@@ -46,7 +46,25 @@ M.boards = {}
 --- How long a moved card stays highlighted.
 M.flash_ms = 300
 
---- Open the board in the current window.
+--- Show the board in the current window: the one already open, as it was (filter, marks,
+--- folded columns; it has followed project switches), or a new one.
+---@param root string
+---@return logpose.Board
+function M.show(root)
+  local existing = vim.fn.bufnr("logpose://board")
+  local b = existing > 0 and M.boards[existing] or nil
+  if b and b.root == root and vim.api.nvim_buf_is_valid(existing) then
+    if vim.api.nvim_get_current_buf() ~= existing then
+      vim.api.nvim_win_set_buf(0, existing)
+    end
+    view.setup_window(vim.api.nvim_get_current_win())
+    view.refresh(b, (view.focused(b) or {}).file)
+    return b
+  end
+  return M.open_board(root)
+end
+
+--- Open a new board in the current window (replacing an open one).
 ---@param root string
 ---@param opts? { filter?: string, column?: string, project?: string }
 ---@return logpose.Board

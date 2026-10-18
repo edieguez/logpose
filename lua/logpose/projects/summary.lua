@@ -1,5 +1,5 @@
---- What's going on in each project: the counts, the one-line summary and the details that the
---- manager screen and the switcher both show.
+--- What's going on in each project: the counts, the one-line summary and the details the
+--- manager screen shows.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local project = require("logpose.project")
@@ -60,7 +60,7 @@ function M.ago(mtime, now)
   return math.floor(days / 365) .. "y ago"
 end
 
---- Everything the manager and the switcher show, one entry per project (archived included),
+--- Everything the manager shows, one entry per project (archived included),
 --- most recently active first.
 ---@param root string
 ---@param today? string
@@ -225,8 +225,7 @@ end
 ---@field file? string       a detail line that opens a file
 ---@field lnum? integer
 
---- What's going on in a project, as lines (used under an expanded row and in the switcher's
---- preview).
+--- What's going on in a project, as lines (shown under an expanded row in the manager).
 ---@param e logpose.ProjectStats
 ---@param indent? string
 ---@return logpose.ProjectsLine[]

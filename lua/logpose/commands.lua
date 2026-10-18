@@ -134,7 +134,6 @@ M.builtin = {
     complete = false,
     desc = "logpose: Yesterday / Today / Blockers for the standup",
   },
-  triage = { module = "logpose.triage", desc = "logpose: open the board on Backlog" },
   note = { module = "logpose.notes.topic", fn = "note_command", complete = false, desc = "logpose: topic note" },
   ["project-page"] = {
     module = "logpose.notes.topic",
@@ -167,12 +166,6 @@ M.builtin = {
     desc = "logpose: merge one project into another",
   },
   edit = { module = "logpose.edit", desc = "logpose: edit this note's (or the last capture's) details" },
-  move = {
-    module = "logpose.tasks",
-    fn = "move_command",
-    complete_fn = "complete_move",
-    desc = "logpose: move this task to another project",
-  },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: new task in Backlog" },
   find = {
     module = "logpose.search",

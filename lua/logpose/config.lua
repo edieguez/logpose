@@ -141,7 +141,7 @@ M.defaults = {
   views = {},
   tasks = {
     --- "files": one markdown file per task, shown on :Logpose board. "inbox": the INBOX.md /
-    --- DONE.md checkbox flow (capture, done, triage) as before.
+    --- DONE.md checkbox flow (capture, done) as before.
     ---@type "files"|"inbox"
     mode = "files",
     --- Column a captured task starts in, and one promoted from a checkbox.

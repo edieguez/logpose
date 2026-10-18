@@ -91,21 +91,14 @@ T["require('logpose').project()"] = function()
   eq(child.lua_get("require('logpose').project()"), "acme")
 end
 
-T[":Logpose project without args opens the switcher over known projects"] = function()
+T[":Logpose project without args opens the projects screen"] = function()
   vim.fn.mkdir(root .. "/meetings/thesis", "p")
   setup([[{ projects = { paths = { ["~/work/acme"] = "acme" } } }]])
-  child.lua([[vim.ui.select = function(items, opts, cb)
-    _G.labels = vim.tbl_map(opts.format_item, items)
-    _G.prompt = opts.prompt
-    cb(items[2])
-  end]])
   child.cmd("Logpose project")
-  eq(
-    child.lua_get("_G.labels"),
-    { "  acme    nothing yet", "  thesis  nothing yet", "+ New project…", "  Auto-detect" }
-  )
-  eq(child.lua_get("_G.prompt"), "Switch project")
-  eq(resolve(), { "thesis", "explicit" })
+  eq(child.bo.filetype, "logpose-projects")
+  local text = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(text, "acme")
+  H.contains(text, "thesis")
 end
 
 T["completes known projects"] = function()

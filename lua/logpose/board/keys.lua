@@ -18,7 +18,7 @@ M.HELP = {
   "  z            fold / unfold the column    gg / G  first / last card",
   "  u / <C-r>    undo / redo a board change",
   "  c            compact cards on / off      s       rows per project on / off",
-  "  p            this project / all          P       switch project",
+  "  p            this project / all          P       projects (switch)",
   "  m            move the card to a project  e       edit the card's fields",
   "  v            mark / unmark the card      V <Esc> unmark all",
   "               (H L 1-9 x b m e then act on every marked card)",
@@ -145,10 +145,10 @@ function M.attach(b)
     view.refresh(b, (view.focused(b) or {}).file)
   end, "This project / all")
   map("P", function()
-    -- the board follows the active project (LogposeProjectChanged)
+    -- the projects screen; the board follows the project you switch to (LogposeProjectChanged)
     actions.count(b, "switch")
-    require("logpose.projects").switch(b.root)
-  end, "Switch project")
+    require("logpose.projects").open(b.root)
+  end, "Projects (switch)")
   map("e", function()
     actions.edit(b)
   end, "Edit the card's (or marked cards') fields")
