@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -420,9 +420,11 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   `project.palette`/`auto_hl`): highlight groups every scheme defines, minus greys (low
   chroma) and hues within 20° of one already kept or of the board's meaning colours (error, warn,
   ok); handed out as a set over the journal's projects (hash slot, else the next free one) so they
-  differ while there are enough colours. The board window turns `cursorline` off. Since 0.33.0 card
-  borders default to `board.border = "project"`: `cards.project_border` mixes the project's
-  colour 60/40 with Normal's background (true colours; otherwise the project's colour itself).
+  differ while there are enough colours. The board window turns `cursorline` off. `board.border`: "column" (the
+  default again since 0.34.0, after trying the others in use), "project" (`cards.project_border`
+  mixes the project's colour 60/40 with Normal's background; otherwise the colour itself) or
+  "neutral". Tags are chips (0.34.0): ` #tag ` in `LogposeBoardTag`, Normal's foreground on a
+  background mixed 22% toward it (`Visual` without true colours), set apart by a space.
 - **Bulk edits** (0.30.0): `v` marks cards on the board (`b.marked`, by file; pruned to visible
   cards on render; `V`/`<Esc>` clear). `H` `L` `1`–`9` `x` `b` `m` `e` act on every marked card as
   one undo step (`actions.targets`, `with_card`). `e` with marks, or `:'<,'>Logpose edit` in a
