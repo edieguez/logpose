@@ -364,7 +364,9 @@ saving will do (set `started`, log a project change, move a meeting note and
 fix N links to it). Nothing is saved while a field shows a problem.
 
   <Tab> <S-Tab>  open / move through the menu, or next / previous field
-  <CR>           insert mode: next field; normal mode: pick a value
+  <CR>           insert mode: accept from the menu (the highlighted item, or
+                 the best match for what was typed), else next field;
+                 normal mode: pick a value
   <C-a> <C-x>    next / previous status, project or type; dates: +1 / -1 day
   dd             clear the field          +      add a field
   <C-s>  :w      save                     q <Esc>  cancel (normal mode)
