@@ -19,8 +19,9 @@ M.HELP = {
   "  u / <C-r>    undo / redo a board change",
   "  c            compact cards on / off      s       rows per project on / off",
   "  p            this project / all          P       switch project",
-  "  m            move the card to a project  r       refresh",
-  "  q            close                       ?       this help",
+  "  m            move the card to a project  e       edit the card's fields",
+  "  r            refresh                     q       close",
+  "  ?            this help",
 }
 
 ---@param b logpose.Board
@@ -146,6 +147,9 @@ function M.attach(b)
     actions.count(b, "switch")
     require("logpose.projects").switch(b.root)
   end, "Switch project")
+  map("e", function()
+    actions.edit(b)
+  end, "Edit the card's frontmatter")
   map("m", function()
     actions.move_to_project(b)
   end, "Move the card to a project")

@@ -17,6 +17,7 @@ M.HELP = {
   "  b      its board                 n  its project page",
   "  t      its open tasks            f  its notes",
   "  a      add a project             p  link a repo folder",
+  "  e      edit name, description, repo folders, colour",
   "  R      rename                    M  merge into another project",
   "  D      archive (hide)            U  restore an archived one",
   "  A      show / hide archived      c  back to auto-detect",
@@ -376,6 +377,20 @@ function M.open(root)
       end)
     end, true),
     "Link a repo folder"
+  )
+  map(
+    "e",
+    on_project(function(p)
+      -- the page holds the project's name, description, repo folders and colour
+      local path = require("logpose.notes.topic").project_page(root, p, { open = false })
+      require("logpose.edit").open(path, {
+        root = root,
+        on_save = function()
+          render(buf, root, p)
+        end,
+      })
+    end, true),
+    "Edit name, description, repo folders, colour"
   )
   map(
     "R",

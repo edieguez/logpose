@@ -152,6 +152,28 @@ function M.move_to_project(b)
   end)
 end
 
+--- Edit the focused card's frontmatter in a form; the change can be undone with `u`.
+---@param b logpose.Board
+function M.edit(b)
+  local it = view.focused(b)
+  if not it then
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  local before = history.snapshot(b)
+  require("logpose.edit").open(it.file, {
+    root = b.root,
+    on_save = function(path, keys)
+      if #keys == 0 then
+        return
+      end
+      history.record(b, "edit", before)
+      M.count(b, "edit")
+      view.refresh(b, path)
+    end,
+  })
+end
+
 --- Swap the focused card with its neighbour `delta` places away.
 ---@param b logpose.Board
 ---@param delta integer
