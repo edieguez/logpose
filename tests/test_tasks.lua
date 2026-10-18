@@ -100,10 +100,15 @@ T["capture"]["appends a new day at the end of an oldest-first INBOX"] = function
   )
 end
 
+T["capture"]["+name picks the project in INBOX mode too"] = function()
+  child.cmd("Logpose capture Write intro +thesis")
+  H.contains(H.read(p("INBOX.md")), "- [ ] Write intro #thesis\n")
+end
+
 T["capture"]["asks for the text when none is given"] = function()
   child.lua("vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('  from prompt ') end")
   child.cmd("Logpose capture")
-  eq(child.lua_get("_G.prompt"), "Capture: ")
+  eq(child.lua_get("_G.prompt"), "Capture → no project (+name for another): ")
   H.contains(H.read(p("INBOX.md")), "- [ ] from prompt\n")
   child.lua("vim.ui.input = function(_, cb) cb(nil) end")
   child.cmd("Logpose capture")

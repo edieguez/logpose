@@ -78,6 +78,19 @@ T["from_text splits tags and due dates out of the title"] = function()
   eq(child.lua_get("{ require('logpose.taskfile').from_text('#only') }"), { "#only", { "only" } })
 end
 
+T["from_text takes a +project and relative due dates"] = function()
+  local function ft(s)
+    return child.lua_get(("{ require('logpose.taskfile').from_text(%q) }"):format(s))
+  end
+  eq(ft("Write chapter +thesis"), { "Write chapter", {}, vim.NIL, "thesis" })
+  eq(ft("Plan project:Master-Thesis due:fri"), { "Plan", {}, "2026-10-16", "master-thesis" }) -- a Thursday
+  eq(ft("Bump deps due:+3d +acme"), { "Bump deps", {}, "2026-10-18", "acme" })
+  eq(ft("Tidy up +none"), { "Tidy up", {}, vim.NIL, false })
+  -- not projects: C++, +1, a word with + inside; not dates: due:someday
+  eq(ft("Fix C++ build +1 a+b"), { "Fix C++ build +1 a+b", {} })
+  eq(ft("Decide due:someday"), { "Decide due:someday", {} })
+end
+
 T["set_status keeps started, done and the log in step"] = function()
   local path = create("{ title = 'Move me' }")
   local set = function(status)
@@ -165,13 +178,53 @@ T["index and find see task files with their board fields"] = function()
   eq(child.lua_get("_G.labels"), { "[In progress] Fix flaky test  ⛔  @acme", "[Done] Other" })
 end
 
+T["+name in a capture picks the project; :Logpose edit last fixes a wrong one"] = function()
+  setup("{ projects = { paths = { [vim.fn.getcwd()] = 'acme' } } }")
+  child.cmd("Logpose capture Write chapter 3 +thesis due:tomorrow")
+  local t = fm(root .. "/tasks/write-chapter-3.md")
+  eq({ t.title, t.project, t.due }, { "Write chapter 3", "thesis", "2026-10-16" })
+  H.contains(child.notifications()[1].msg, "→ thesis · Backlog")
+  child.cmd("Logpose capture Water the plants +none")
+  eq(fm(root .. "/tasks/water-the-plants.md").project, nil)
+  H.contains(child.notifications()[2].msg, "→ no project")
+  -- the prompt says where it'll go
+  child.lua([[vim.ui.input = function(opts, cb) _G.opts = opts; cb('Ship it') end]])
+  child.cmd("Logpose capture")
+  eq(child.lua_get("_G.opts.prompt"), "Capture → acme (projects.paths) (+name for another): ")
+  H.contains(child.lua_get("_G.opts.completion"), "complete_input")
+  -- not in a journal note: :Logpose edit opens the last capture
+  child.cmd("Logpose edit")
+  eq(child.bo.filetype, "logpose-edit")
+  H.contains(table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n"), "Ship it")
+  child.type_keys("q")
+  child.cmd("Logpose edit last")
+  eq(child.bo.filetype, "logpose-edit")
+end
+
+T["capture completes +projects, #tags and due:"] = function()
+  H.write(root .. "/projects/thesis.md", '---\ntitle: "Thesis"\nproject: thesis\n---\n')
+  H.write(root .. "/tasks/x.md", "---\ntitle: x\nstatus: todo\ntags: [perf]\n---\n")
+  local function complete(line)
+    return child.fn.getcompletion(line, "cmdline")
+  end
+  eq(complete("Logpose capture Fix +th"), { "+thesis" })
+  eq(complete("Logpose capture Fix #pe"), { "#perf" })
+  eq(complete("Logpose capture Fix due:to"), { "due:today", "due:tomorrow" })
+  -- the prompt's completion gets the whole line and keeps the start of it
+  eq(child.lua_get("require('logpose.tasks').complete_input('', 'Fix it +th', 10)"), { "Fix it +thesis" })
+end
+
 T["capture creates a Backlog task; capture! opens it"] = function()
   setup("{ projects = { paths = { [vim.fn.getcwd()] = 'acme' } } }")
   child.cmd("Logpose capture fix flaky test #perf #acme due:2026-10-20")
   local path = root .. "/tasks/fix-flaky-test.md"
   local t = fm(path)
   eq({ t.title, t.status, t.project, t.tags, t.due }, { "fix flaky test", "backlog", "acme", { "perf" }, "2026-10-20" })
-  H.contains(child.notifications()[1].msg, "captured to Backlog: tasks/fix-flaky-test.md")
+  -- says where it went and why, and how to fix a wrong guess
+  H.contains(
+    child.notifications()[1].msg,
+    "captured “fix flaky test” → acme (projects.paths) · Backlog · :Logpose edit last to change"
+  )
   eq(child.api.nvim_buf_get_name(0), "") -- not opened
   child.cmd("Logpose capture! write the retro")
   eq(child.api.nvim_buf_get_name(0), root .. "/tasks/write-the-retro.md")
