@@ -160,6 +160,18 @@ M.builtin = {
     complete_fn = "complete_projects",
     desc = "logpose: rename a project everywhere",
   },
+  ["merge-project"] = {
+    module = "logpose.maintenance",
+    fn = "merge_project_command",
+    complete_fn = "complete_projects",
+    desc = "logpose: merge one project into another",
+  },
+  move = {
+    module = "logpose.tasks",
+    fn = "move_command",
+    complete_fn = "complete_move",
+    desc = "logpose: move this task to another project",
+  },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: new task in Backlog" },
   find = {
     module = "logpose.search",

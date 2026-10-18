@@ -12,6 +12,26 @@ local T = MiniTest.new_set({
       child.cmd("cd " .. H.tmpdir())
       child.lua(("require('logpose').setup({ root = %q, picker = 'select' })"):format(root))
       H.freeze(child, 2026, 10, 15)
+      child.lua([[
+        vim.ui.input = function(_, cb) cb(table.remove(_G.answers or {}, 1)) end
+        _G.pick = function(...)
+          local wants = { ... }
+          vim.ui.select = function(items, o, cb)
+            _G.labels = vim.tbl_map(o.format_item or function(x) return x.display or x end, items)
+            _G.previews = vim.tbl_map(function(x) return type(x) == "table" and x.preview or nil end, items)
+            for _, want in ipairs(wants) do
+              for _, it in ipairs(items) do
+                local v = type(it) == "table" and (it.value or it.name or it.display or it.label) or it
+                if v == want or (type(it) == "table" and it.display and it.display:find(want, 1, true)) then
+                  return cb(it)
+                end
+              end
+            end
+            cb(nil)
+          end
+        end
+        _G.pick("Apply")
+      ]])
     end,
     post_once = child.stop,
   },
@@ -20,10 +40,10 @@ local T = MiniTest.new_set({
 local function task(name, project, status, extra)
   H.write(
     root .. "/tasks/" .. name .. ".md",
-    ("---\ntitle: %q\nstatus: %s\nproject: %s\n%s---\n## Context\n"):format(
+    ("---\ntitle: %q\nstatus: %s\n%s%s---\n## Context\n\n## Log\n"):format(
       name,
       status or "in-progress",
-      project,
+      project and ("project: " .. project .. "\n") or "",
       extra or ""
     )
   )
@@ -40,7 +60,17 @@ local function lines()
   return child.api.nvim_buf_get_lines(0, 0, -1, false)
 end
 
---- Board cards as "title" strings.
+local function text()
+  return table.concat(lines(), "\n")
+end
+
+--- Set a file's modification time to `days` days before the frozen today.
+local function age(path, days)
+  local t = os.time({ year = 2026, month = 10, day = 15, hour = 10 }) - days * 86400
+  vim.uv.fs_utime(path, t, t)
+end
+
+--- Board cards as titles.
 local function cards()
   return child.lua_get([[(function()
     local b = require('logpose.board').boards[vim.api.nvim_get_current_buf()]
@@ -53,6 +83,14 @@ local function cards()
   end)()]])
 end
 
+local function project_of(name)
+  return H.read(root .. "/tasks/" .. name .. ".md"):match("\nproject:[ \t]*([^\n]*)")
+end
+
+local function on(pattern)
+  child.fn.search(pattern)
+end
+
 T["switching"] = MiniTest.new_set()
 
 T["switching"][":Logpose project completes projects that only exist in task files and pages"] = function()
@@ -62,12 +100,10 @@ T["switching"][":Logpose project completes projects that only exist in task file
   page("old", "archived: true\n")
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "hiraishin", "logpose", "thesis", "none" })
   -- archived projects stay searchable
-  eq(child.lua_get(("require('logpose.search').projects(%q, require('logpose.index').build(%q))"):format(root, root)), {
-    "hiraishin",
-    "logpose",
-    "old",
-    "thesis",
-  })
+  eq(
+    child.lua_get(("require('logpose.search').projects(%q, require('logpose.index').build(%q))"):format(root, root)),
+    { "hiraishin", "logpose", "old", "thesis" }
+  )
 end
 
 T["switching"]["an open board follows the project you switch to"] = function()
@@ -94,66 +130,198 @@ T["switching"]["the all-projects board leaves archived projects out"] = function
   eq(cards(), { "c" })
 end
 
-T["manager"] = MiniTest.new_set({
-  hooks = {
-    pre_case = function()
-      child.lua([[
-        vim.ui.input = function(_, cb) cb(_G.answer) end
-        vim.ui.select = function(items, _, cb) cb(items[1]) end
-      ]])
-    end,
-  },
-})
-
-local function on(name)
-  child.fn.search("\\<" .. name .. "\\>")
+T["switching"]["a project page's paths make its repo detect as that project"] = function()
+  local repo = H.tmpdir()
+  vim.fn.mkdir(repo .. "/.git", "p")
+  vim.fn.mkdir(repo .. "/src", "p")
+  H.write(repo .. "/src/main.go", "package main\n")
+  page("acme", ("paths: [%s]\n"):format(repo))
+  child.cmd("edit " .. repo .. "/src/main.go")
+  eq(child.lua_get(("{ require('logpose.project').resolve(%q) }"):format(root)), { "acme", "page" })
 end
 
-T["manager"]["lists projects with their counts and marks the active one"] = function()
+T["switcher"] = MiniTest.new_set()
+
+T["switcher"]["lists the active project, then recent ones, with a preview of what's going on"] = function()
+  task("fix-test", "acme", "in-progress", "due: 2026-10-13\n")
+  task("rate-limits", "acme", "todo", "blocked: waiting on ana\n")
+  task("chapter", "thesis", "todo")
+  task("old", "legacy", "todo")
+  page("acme", "description: Payments API\n")
+  child.cmd("Logpose project thesis")
+  child.cmd("Logpose project legacy")
+  child.lua("_G.pick('nothing')")
+  child.cmd("Logpose project")
+  local labels = child.lua_get("_G.labels")
+  H.contains(labels[1], "● legacy")
+  H.contains(labels[2], "thesis")
+  H.contains(labels[3], "acme")
+  H.contains(labels[3], "2 open (1 in progress) · 1 overdue · 1 blocked")
+  eq(labels[#labels - 1], "+ New project…")
+  local preview = child.lua_get("_G.previews")[3]
+  H.contains(preview, "Payments API")
+  H.contains(preview, "fix-test  overdue 2d")
+  H.contains(preview, "rate-limits  waiting on ana")
+  -- choosing switches
+  child.lua("_G.pick('acme')")
+  child.cmd("Logpose project")
+  eq(child.lua_get("require('logpose.project').current()"), "acme")
+  eq(child.lua_get("require('logpose.project').recent()"), { "acme", "legacy", "thesis" })
+end
+
+T["switcher"]["can create a project and switch to it"] = function()
+  child.lua("_G.pick('New project'); _G.answers = { 'Thesis Work' }")
+  child.cmd("Logpose project")
+  eq(child.lua_get("require('logpose.project').current()"), "thesis-work")
+  H.contains(H.read(root .. "/projects/thesis-work.md"), 'title: "Thesis Work"')
+end
+
+T["switcher"]["P on the board switches, and the board follows"] = function()
   task("a", "acme")
-  task("b", "acme", "todo", "blocked: waiting\n")
+  task("b", "thesis")
+  child.cmd("Logpose project acme")
+  child.cmd("Logpose board")
+  eq(cards(), { "a" })
+  child.lua("_G.pick('thesis')")
+  child.type_keys("P")
+  eq(cards(), { "b" })
+end
+
+T["moving tasks"] = MiniTest.new_set()
+
+T["moving tasks"]["m on the board moves the card to another project, and u undoes it"] = function()
+  task("a", "acme", "todo")
+  task("b", "thesis", "todo")
+  child.cmd("Logpose board")
+  child.lua([[(function()
+    local b = require('logpose.board').boards[vim.api.nvim_get_current_buf()]
+    for ci, c in ipairs(b.columns) do
+      for ri, it in ipairs(c.cards) do
+        if it.title == 'a' then b.focus = { col = ci, row = ri } end
+      end
+    end
+  end)()]])
+  child.lua("_G.pick('thesis')")
+  child.type_keys("m")
+  eq(project_of("a"), "thesis")
+  H.contains(H.read(root .. "/tasks/a.md"), "project: acme → thesis")
+  child.type_keys("u")
+  eq(project_of("a"), "acme")
+end
+
+T["moving tasks"][":Logpose move moves the task in the current file"] = function()
+  task("a", "acme", "todo")
+  child.cmd("edit " .. root .. "/tasks/a.md")
+  child.cmd("Logpose move thesis")
+  eq(project_of("a"), "thesis")
+  eq(child.api.nvim_buf_get_lines(0, 0, -1, false)[4], "project: thesis") -- the buffer is reloaded
+  child.cmd("Logpose move none")
+  eq(project_of("a"), "")
+  child.cmd("enew")
+  child.cmd("Logpose move acme")
+  local notes = child.notifications()
+  H.contains(notes[#notes].msg, "works in a task file")
+end
+
+T["manager"] = MiniTest.new_set()
+
+T["manager"]["shows what needs attention, most recently active first, with stale ones faded"] = function()
+  task("a", "acme", "in-progress", "due: 2026-10-12\n")
+  task("b", "acme", "todo", "blocked: waiting\ndue: 2026-10-30\n")
   task("c", "acme", "done")
-  task("d", "thesis", "todo")
-  H.write(
-    root .. "/meetings/acme/2026-10-14 - retro.md",
-    '---\ntype: retro\ndate: 2026-10-14\nproject: acme\ntitle: "Retro"\n---\n## Notes\n'
-  )
-  page("empty")
+  task("d", "acme", "todo", "due: 2026-10-17\n")
+  task("e", "thesis", "todo")
+  task("f", "legacy", "todo")
+  page("Empty")
+  for _, f in ipairs({ "a", "b", "c", "d" }) do
+    age(root .. "/tasks/" .. f .. ".md", 1)
+  end
+  age(root .. "/tasks/e.md", 3)
+  age(root .. "/tasks/f.md", 40)
+  age(root .. "/projects/Empty.md", 5)
   child.cmd("Logpose project acme")
   child.cmd("Logpose projects")
   local l = lines()
   eq(l[1], "# Projects")
   H.contains(l[3], "Active: acme (pinned)")
-  local acme, thesis, empty
+  local rows = {}
   for _, line in ipairs(l) do
-    acme = acme or (line:match("● acme") and line)
-    thesis = thesis or (line:match("^    thesis") and line)
-    empty = empty or (line:match("^    empty") and line)
+    local name = line:match("^  .-▸ (%S+)")
+    if name then
+      table.insert(rows, name)
+      rows[name] = line
+    end
   end
-  H.contains(acme, "2 open (1 in progress) · 1 blocked · 1 done · 1 meeting")
-  H.contains(thesis, "1 open")
-  H.contains(empty, "project page only")
-  -- <CR> switches
+  eq({ rows[1], rows[2], rows[3], rows[4] }, { "acme", "thesis", "Empty", "legacy" })
+  H.contains(rows.acme, "3 open (1 in progress) · 1 overdue · 1 due soon · 1 blocked")
+  H.contains(rows.acme, "yesterday")
+  H.contains(rows.thesis, "3d ago")
+  H.contains(rows.Empty, "project page only")
+  H.contains(rows.legacy, "5w ago")
+  -- the stale one is drawn in Comment
+  local row = vim.fn.index(l, rows.legacy)
+  local marks = child.api.nvim_buf_get_extmarks(0, -1, { row, 0 }, { row, -1 }, { details = true })
+  local groups = vim.tbl_map(function(m)
+    return m[4].hl_group
+  end, marks)
+  eq(vim.tbl_contains(groups, "Identifier"), false)
+end
+
+T["manager"]["<Tab> expands a project in place; <CR> on a detail line opens it"] = function()
+  task("fix-test", "acme", "in-progress")
+  task("rate-limits", "acme", "todo", "blocked: waiting on ana\n")
+  page("acme", "description: Payments API\npaths: [~/work/acme-api]\n")
+  child.cmd("Logpose projects")
+  on("acme")
+  child.type_keys("<Tab>")
+  local t = text()
+  H.contains(t, "▾ acme")
+  H.contains(t, "        Payments API")
+  H.contains(t, "        repo: ~/work/acme-api")
+  H.contains(t, "          • rate-limits  waiting on ana")
+  child.type_keys("<Tab>")
+  eq(text():find("Payments API", 1, true), nil)
+  child.type_keys("<Tab>")
+  on("rate-limits")
+  child.type_keys("<CR>")
+  eq(child.api.nvim_buf_get_name(0), root .. "/tasks/rate-limits.md")
+end
+
+T["manager"]["<CR> switches and c goes back to auto-detect"] = function()
+  task("a", "acme")
+  task("b", "thesis")
+  child.cmd("Logpose projects")
   on("thesis")
   child.type_keys("<CR>")
   eq(child.lua_get("require('logpose.project').current()"), "thesis")
   H.contains(lines()[3], "Active: thesis (pinned)")
-  -- c goes back to auto-detect
   child.type_keys("c")
   eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
 end
 
-T["manager"]["a adds a project as a page, without opening it"] = function()
+T["manager"]["a adds a project with a display name and its repo folder"] = function()
+  local repo = H.tmpdir()
   child.cmd("Logpose projects")
-  H.contains(table.concat(lines(), "\n"), "No projects yet")
-  child.lua("_G.answer = 'Thesis Work'")
+  H.contains(text(), "No projects yet")
+  child.lua(("_G.answers = { 'Thesis Work', %q }"):format(repo))
   child.type_keys("a")
   eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "projects")
-  local text = H.read(root .. "/projects/thesis-work.md")
-  H.contains(text, 'title: "Thesis Work"')
-  H.contains(text, "project: thesis-work")
-  eq(child.api.nvim_get_current_line():match("thesis%-work") ~= nil, true)
+  local t = H.read(root .. "/projects/thesis-work.md")
+  H.contains(t, 'title: "Thesis Work"')
+  H.contains(t, "project: thesis-work")
+  H.contains(t, "paths: [" .. vim.fn.fnamemodify(repo, ":~"))
+  H.contains(child.api.nvim_get_current_line(), "Thesis Work")
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis-work", "none" })
+end
+
+T["manager"]["p links another repo folder"] = function()
+  local repo = H.tmpdir()
+  page("acme", "paths: [~/one]\n")
+  child.cmd("Logpose projects")
+  on("acme")
+  child.lua(("_G.answers = { %q }"):format(repo))
+  child.type_keys("p")
+  H.contains(H.read(root .. "/projects/acme.md"), "paths: [~/one, " .. vim.fn.fnamemodify(repo, ":~"))
 end
 
 T["manager"]["D archives a project and U restores it"] = function()
@@ -162,45 +330,33 @@ T["manager"]["D archives a project and U restores it"] = function()
   page("acme")
   child.cmd("Logpose project acme")
   child.cmd("Logpose projects")
+  child.lua("_G.pick('Archive')")
   on("acme")
   child.type_keys("D")
   H.contains(H.read(root .. "/projects/acme.md"), "archived: true")
-  -- notes and tasks stay; the pin is dropped; it leaves completion
-  eq(H.read(root .. "/tasks/a.md"):match("project: acme") ~= nil, true)
+  eq(project_of("a"), "acme")
   eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis", "none" })
-  local text = table.concat(lines(), "\n")
-  H.contains(text, "## Archived (1)  A shows them")
-  eq(text:match("\n    acme") == nil, true)
+  H.contains(text(), "## Archived (1)  A shows them")
   child.type_keys("A")
-  on("acme")
+  on("▸ acme")
   child.type_keys("U")
   eq(H.read(root .. "/projects/acme.md"):match("archived") == nil, true)
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none" })
 end
 
-T["manager"]["D on a project without a page creates one to hold the flag"] = function()
-  task("a", "hiraishin")
-  child.cmd("Logpose projects")
-  on("hiraishin")
-  child.type_keys("D")
-  H.contains(H.read(root .. "/projects/hiraishin.md"), "archived: true")
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "none" })
-end
-
-T["manager"]["R renames everywhere and keeps the screen in step"] = function()
+T["manager"]["R renames everywhere"] = function()
   task("a", "logpose")
   page("logpose")
   child.cmd("Logpose project logpose")
   child.cmd("Logpose projects")
   on("logpose")
-  child.lua("_G.answer = 'log-pose'")
+  child.lua("_G.answers = { 'log-pose' }")
   child.type_keys("R")
-  H.contains(H.read(root .. "/tasks/a.md"), "project: log-pose")
+  eq(project_of("a"), "log-pose")
   eq(vim.fn.filereadable(root .. "/projects/log-pose.md"), 1)
   eq(child.lua_get("require('logpose.state').get('project')"), "log-pose")
-  child.cmd("Logpose projects")
-  H.contains(table.concat(lines(), "\n"), "● log-pose")
+  H.contains(text(), "● ▸ logpose") -- the page keeps its title
 end
 
 T["manager"]["b opens the board for that project and n its page"] = function()
@@ -215,6 +371,56 @@ T["manager"]["b opens the board for that project and n its page"] = function()
   on("acme")
   child.type_keys("n")
   eq(child.api.nvim_buf_get_name(0), root .. "/projects/acme.md")
+end
+
+T["merge"] = MiniTest.new_set()
+
+T["merge"]["M folds a project into another: tasks, meetings, links; the old page is archived"] = function()
+  task("landing", "acme-web", "todo")
+  task("api", "acme", "todo")
+  page("acme")
+  page("acme-web")
+  H.write(
+    root .. "/meetings/acme-web/2026-10-01 - kickoff.md",
+    "---\ntype: adhoc\ndate: 2026-10-01\nproject: acme-web\nseries: acme-web/kickoff\n---\n## Notes\n"
+  )
+  H.write(
+    root .. "/meetings/acme/2026-10-14 - retro.md",
+    "---\ntype: retro\ndate: 2026-10-14\nproject: acme\n---\n## Notes\n\n"
+      .. "See [[meetings/acme-web/2026-10-01 - kickoff|kickoff]] and [[projects/acme-web|the old page]].\n"
+  )
+  child.cmd("Logpose project acme-web")
+  child.cmd("Logpose projects")
+  on("acme-web")
+  child.lua("_G.pick('acme', 'Apply')")
+  child.type_keys("M") -- choose acme; the preview's Apply is picked too
+  eq(project_of("landing"), "acme")
+  eq(vim.fn.filereadable(root .. "/meetings/acme/2026-10-01 - kickoff.md"), 1)
+  eq(vim.fn.isdirectory(root .. "/meetings/acme-web"), 0)
+  local retro = H.read(root .. "/meetings/acme/2026-10-14 - retro.md")
+  H.contains(retro, "[[meetings/acme/2026-10-01 - kickoff|kickoff]]")
+  H.contains(retro, "[[projects/acme-web|the old page]]") -- the old page stays, so this still works
+  local old = H.read(root .. "/projects/acme-web.md")
+  H.contains(old, "project: acme-web")
+  H.contains(old, "archived: true\nmerged_into: acme")
+  H.contains(H.read(root .. "/meetings/acme/2026-10-01 - kickoff.md"), "series: acme/kickoff")
+  eq(child.lua_get("require('logpose.state').get('project')"), "acme")
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "none" })
+end
+
+T["merge"]["rename refuses an existing project and points at merge"] = function()
+  page("acme")
+  page("web")
+  local ok, err = pcall(function()
+    child.lua(("require('logpose.maintenance').plan_project(%q, 'web', 'acme')"):format(root))
+  end)
+  eq(ok, false)
+  H.contains(err, "merge-project combines two projects")
+  ok, err = pcall(function()
+    child.lua(("require('logpose.maintenance').plan_project(%q, 'acme', 'acme', { merge = true })"):format(root))
+  end)
+  eq(ok, false)
+  H.contains(err, "same project")
 end
 
 return T
