@@ -8,22 +8,6 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("logpose.today")
 
---- Days until `due` as words: "overdue 3d", "today", "tomorrow", "in 4d".
----@param due string
----@param today string
----@return string, boolean overdue
-local function when(due, today)
-  local d = date.diff_days(today, due)
-  if d < 0 then
-    return ("overdue %dd"):format(-d), true
-  elseif d == 0 then
-    return "today", false
-  elseif d == 1 then
-    return "tomorrow", false
-  end
-  return ("in %dd"):format(d), false
-end
-
 ---@class logpose.TodayLine
 ---@field text string
 ---@field hl? string
@@ -79,12 +63,12 @@ function M.build(root, today)
         table.insert(blocked, vim.tbl_extend("force", entry, { text = "- " .. it.text .. reason .. proj(it) }))
       end
       if it.due and date.diff_days(today, it.due) <= 3 then
-        local w, overdue = when(it.due, today)
+        local w, urgency = date.due(it.due, today)
         table.insert(
           due,
           vim.tbl_extend("force", entry, {
             text = ("- %s  (%s)%s"):format(it.text, w, proj(it)),
-            hl = overdue and "DiagnosticError" or nil,
+            hl = urgency == "overdue" and "DiagnosticError" or nil,
             due = it.due,
           })
         )
@@ -96,7 +80,7 @@ function M.build(root, today)
   end)
   local overdue = vim.tbl_map(function(it)
     return {
-      text = ("- %s  (due %s)%s"):format((it.text:gsub("%s*due:%S+", "")), it.due, proj(it)),
+      text = ("- %s  (%s)%s"):format((it.text:gsub("%s*due:%S+", "")), (date.due(it.due, today)), proj(it)),
       file = it.file,
       lnum = it.lnum,
     }
