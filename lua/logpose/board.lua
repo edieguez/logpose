@@ -29,6 +29,10 @@ local ns = vim.api.nvim_create_namespace("logpose.board")
 ---@type table<integer, logpose.Board>
 M.boards = {}
 
+--- Highlight group per project with a `color:` in its project page (set on refresh).
+---@type table<string, string>
+M.project_hl = {}
+
 M.HELP = {
   "logpose board",
   "  h / l        previous / next column      j / k   previous / next card",
@@ -40,7 +44,8 @@ M.HELP = {
   "  z            fold / unfold the column    gg / G  first / last card",
   "  u / <C-r>    undo / redo a board change",
   "  c            compact cards on / off      s       rows per project on / off",
-  "  p            this project / all          r       refresh",
+  "  p            this project / all          P       switch project",
+  "  m            move the card to a project  r       refresh",
   "  q            close                       ?       this help",
 }
 
@@ -353,7 +358,7 @@ function M.card_lines(it, w, today, col_hl, focused, compact)
     table.insert(meta, { text, hl })
   end
   if it.project then
-    add(ic.project .. " " .. it.project, "LogposeBoardProject")
+    add(ic.project .. " " .. it.project, M.project_hl[it.project] or "LogposeBoardProject")
   end
   for _, t in ipairs(it.tags or {}) do
     if t ~= it.project then
@@ -543,7 +548,7 @@ function M.render_lanes(b, add_row, today)
       {
         chunks = M.fit_chunks({
           { ic.box.normal.h .. ic.box.normal.h, "LogposeBoardHint" },
-          { label, "LogposeBoardProject" },
+          { label, M.project_hl[lane] or "LogposeBoardProject" },
           { string.rep(ic.box.normal.h, math.max(total - vim.fn.strdisplaywidth(label) - 2, 0)), "LogposeBoardHint" },
         }, total),
       },
@@ -878,6 +883,12 @@ end
 ---@param b logpose.Board
 ---@param path? string
 function M.refresh(b, path)
+  local project = require("logpose.project")
+  local pages = project.pages(b.root)
+  M.project_hl = {}
+  for name in pairs(pages) do
+    M.project_hl[name] = project.hl(b.root, name, pages)
+  end
   local scoped = (not b.all) and b.project or nil
   b.columns = M.collect(b.root, {
     project = scoped,
@@ -1157,6 +1168,27 @@ function M.toggle_block(b)
       end)
     end)
   )
+end
+
+--- Move the focused card to another project (asks which).
+---@param b logpose.Board
+function M.move_to_project(b)
+  local it = M.focused(b)
+  if not it then
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  require("logpose.tasks").choose_project(b.root, it.project, function(target)
+    with_card(b, "project", function(card)
+      taskfile.set_project(card.file, target)
+    end)
+    if b.project and not b.all and target ~= b.project then
+      require("logpose.util.ui").notify(
+        ("logpose: moved to %s (p shows all projects)"):format(target or "no project"),
+        vim.log.levels.INFO
+      )
+    end
+  end)
 end
 
 --- Swap the focused card with its neighbour `delta` places away.
@@ -1488,6 +1520,14 @@ local function keymaps(b)
     b.all = not b.all
     M.refresh(b, (M.focused(b) or {}).file)
   end, "This project / all")
+  map("P", function()
+    -- the board follows the active project (LogposeProjectChanged)
+    count(b, "switch")
+    require("logpose.projects").switch(b.root)
+  end, "Switch project")
+  map("m", function()
+    M.move_to_project(b)
+  end, "Move the card to a project")
   map("r", function()
     M.refresh(b, (M.focused(b) or {}).file)
   end, "Refresh")
