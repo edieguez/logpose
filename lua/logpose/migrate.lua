@@ -36,10 +36,10 @@ function M.plan(root, lines)
     local task = parse_task(line)
     if task and not task.checked and vim.trim(task.text) ~= "" then
       local indent = #(line:match("^(%s*)"))
-      local title, tags, due = taskfile.from_text(task.text)
-      local project
+      local title, tags, due, explicit = taskfile.from_text(task.text)
+      local project = explicit or nil
       for n, tag in ipairs(tags) do
-        if known[tag] then
+        if explicit == nil and known[tag] then
           project = tag
           table.remove(tags, n)
           break
@@ -207,7 +207,10 @@ function M.promote(root)
   local items = index.index_lines(note, lines, root)
   local note_item = items[1]
   local project = note_item.project or require("logpose.project").resolve(root)
-  local title, tags, due = taskfile.from_text(task.text)
+  local title, tags, due, explicit = taskfile.from_text(task.text)
+  if explicit ~= nil then
+    project = explicit or nil
+  end
   local link = require("logpose.link")
   local path = taskfile.path_for(root, title)
   local status = task.checked and config.get().board.done or config.get().tasks.promote_status
@@ -229,7 +232,11 @@ function M.promote(root)
     end)
   end
   require("logpose.util.ui").notify(
-    ("logpose: promoted to %s (%s)"):format(link.relpath(root, path), taskfile.label(status)),
+    ("logpose: promoted to %s (%s · %s)"):format(
+      link.relpath(root, path),
+      taskfile.label(status),
+      project or "no project"
+    ),
     vim.log.levels.INFO
   )
   return path

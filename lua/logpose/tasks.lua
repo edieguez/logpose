@@ -80,11 +80,17 @@ function M.log_done(root, items)
   return add_items(config.path("done", root), "# DONE", items)
 end
 
---- Capture `text` into INBOX under today's date, tagged with the active project.
+--- Capture `text` into INBOX under today's date, tagged with the active project (or the one
+--- named in the text with `+name`).
 ---@param text string
 ---@param root string
 ---@param project? string
 function M.capture(text, root, project)
+  local explicit
+  text, explicit = require("logpose.taskfile").take_project(text)
+  if explicit ~= nil then
+    project = explicit or nil
+  end
   local item = "- [ ] " .. text
   if project and not text:find("#" .. project, 1, true) then
     item = item .. " #" .. project
@@ -205,29 +211,121 @@ function M.done(root, line1, line2)
   require("logpose.util.ui").notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
 end
 
---- Capture `text` as a task file in `tasks.capture_status` (files mode).
+--- The task file captured last in this session (`:Logpose edit last` opens it).
+---@type string?
+M.last = nil
+
+--- Why a project was chosen, in words (for the capture prompt and confirmation).
+local SOURCES = {
+  explicit = "pinned",
+  path = "projects.paths",
+  page = "its folder",
+  git = "this repo",
+  board = "this board",
+  lane = "this row",
+}
+
+--- "acme (this repo)", "thesis", or "no project".
+---@param project? string
+---@param source? string
+---@return string
+function M.describe_project(project, source)
+  if not project then
+    return "no project"
+  end
+  local why = source and SOURCES[source]
+  return why and ("%s (%s)"):format(project, why) or project
+end
+
+--- Capture `text` as a task file in `tasks.capture_status` (files mode). A `+name` in the text
+--- picks the project; otherwise `project` (the detected one) is used.
 ---@param text string
 ---@param root string
 ---@param project? string
 ---@param open? boolean open the new file to add context
+---@param source? string how `project` was found (see `project.resolve`)
 ---@return string path
-function M.capture_file(text, root, project, open)
+function M.capture_file(text, root, project, open, source)
   local taskfile = require("logpose.taskfile")
-  local title, tags, due = taskfile.from_text(text)
+  local title, tags, due, explicit = taskfile.from_text(text)
+  if explicit ~= nil then
+    project, source = explicit or nil, nil
+  end
   tags = vim.tbl_filter(function(t)
     return t ~= project
   end, tags)
   local status = config.get().tasks.capture_status
   local path, cursor = taskfile.create(root, { title = title, project = project, tags = tags, due = due })
+  M.last = path
   if open then
     vim.cmd.edit(vim.fn.fnameescape(path))
     pcall(vim.api.nvim_win_set_cursor, 0, cursor)
   end
+  local shown = vim.fn.strcharlen(title) > 40 and (vim.fn.strcharpart(title, 0, 39) .. "…") or title
   require("logpose.util.ui").notify(
-    ("logpose: captured to %s: %s"):format(taskfile.label(status), link.relpath(root, path)),
+    ("logpose: captured “%s” → %s · %s%s"):format(
+      shown,
+      M.describe_project(project, source),
+      taskfile.label(status),
+      open and "" or " · :Logpose edit last to change"
+    ),
     vim.log.levels.INFO
   )
   return path
+end
+
+--- Completion for task text (capture, the board's `a`): `+project`, `#tag`, `due:`.
+---@param arglead string
+---@param root? string
+---@return string[]
+function M.complete_text(arglead, root)
+  local ok, r = pcall(function()
+    return root or config.root()
+  end)
+  if not ok or not r then
+    return {}
+  end
+  local out = {}
+  local function add(word)
+    if vim.startswith(word:lower(), arglead:lower()) then
+      table.insert(out, word)
+    end
+  end
+  if arglead:sub(1, 1) == "+" then
+    for _, name in ipairs(require("logpose.project").known(r)) do
+      add("+" .. name)
+    end
+    add("+none")
+  elseif arglead:sub(1, 1) == "#" then
+    local index = require("logpose.index")
+    for _, c in ipairs(index.tag_counts(index.build(r))) do
+      add("#" .. c.tag)
+    end
+  elseif vim.startswith("due:", arglead:lower()) or arglead:lower():match("^due:") then
+    for _, w in ipairs({ "today", "tomorrow", "mon", "tue", "wed", "thu", "fri", "+1w", "+2w" }) do
+      add("due:" .. w)
+    end
+  end
+  return out
+end
+
+--- `:Logpose capture` completion.
+---@param arglead string
+function M.complete(arglead, _)
+  return M.complete_text(arglead)
+end
+
+--- Completion for `vim.ui.input` prompts that take task text ('customlist' signature).
+---@param arglead string
+---@param cmdline string
+---@return string[]
+function M.complete_input(arglead, cmdline, _)
+  -- input() hands over the whole line; complete its last word
+  local word = (cmdline or arglead):match("(%S*)$") or ""
+  local before = (cmdline or arglead):sub(1, #(cmdline or arglead) - #word)
+  return vim.tbl_map(function(w)
+    return before .. w
+  end, M.complete_text(word))
 end
 
 ---@param opts logpose.CommandOpts
@@ -235,10 +333,10 @@ function M.capture_command(opts)
   local text = vim.trim(table.concat(opts.args, " "))
   local files = config.get().tasks.mode == "files"
   config.with_root(ui.safely(function(root)
-    local project = require("logpose.project").resolve(root)
+    local project, source = require("logpose.project").resolve(root)
     local function capture(t)
       if files then
-        M.capture_file(t, root, project, opts.bang)
+        M.capture_file(t, root, project, opts.bang, source)
       else
         M.capture(t, root, project)
       end
@@ -247,9 +345,9 @@ function M.capture_command(opts)
       capture(text)
       return
     end
-    local prompt = project and ("Capture (#" .. project .. "): ") or "Capture: "
+    local prompt = ("Capture → %s (+name for another): "):format(M.describe_project(project, source))
     vim.ui.input(
-      { prompt = prompt },
+      { prompt = prompt, completion = "customlist,v:lua.require'logpose.tasks'.complete_input" },
       ui.safely(function(input)
         input = input and vim.trim(input) or ""
         if input == "" then
