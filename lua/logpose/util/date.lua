@@ -121,6 +121,32 @@ function M.resolve(expr, today)
   return nil
 end
 
+--- Weekday names, Monday first, for `M.resolve_due`.
+M.WEEKDAYS = { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" }
+
+--- Resolve a due date: everything `M.resolve` understands, plus a weekday name or its first
+--- three letters (`fri`), meaning the next one from today (today included).
+---@param expr string
+---@param today? string
+---@return string?
+function M.resolve_due(expr, today)
+  local iso = M.resolve(expr, today)
+  if iso or type(expr) ~= "string" then
+    return iso
+  end
+  local e = expr:lower()
+  if #e < 3 then
+    return nil
+  end
+  today = today or M.today()
+  for i, name in ipairs(M.WEEKDAYS) do
+    if vim.startswith(name, e) then
+      return M.add_days(today, (i - M.weekday(today)) % 7)
+    end
+  end
+  return nil
+end
+
 --- ISO weekday: Monday = 1 … Sunday = 7.
 ---@param iso string
 ---@return integer
