@@ -204,6 +204,8 @@ M.defaults = {
     detect = true,
     --- Directory -> project name, e.g. { ["~/work/acme-api"] = "acme" }. Longest match wins.
     paths = {},
+    --- Open the project's board when you switch to a project.
+    open_board = true,
   },
 }
 
@@ -402,6 +404,7 @@ local function validate(opts)
   check("projects", opts.projects, "table")
   check("projects.detect", opts.projects.detect, "boolean")
   check("projects.paths", opts.projects.paths, "table")
+  check("projects.open_board", opts.projects.open_board, "boolean")
   for dir, name in pairs(opts.projects.paths) do
     check("projects.paths key", dir, "string")
     check(("projects.paths[%q]"):format(tostring(dir)), name, "string")

@@ -76,6 +76,7 @@ end
 
 T["resolve"]["an explicit project wins until cleared"] = function()
   local dir = repo("acme")
+  setup("{ projects = { open_board = false } }") -- stay in the file
   child.cmd("edit " .. dir .. "/src/main.go")
   child.cmd("Logpose project Thesis")
   eq(resolve(), { "thesis", "explicit" })
