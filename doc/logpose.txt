@@ -141,11 +141,16 @@ Every task is a markdown file in `tasks/`, so it has room for context. The
 board (|:Logpose-board|) is how you move them through the columns
 Backlog, TODO, In progress, Follow-up and Done.
 
-Each card shows its title; `◆ project`, `#tags` and `◷ due date` (overdue
-dates in red); `⊘ reason` and a red border when blocked; and how long it has
-been in its column (`4d`). Cards untouched for `board.stale_days` fade. The
-focused card has a heavy border. A column with a `limit` (In progress: 3)
-shows `(2/3)` in its header, in red above the limit.
+Each card shows its title, and under it, in a quiet colour, its details:
+`◆ project · due Tue · #tags`. Colour is kept for what needs attention:
+due dates read as words (`due Tue`, `due 3 Nov`; `due today`/`due tomorrow`
+in yellow; `overdue 2d` in red); a blocked card has a red left edge and
+reason (`⊘ waiting on Ana`); cards untouched for `board.stale_days` fade and
+say `idle 9d` (blocked cards don't fade); done cards are dimmed, with a ✓.
+The focused card has a heavy border and a background. On a one-project board
+the project is left off the cards. When a card is narrow, the date stays
+whole, the project name is shortened and tags are dropped. A column with a
+`limit` (In progress: 3) shows `(2/3)` in its header, in red above the limit.
 
 Columns scroll on their own, keeping the focused card in view. Narrow
 windows stack the columns vertically. The board shows the active project's
@@ -194,11 +199,15 @@ instead, or refuses.
 
                                                      *logpose-board-highlight*
 Colours ~
-Each column has a colour, linked to your colour scheme's diagnostic groups.
-A column's `hl` picks another group, or override these:
-`LogposeBoardColumn1` … `LogposeBoardColumn5`, `LogposeBoardFocus`,
-`LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardProject`,
-`LogposeBoardTag`, `LogposeBoardTitle`, `LogposeBoardHint`.
+Each column header has a colour, linked to your colour scheme's diagnostic
+groups; cards use one quiet border colour (`board.border = "column"` colours
+them like their column). A column's `hl` picks another group, or override
+these: `LogposeBoardColumn1` … `LogposeBoardColumn5`, `LogposeBoardBorder`,
+`LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta`,
+`LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`,
+`LogposeBoardStale`, `LogposeBoardDone`, `LogposeBoardMarked`,
+`LogposeBoardProject`, `LogposeBoardTag`, `LogposeBoardTitle`,
+`LogposeBoardHint`.
 
 Options: `board`, `tasks`.
 
@@ -799,7 +808,9 @@ Board and tasks ~
       `done_window`       "period" (default: the current week or sprint)
                           or a number of days of done tasks to show
       `min_column_width`  below this, columns stack vertically (24)
-      `stale_days`        cards untouched this long fade (7)
+      `stale_days`        cards untouched this long fade and say "idle" (7)
+      `border`            "neutral" (default) or "column" (card borders in
+                          their column's colour)
       `collapsed`         column keys folded when the board opens ({})
       `icons`             "unicode" (default), "nerd" or "ascii"
       `compact`           start with one-line cards (false)
