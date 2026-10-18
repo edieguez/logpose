@@ -141,8 +141,10 @@ Every task is a markdown file in `tasks/`, so it has room for context. The
 board (|:Logpose-board|) is how you move them through the columns
 Backlog, TODO, In progress, Follow-up and Done.
 
-Each card shows its title, and under it, in a quiet colour, its details:
-`◆ project · due Tue · #tags`. Colour is kept for what needs attention:
+Each card shows its title, and under it `◆ project · due Tue · #tags`. The
+project is in its own colour, picked from your colour scheme's palette (a
+project page's `color:` wins); the rest is quiet. Colour is otherwise kept
+for what needs attention:
 due dates read as words (`due Tue`, `due 3 Nov`; `due today`/`due tomorrow`
 in yellow; `overdue 2d` in red); a blocked card has a red left edge and
 reason (`⊘ waiting on Ana`); cards untouched for `board.stale_days` fade and
