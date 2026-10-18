@@ -92,11 +92,23 @@ function M.on_write(buf)
 end
 
 function M.setup_autocmd()
+  local group = vim.api.nvim_create_augroup("logpose.timestamps", { clear = true })
   vim.api.nvim_create_autocmd("BufWritePre", {
-    group = vim.api.nvim_create_augroup("logpose.timestamps", { clear = true }),
+    group = group,
     pattern = "*.md",
     callback = function(ev)
       pcall(M.on_write, ev.buf)
+    end,
+  })
+  -- A note saved from Neovim: the index's results for this moment are out of date.
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    group = group,
+    pattern = "*.md",
+    callback = function()
+      local index = package.loaded["logpose.index"]
+      if type(index) == "table" then
+        index.clear_cache()
+      end
     end,
   })
 end

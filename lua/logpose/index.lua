@@ -382,16 +382,51 @@ function M.files(root)
   return out
 end
 
---- Per-file cache: path -> { mtime_sec, mtime_nsec, size, items }. Valid while the options
---- table is the same (setup() resets it) and the file's mtime and size are unchanged.
+--- Per-file cache: path -> { sec, nsec, size, at, items }. Valid while the options table is
+--- the same (setup() resets it) and the file's mtime and size are unchanged.
+---
+--- An entry is only trusted once it was cached at least two seconds after the file's mtime
+--- (`M.fresh`): a file written in the same second as it was read could change again without
+--- its mtime moving on filesystems with coarse timestamps, so those are simply read again
+--- (git's "racily clean" rule). That's why writes don't have to throw the cache away.
 local cache, cache_opts = {}, nil
+
+-- The last build, reused by later builds in the same event-loop tick while nothing was written
+-- (`generation` unchanged): one command often builds the index several times (today, standup,
+-- reports), and checking every file's timestamp each time is most of the cost.
+local memo, memo_pending = nil, false
 M.reads = 0 -- files actually parsed (for tests and health)
 
 --- Bumped whenever logpose writes notes, so cheap consumers (the statusline) know to recompute.
 M.generation = 0
 
+--- Can a cache entry for a file with this stat be reused?
+---@param hit? { sec: integer, nsec: integer, size: integer, at: integer }
+---@param st? uv.fs_stat.result
+---@return boolean
+function M.fresh(hit, st)
+  return hit ~= nil
+    and st ~= nil
+    and hit.sec == st.mtime.sec
+    and hit.nsec == st.mtime.nsec
+    and hit.size == st.size
+    and hit.at >= hit.sec + 2
+end
+
+--- Logpose changed notes: tell the statusline and friends. Entries for changed files are
+--- revalidated by mtime and size on the next build, so the cache itself is kept.
 function M.clear_cache()
-  cache = {}
+  M.generation = M.generation + 1
+end
+
+--- Forget the last build, as if a new command started (benchmarks and tests).
+function M.forget_build()
+  memo = nil
+end
+
+--- Drop every cached entry (tests, and when in doubt).
+function M.flush()
+  cache, memo = {}, nil
   M.generation = M.generation + 1
 end
 
@@ -402,6 +437,10 @@ function M.build(root)
   local opts = config.get()
   if cache_opts ~= opts then
     cache, cache_opts = {}, opts
+    memo = nil
+  end
+  if memo and memo.root == root and memo.gen == M.generation then
+    return vim.list_extend({}, memo.items) -- a copy: callers may sort or filter the list
   end
   local items = {}
   local uv = vim.uv or vim.loop
@@ -409,8 +448,8 @@ function M.build(root)
   for _, path in ipairs(M.files(root)) do
     seen[path] = true
     local st = uv.fs_stat(path)
-    local hit = st and cache[path]
-    if hit and hit.sec == st.mtime.sec and hit.nsec == st.mtime.nsec and hit.size == st.size then
+    local hit = cache[path]
+    if M.fresh(hit, st) then
       vim.list_extend(items, hit.items)
     else
       local lines = fs.read_lines(path)
@@ -421,7 +460,7 @@ function M.build(root)
         end
         local file_items = M.index_lines(path, lines, root)
         if st then
-          cache[path] = { sec = st.mtime.sec, nsec = st.mtime.nsec, size = st.size, items = file_items }
+          cache[path] = { sec = st.mtime.sec, nsec = st.mtime.nsec, size = st.size, at = os.time(), items = file_items }
         end
         vim.list_extend(items, file_items)
       end
@@ -432,7 +471,14 @@ function M.build(root)
       cache[path] = nil
     end
   end
-  return items
+  memo = { root = root, gen = M.generation, items = items }
+  if not memo_pending then
+    memo_pending = true
+    vim.schedule(function()
+      memo, memo_pending = nil, false
+    end)
+  end
+  return vim.list_extend({}, items)
 end
 
 --- Tags with the number of places they appear (tagged tasks/lines, plus notes tagging them in
