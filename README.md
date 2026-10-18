@@ -457,12 +457,12 @@ Each line holds one value, with the field's name beside it, so you only ever edi
 | `<C-a>` `<C-x>` | Next / previous status, project or meeting type; a day later / earlier for dates. |
 | `dd` | Clear the field. |
 | `+` | Add a field the form doesn't show. |
-| `<C-s>` or `:w` | Save. Nothing is saved while a field shows a problem. |
-| `q` | Cancel. `?` shows these keys in the form. |
+| `<C-s>` or `:w` | Save. The form stays open, showing what was written, so you can keep editing. Nothing is saved while a field shows a problem. |
+| `q` | Close (with unsaved changes, press it twice to discard them). `:wq` saves and closes. `?` shows these keys in the form. |
 
 Saving does what logpose would do. A task's status, project and blocker go through the board's
 code, so they're logged and `started`/`done` stay right, and `u` on the board undoes an edit made
-there. Moving a meeting to another project moves the note into that project's folder, follows its
+there, one save at a time. Moving a meeting to another project moves the note into that project's folder, follows its
 series, and fixes links to it, including the `- project:` label in your daily note. Renaming a
 project is `R` in `:Logpose projects`, since that updates every note.
 

@@ -369,13 +369,15 @@ fix N links to it). Nothing is saved while a field shows a problem.
                  normal mode: pick a value
   <C-a> <C-x>    next / previous status, project or type; dates: +1 / -1 day
   dd             clear the field          +      add a field
-  <C-s>  :w      save                     q <Esc>  cancel (normal mode)
+  <C-s>  :w      save; the form stays open, showing what was written
+  q  <Esc>       close (normal mode); with unsaved changes, press twice
+  :wq            save and close
   ?              show these keys in the form
 
 Saving applies the changes the way logpose would:
   - a task's `status`, `project` and `blocked` go through the board's code:
     logged in the task, `started`/`done` kept; `u` on the board undoes an
-    edit made there;
+    edit made there, one save at a time;
   - dates accept YYYY-MM-DD, `today`, `tomorrow`, a weekday (`fri`), `+3d`,
     `+1w`;
   - a meeting moved to another project moves into that project's folder,
