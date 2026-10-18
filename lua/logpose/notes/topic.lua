@@ -8,11 +8,6 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
----@param s string
-local function yaml_string(s)
-  return '"' .. s:gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
-end
-
 ---@param path string
 ---@param cursor? integer[]
 local function open(path, cursor)
@@ -68,7 +63,7 @@ function M.note(root, title)
     error(("logpose: can't make a filename from %q"):format(title), 0)
   end
   local project = require("logpose.project").resolve(root)
-  local fm = { { "title", yaml_string(title) } }
+  local fm = { { "title", require("logpose.frontmatter").quote(title) } }
   if project then
     table.insert(fm, { "project", project })
   end
@@ -92,7 +87,12 @@ function M.project_page(root, name, opts)
   if not slug then
     error(("logpose: invalid project name %q"):format(name), 0)
   end
-  local fm = { { "title", yaml_string(name) }, { "type", "project" }, { "project", slug }, { "tags", "[]" } }
+  local fm = {
+    { "title", require("logpose.frontmatter").quote(name) },
+    { "type", "project" },
+    { "project", slug },
+    { "tags", "[]" },
+  }
   return create(
     fs.join(config.path("projects", root), slug .. ".md"),
     "project",

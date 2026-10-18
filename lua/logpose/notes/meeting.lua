@@ -57,13 +57,6 @@ function M.filename(iso, slug, key, time)
   }) .. ".md"
 end
 
----@param s string
----@return string
-local function yaml_string(s)
-  local escaped = s:gsub("\\", "\\\\"):gsub('"', '\\"')
-  return '"' .. escaped .. '"'
-end
-
 ---@class logpose.MeetingNote
 ---@field key string
 ---@field title string
@@ -142,14 +135,12 @@ function M.build(root, key, input, iso, project, attendees)
   if project then
     table.insert(frontmatter, "project: " .. project)
   end
-  local function yaml_item(v)
-    return v:find("[,:%[%]\"'#]") and yaml_string(v) or v
-  end
-  table.insert(frontmatter, "title: " .. yaml_string(title))
+  local fmt = require("logpose.frontmatter")
+  table.insert(frontmatter, "title: " .. fmt.quote(title))
   if with then
-    table.insert(frontmatter, "with: " .. yaml_string(with))
+    table.insert(frontmatter, "with: " .. fmt.quote(with))
   end
-  table.insert(frontmatter, "attendees: [" .. table.concat(vim.tbl_map(yaml_item, attendees), ", ") .. "]")
+  table.insert(frontmatter, "attendees: " .. fmt.render("attendees", attendees))
   table.insert(frontmatter, "series: " .. series)
   vim.list_extend(frontmatter, require("logpose.timestamps").lines())
   table.insert(frontmatter, "---")

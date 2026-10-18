@@ -11,9 +11,6 @@ local M = {}
 
 M.FIELDS = fields.FIELDS
 M.MANAGED = fields.MANAGED
-M.read = fields.read
-M.render = fields.render
-M.apply_lines = fields.apply_lines
 M.candidates = form.candidates
 M.omnifunc = form.omnifunc
 

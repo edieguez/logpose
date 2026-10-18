@@ -371,7 +371,7 @@ function M.open(root)
         if not vim.tbl_contains(paths, repo) then
           table.insert(paths, repo)
         end
-        project.set_page_field(root, p, "paths", "[" .. table.concat(paths, ", ") .. "]")
+        project.set_page_field(root, p, "paths", paths)
         project.changed()
         ui.notify(("logpose: %s now belongs to %s"):format(repo, p), vim.log.levels.INFO)
       end)
