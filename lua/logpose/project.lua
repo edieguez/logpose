@@ -525,7 +525,7 @@ function M.switch_to(name)
   end
   local root = config.resolve_root()
   if root then
-    require("logpose.board").open_board(root)
+    require("logpose.board").show(root)
   end
 end
 
@@ -543,8 +543,9 @@ function M.command(opts)
     return
   end
 
+  -- no name: the projects screen, where <CR> switches
   config.with_root(ui.safely(function(root)
-    require("logpose.projects").switch(root)
+    require("logpose.projects").open(root)
   end))
 end
 

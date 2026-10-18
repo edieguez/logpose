@@ -140,55 +140,29 @@ T["switching"]["a project page's paths make its repo detect as that project"] = 
   eq(child.lua_get(("{ require('logpose.project').resolve(%q) }"):format(root)), { "acme", "page" })
 end
 
-T["switcher"] = MiniTest.new_set()
+T["switching from the projects screen"] = MiniTest.new_set()
 
-T["switcher"]["lists the active project, then recent ones, with a preview of what's going on"] = function()
-  task("fix-test", "acme", "in-progress", "due: 2026-10-13\n")
-  task("rate-limits", "acme", "todo", "blocked: waiting on ana\n")
-  task("chapter", "thesis", "todo")
-  task("old", "legacy", "todo")
-  page("acme", "description: Payments API\n")
-  child.cmd("Logpose project thesis")
-  child.cmd("Logpose project legacy")
-  child.lua("_G.pick('nothing')")
-  child.cmd("Logpose project")
-  local labels = child.lua_get("_G.labels")
-  H.contains(labels[1], "● legacy")
-  H.contains(labels[2], "thesis")
-  H.contains(labels[3], "acme")
-  H.contains(labels[3], "2 open (1 in progress) · 1 overdue · 1 blocked")
-  eq(labels[#labels - 1], "+ New project…")
-  local preview = child.lua_get("_G.previews")[3]
-  H.contains(preview, "Payments API")
-  H.contains(preview, "fix-test  overdue 2d")
-  H.contains(preview, "rate-limits  waiting on ana")
-  -- choosing switches
-  child.lua("_G.pick('acme')")
-  child.cmd("Logpose project")
-  eq(child.lua_get("require('logpose.project').current()"), "acme")
-  eq(child.lua_get("require('logpose.project').recent()"), { "acme", "legacy", "thesis" })
-end
-
-T["switcher"]["switching opens the project's board"] = function()
+T["switching from the projects screen"][":Logpose project without a name opens it; <CR> switches and opens the board"] = function()
   task("a", "acme")
   task("b", "thesis")
   child.cmd("edit " .. root .. "/tasks/a.md")
-  child.lua("_G.pick('thesis')")
   child.cmd("Logpose project")
+  eq(child.bo.filetype, "logpose-projects")
+  on("thesis")
+  child.type_keys("<CR>")
   eq(child.bo.filetype, "logpose-board")
   eq(cards(), { "b" })
-  -- by name too
+  -- by name, straight there
   child.cmd("enew")
   child.cmd("Logpose project acme")
   eq(cards(), { "a" })
-  -- auto-detect doesn't open it
-  child.cmd("enew")
-  child.lua("_G.pick('Auto-detect')")
+  -- c goes back to detecting the project
   child.cmd("Logpose project")
-  eq(child.bo.filetype, "")
+  child.type_keys("c")
+  eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
 end
 
-T["switcher"]["projects.open_board = false keeps you where you are"] = function()
+T["switching from the projects screen"]["projects.open_board = false keeps you where you are"] = function()
   task("a", "acme")
   child.lua(
     ("require('logpose').setup({ root = %q, picker = 'select', projects = { open_board = false } })"):format(root)
@@ -203,24 +177,19 @@ T["switcher"]["projects.open_board = false keeps you where you are"] = function(
   H.contains(lines()[3], "Active: acme (pinned)")
 end
 
-T["switcher"]["can create a project and switch to it"] = function()
-  child.lua("_G.pick('New project'); _G.answers = { 'Thesis Work' }")
-  child.cmd("Logpose project")
-  eq(child.lua_get("require('logpose.project').current()"), "thesis-work")
-  H.contains(H.read(root .. "/projects/thesis-work.md"), 'title: "Thesis Work"')
-end
-
-T["switcher"]["P on the board switches, and the board follows"] = function()
+T["switching from the projects screen"]["P on the board opens it, and the board follows the switch"] = function()
   task("a", "acme")
   task("b", "thesis")
   child.cmd("Logpose project acme")
   child.cmd("Logpose board")
   eq(cards(), { "a" })
   local board = child.api.nvim_get_current_buf()
-  child.lua("_G.pick('thesis')")
   child.type_keys("P")
-  eq(cards(), { "b" })
+  eq(child.bo.filetype, "logpose-projects")
+  on("thesis")
+  child.type_keys("<CR>")
   eq(child.api.nvim_get_current_buf(), board) -- the same board, not a new one
+  eq(cards(), { "b" })
 end
 
 T["moving tasks"] = MiniTest.new_set()
@@ -243,20 +212,6 @@ T["moving tasks"]["m on the board moves the card to another project, and u undoe
   H.contains(H.read(root .. "/tasks/a.md"), "project: acme → thesis")
   child.type_keys("u")
   eq(project_of("a"), "acme")
-end
-
-T["moving tasks"][":Logpose move moves the task in the current file"] = function()
-  task("a", "acme", "todo")
-  child.cmd("edit " .. root .. "/tasks/a.md")
-  child.cmd("Logpose move thesis")
-  eq(project_of("a"), "thesis")
-  eq(child.api.nvim_buf_get_lines(0, 0, -1, false)[4], "project: thesis") -- the buffer is reloaded
-  child.cmd("Logpose move none")
-  eq(project_of("a"), "")
-  child.cmd("enew")
-  child.cmd("Logpose move acme")
-  local notes = child.notifications()
-  H.contains(notes[#notes].msg, "works in a task file")
 end
 
 T["manager"] = MiniTest.new_set()

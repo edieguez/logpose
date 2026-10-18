@@ -35,8 +35,12 @@ end
 T["built-in subcommands are registered"] = function()
   local names = child.lua_get("require('logpose.commands').names()")
   eq(child.fn.getcompletion("Logpose ", "cmdline"), names)
-  for _, want in ipairs({ "daily", "meeting", "find", "triage", "note", "backlinks", "project-page" }) do
+  for _, want in ipairs({ "daily", "meeting", "find", "board", "note", "backlinks", "project-page", "edit" }) do
     eq(vim.tbl_contains(names, want), true)
+  end
+  -- retired: the board, the edit form and the projects screen do these
+  for _, gone in ipairs({ "triage", "move" }) do
+    eq(vim.tbl_contains(names, gone), false)
   end
   H.neq(child.fn.maparg("<Plug>(logpose-meeting)", "n"), "")
 end
