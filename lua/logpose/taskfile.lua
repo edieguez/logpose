@@ -402,24 +402,54 @@ function M.path_for(root, title)
   return path
 end
 
---- Split a checkbox text into a clean title, its #tags and a `due:` date.
+--- Take a project out of a task text: `+name` or `project:name` (the last one wins; `+none`
+--- means no project). A `+` must start a word and be followed by a letter, so `C++` and `+1`
+--- are left alone.
 ---@param s string
----@return string title, string[] tags, string? due
+---@return string rest, string|false|nil project false: explicitly none; nil: not given
+function M.take_project(s)
+  local project
+  local function take(lead, name)
+    if name:lower() == "none" then
+      project = false
+    else
+      project = require("logpose.project").normalize(name) or project
+    end
+    return lead
+  end
+  local rest = (" " .. s):gsub("(%s)%+(%a[%w_%-]*)%f[%s%z]", take):gsub("(%s)project:(%a[%w_%-]*)%f[%s%z]", take)
+  return vim.trim(rest), project
+end
+
+--- Split a checkbox text into a clean title, its #tags, a `due:` date (`due:2026-10-20`,
+--- `due:tomorrow`, `due:+3d`, `due:fri`) and a project (`+acme`, see `M.take_project`).
+---@param s string
+---@return string title, string[] tags, string? due, string|false|nil project
 function M.from_text(s)
   local index = require("logpose.index")
   -- A carried-over item ends in "(from [[previous note]])": that link isn't part of the task.
   s = s:gsub("%s*%(from %[%[.-%]%]%)%s*$", ""):gsub("%s*%(from %[.-%]%(.-%)%)%s*$", "")
+  local original = s
+  local project
+  s, project = M.take_project(s)
   local tags = index.tags_in(s)
-  local due = s:match("%f[%w]due:(%d%d%d%d%-%d%d%-%d%d)")
+  local due
   local title = (" " .. s)
-    :gsub("%s+due:%d%d%d%d%-%d%d%-%d%d", "")
+    :gsub("(%s)due:(%S+)", function(lead, expr)
+      local iso = date.resolve_due(expr)
+      if not iso then
+        return nil -- not a date: keep the text as it is
+      end
+      due = iso
+      return lead
+    end)
     :gsub("([%s%(%[,;])#[%w_][%w_%-/]*", "%1")
     :gsub("%s+", " ")
   title = vim.trim(title)
   if title == "" then
-    title = vim.trim(s)
+    title = vim.trim(original)
   end
-  return title, tags, due and date.is_iso(due) and due or nil
+  return title, tags, due, project
 end
 
 ---@class logpose.NewTask
