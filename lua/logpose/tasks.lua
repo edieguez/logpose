@@ -263,6 +263,93 @@ function M.capture_command(opts)
 end
 
 ---@param opts logpose.CommandOpts
+--- Ask which project to move to: known projects, a new one, or none.
+---@param root string
+---@param current? string
+---@param fn fun(project?: string)
+function M.choose_project(root, current, fn)
+  local project = require("logpose.project")
+  local items = {}
+  for _, name in ipairs(project.known(root)) do
+    if name ~= current then
+      local title = project.title(root, name)
+      table.insert(items, { label = title ~= name and ("%s  (%s)"):format(name, title) or name, value = name })
+    end
+  end
+  table.insert(items, { label = "New project…", new = true })
+  if current then
+    table.insert(items, { label = "No project", none = true })
+  end
+  vim.ui.select(
+    items,
+    {
+      prompt = "Move to project",
+      format_item = function(it)
+        return it.label
+      end,
+    },
+    ui.safely(function(choice)
+      if not choice then
+        return
+      end
+      if choice.none then
+        return fn(nil)
+      end
+      if not choice.new then
+        return fn(choice.value)
+      end
+      vim.ui.input(
+        { prompt = "New project: " },
+        ui.safely(function(input)
+          local slug = input and project.normalize(vim.trim(input))
+          if slug then
+            fn(slug)
+          end
+        end)
+      )
+    end)
+  )
+end
+
+--- `:Logpose move [project|none]` in a task file: move the task to another project.
+---@param opts logpose.CommandOpts
+function M.move_command(opts)
+  local root = config.root()
+  local path = vim.api.nvim_buf_get_name(0)
+  local taskfile = require("logpose.taskfile")
+  if not taskfile.is_task_file(path, root) then
+    error("logpose: :Logpose move works in a task file (on the board, press m)", 0)
+  end
+  local function apply(target)
+    if taskfile.set_project(path, target) then
+      vim.cmd("silent! checktime")
+      require("logpose.project").changed()
+      ui.notify(("logpose: moved to %s"):format(target or "no project"), vim.log.levels.INFO)
+    end
+  end
+  local arg = vim.trim(table.concat(opts.args, " "))
+  if arg == "none" then
+    return apply(nil)
+  elseif arg ~= "" then
+    local slug = require("logpose.project").normalize(arg)
+    if not slug then
+      error(("logpose: invalid project name %q"):format(arg), 0)
+    end
+    return apply(slug)
+  end
+  local fm = require("logpose.index").frontmatter(vim.api.nvim_buf_get_lines(0, 0, -1, false))
+  M.choose_project(root, type(fm.project) == "string" and fm.project ~= "" and fm.project or nil, apply)
+end
+
+function M.complete_move(_, args)
+  if #args > 0 then
+    return {}
+  end
+  local items = require("logpose.project").known(config.resolve_root())
+  table.insert(items, "none")
+  return items
+end
+
 function M.done_command(opts)
   local line1, line2 = opts.line1, opts.line2
   if opts.range == 0 or line1 == 0 then

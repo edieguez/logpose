@@ -327,6 +327,25 @@ function M.set_blocked(path, reason)
   end)
 end
 
+--- Move a task to another project (nil: no project), logging the move.
+---@param path string
+---@param project? string
+---@return boolean changed
+function M.set_project(path, project)
+  local changed = false
+  update(path, function(lines)
+    local fm = require("logpose.index").frontmatter(lines)
+    local old = type(fm.project) == "string" and fm.project ~= "" and fm.project or nil
+    if old == project then
+      return nil
+    end
+    changed = true
+    lines = M.set_field(lines, "project", project)
+    return M.append_log(lines, ("project: %s → %s"):format(old or "none", project or "none"))
+  end)
+  return changed
+end
+
 ---@param path string
 ---@param order? number
 function M.set_order(path, order)
