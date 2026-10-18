@@ -39,6 +39,14 @@ local tasks = {
   { "release-notes", "done", "acme", "done: 2026-10-15\n", "Publish 2.4 release notes", 10 },
 }
 write(root .. "/.logpose", "")
+write(
+  root .. "/projects/legacy-billing.md",
+  '---\ntitle: "Legacy billing"\ntype: project\nproject: legacy-billing\narchived: true\n---\n## Overview\n'
+)
+write(
+  root .. "/tasks/billing.md",
+  '---\ntitle: "Billing cleanup"\nstatus: done\nproject: legacy-billing\ndone: 2026-08-01\n---\n'
+)
 for _, t in ipairs(tasks) do
   write(
     ("%s/tasks/%s.md"):format(root, t[1]),

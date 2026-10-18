@@ -15,4 +15,5 @@ nv() {
 nv seed "" 0 "$repo/scripts/screenshots/seed.lua"
 nv board "Logpose board" 132 "$repo/scripts/screenshots/render.lua"
 nv today "Logpose today" 90 "$repo/scripts/screenshots/render.lua"
+nv projects "Logpose projects" 100 "$repo/scripts/screenshots/render.lua"
 python3 "$repo/scripts/screenshots/shot.py" "$work" "$repo/docs/images"
