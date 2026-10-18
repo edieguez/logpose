@@ -108,6 +108,20 @@ T["the form: values only, field names beside them, hints, logpose's own fields b
   eq(child.api.nvim_win_get_cursor(0), { 1, #"Fix flaky test" - 1 }) -- on its last character
 end
 
+T["completion plugins are turned off in the form, not in the note"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  child.lua([[package.loaded.cmp = { setup = { buffer = function(opts)
+    _G.cmp_off = { buf = vim.api.nvim_get_current_buf(), opts = opts }
+  end } }]])
+  child.cmd("edit " .. root .. "/tasks/fix.md")
+  local note = child.api.nvim_get_current_buf()
+  child.cmd("Logpose edit")
+  local form = child.api.nvim_get_current_buf()
+  eq(child.lua_get("_G.cmp_off"), { buf = form, opts = { enabled = false } })
+  eq(form ~= note, true)
+  eq(child.b.completion, false) -- blink.cmp
+end
+
 T["values are checked as you type, and the summary says what saving will do"] = function()
   H.write(root .. "/tasks/fix.md", TASK)
   edit(root .. "/tasks/fix.md")
@@ -276,6 +290,24 @@ T["completion offers what fits each field"] = function()
   eq(child.fn.mode(), "i")
   child.type_keys("<Esc>")
   eq(values()[3], "thesis")
+  -- <CR> with nothing selected takes the best match: closed, same field, still typing
+  child.type_keys("S", "th")
+  eq(child.fn.pumvisible(), 1)
+  child.type_keys("<CR>")
+  eq(child.fn.pumvisible(), 0)
+  eq(child.fn.mode(), "i")
+  eq(child.api.nvim_win_get_cursor(0)[1], 3)
+  child.type_keys("<Esc>")
+  eq(values()[3], "thesis")
+  -- with nothing typed yet, <CR> closes the menu and goes to the next field, changing nothing
+  child.type_keys("S")
+  eq(child.fn.pumvisible(), 1)
+  child.type_keys("<CR>")
+  eq(child.fn.pumvisible(), 0)
+  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+  child.type_keys("<Esc>")
+  eq(values()[3], "")
+  set("project", "thesis")
   -- the same in a list: closed after accepting, open again for the next item
   set("tags", "ci")
   on("tags")
