@@ -338,11 +338,20 @@ T["columns, blocked cards and overdue dates are coloured"] = function()
     "LogposeBoardFocus",
     "LogposeBoardBlocked",
     "LogposeBoardOverdue",
-    "LogposeBoardProject",
     "LogposeBoardTag",
+    "LogposeProject_acme", -- each project in its own colour, from the colour scheme
+    "LogposeProject_thesis",
   }) do
     eq({ g, groups[g] }, { g, true })
   end
+  local function link(g)
+    return child.lua_get(("vim.api.nvim_get_hl(0, { name = %q }).link"):format(g))
+  end
+  eq(link("LogposeProject_acme") ~= link("LogposeProject_thesis"), true)
+  -- a project page's color: wins
+  H.write(root .. "/projects/acme.md", '---\ntitle: "Acme"\nproject: acme\ncolor: "#ff0000"\n---\n')
+  child.type_keys("r")
+  eq(child.lua_get("vim.api.nvim_get_hl(0, { name = 'LogposeProject_acme' }).fg"), 0xff0000)
   -- linked to standard groups, so colour schemes style them; users can override
   eq(child.lua_get("vim.api.nvim_get_hl(0, { name = 'LogposeBoardColumn3' }).link"), "DiagnosticWarn")
 end
@@ -440,7 +449,9 @@ end
 
 T["the focused card has a background; a one-project board leaves the project off its cards"] = function()
   setup(("{ projects = { paths = { [%q] = 'acme' } } }"):format(child.fn.getcwd()))
+  child.o.cursorline = true -- as LazyVim sets it
   child.cmd("Logpose board")
+  eq(child.wo.cursorline, false) -- no band across the board: the card has its own background
   eq(title(), "Board · acme")
   local s = screen()
   eq(s:find("◆ acme", 1, true), nil)

@@ -10,6 +10,13 @@ local M = {}
 ---@type table<string, string>
 M.project_hl = {}
 
+--- A project's colour: its page's `color:`, else an automatic one from the colour scheme.
+---@param name string
+---@return string
+function M.project_group(name)
+  return M.project_hl[name] or require("logpose.project").auto_hl(name) or "LogposeBoardProject"
+end
+
 --- Highlight groups, linked to standard groups so colour schemes style them; override any with
 --- `vim.api.nvim_set_hl(0, "LogposeBoard…", {...})`.
 M.HL = {
@@ -212,9 +219,10 @@ function M.details(it, today, show_project, width)
       -- a stub like "th…" says nothing: below a few letters, the colour mark alone
       name = avail >= 6 and text.fit(name, avail):gsub("%s+$", "") or ""
     end
-    local mark_hl = M.project_hl[it.project] or "LogposeBoardProject"
+    local mark_hl = M.project_group(it.project)
     if name ~= "" then
-      project = { { mark, mark_hl }, { name, "LogposeBoardMeta" } }
+      -- the project in its colour: which project a card belongs to is worth colour
+      project = { { mark, mark_hl }, { name, mark_hl } }
       used = used + w(mark) + w(name) + (used > 0 and sep_w or 0)
     elseif room - used - (used > 0 and sep_w or 0) >= w(ic.project) then
       project = { { ic.project, mark_hl } }
