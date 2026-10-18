@@ -581,8 +581,10 @@ function M.open(root)
       return
     end
     on_project(function(p)
-      project.set(p)
-      render(buf, root, p)
+      project.switch_to(p)
+      if vim.api.nvim_get_current_buf() == buf then
+        render(buf, root, p) -- the board is off: stay here
+      end
     end)()
   end, "Switch to the project, or open the line")
   map(
@@ -858,14 +860,14 @@ function M.switch(root, opts)
         return done(nil)
       end
       if not item.new then
-        project.set(item.name)
+        project.switch_to(item.name)
         return done(item.name)
       end
       ask("New project: ", nil, function(p, typed)
         if not project.pages(root)[p] then
           project.add(root, typed)
         end
-        project.set(p)
+        project.switch_to(p)
         done(p)
       end)
     end),

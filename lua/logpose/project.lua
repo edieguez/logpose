@@ -376,6 +376,20 @@ function M.set(name)
   require("logpose.util.ui").notify("logpose: project set to " .. slug, vim.log.levels.INFO)
 end
 
+--- Switch to project `name` (as `set`), then open its board, unless `projects.open_board` is
+--- off or you're already on the board (which follows the switch by itself).
+---@param name string
+function M.switch_to(name)
+  M.set(name)
+  if not config.get().projects.open_board or vim.bo.filetype == "logpose-board" then
+    return
+  end
+  local root = config.resolve_root()
+  if root then
+    require("logpose.board").open_board(root)
+  end
+end
+
 local CLEAR = { "none", "auto", "clear" }
 
 ---@param opts logpose.CommandOpts
@@ -385,7 +399,7 @@ function M.command(opts)
     if vim.tbl_contains(CLEAR, arg) then
       M.set(nil)
     else
-      M.set(arg)
+      M.switch_to(arg)
     end
     return
   end

@@ -169,6 +169,40 @@ T["switcher"]["lists the active project, then recent ones, with a preview of wha
   eq(child.lua_get("require('logpose.project').recent()"), { "acme", "legacy", "thesis" })
 end
 
+T["switcher"]["switching opens the project's board"] = function()
+  task("a", "acme")
+  task("b", "thesis")
+  child.cmd("edit " .. root .. "/tasks/a.md")
+  child.lua("_G.pick('thesis')")
+  child.cmd("Logpose project")
+  eq(child.bo.filetype, "logpose-board")
+  eq(cards(), { "b" })
+  -- by name too
+  child.cmd("enew")
+  child.cmd("Logpose project acme")
+  eq(cards(), { "a" })
+  -- auto-detect doesn't open it
+  child.cmd("enew")
+  child.lua("_G.pick('Auto-detect')")
+  child.cmd("Logpose project")
+  eq(child.bo.filetype, "")
+end
+
+T["switcher"]["projects.open_board = false keeps you where you are"] = function()
+  task("a", "acme")
+  child.lua(
+    ("require('logpose').setup({ root = %q, picker = 'select', projects = { open_board = false } })"):format(root)
+  )
+  child.cmd("edit " .. root .. "/tasks/a.md")
+  child.cmd("Logpose project acme")
+  eq(child.api.nvim_buf_get_name(0), root .. "/tasks/a.md")
+  child.cmd("Logpose projects")
+  on("acme")
+  child.type_keys("<CR>")
+  eq(child.bo.filetype, "logpose-projects")
+  H.contains(lines()[3], "Active: acme (pinned)")
+end
+
 T["switcher"]["can create a project and switch to it"] = function()
   child.lua("_G.pick('New project'); _G.answers = { 'Thesis Work' }")
   child.cmd("Logpose project")
@@ -182,9 +216,11 @@ T["switcher"]["P on the board switches, and the board follows"] = function()
   child.cmd("Logpose project acme")
   child.cmd("Logpose board")
   eq(cards(), { "a" })
+  local board = child.api.nvim_get_current_buf()
   child.lua("_G.pick('thesis')")
   child.type_keys("P")
   eq(cards(), { "b" })
+  eq(child.api.nvim_get_current_buf(), board) -- the same board, not a new one
 end
 
 T["moving tasks"] = MiniTest.new_set()
@@ -294,6 +330,9 @@ T["manager"]["<CR> switches and c goes back to auto-detect"] = function()
   on("thesis")
   child.type_keys("<CR>")
   eq(child.lua_get("require('logpose.project').current()"), "thesis")
+  eq(child.bo.filetype, "logpose-board") -- switching opens the board
+  eq(cards(), { "b" })
+  child.cmd("Logpose projects")
   H.contains(lines()[3], "Active: thesis (pinned)")
   child.type_keys("c")
   eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
