@@ -33,6 +33,17 @@ with sync_playwright() as p:
         {style}
         </style><div class=win><div class=bar><i><b></b><b></b><b></b></i>{html.escape(title)}</div>
         <div class=term>{wb}<pre>{pre}</pre></div></div>"""
+        below_file = d / f"{name}.below.json"
+        if below_file.exists():
+            import json
+            extra = []
+            for line in json.loads(below_file.read_text()):
+                spans = []
+                for c in line:
+                    style = (f"color:{c['fg']};" if c.get("fg") else "") + ("font-style:italic;" if c.get("italic") else "")
+                    spans.append(f'<span style="{style}">{html.escape(c["text"])}</span>')
+                extra.append("".join(spans))
+            page = page.replace("</pre>", "\n" + "\n".join(extra) + "</pre>", 1)
         pum_file = d / f"{name}.pum.json"
         if pum_file.exists():
             import json

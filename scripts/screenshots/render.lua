@@ -46,6 +46,27 @@ local function capture()
     pf:write(vim.json.encode(pum))
     pf:close()
   end
+  -- Virtual lines (:TOhtml leaves them out): their text and colours, to add below the buffer.
+  local below = {}
+  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true, type = "virt_lines" })) do
+    for _, vl in ipairs(m[4].virt_lines or {}) do
+      local line = {}
+      for _, chunk in ipairs(vl) do
+        local h = chunk[2] and vim.api.nvim_get_hl(0, { name = chunk[2], link = false }) or {}
+        table.insert(line, {
+          text = chunk[1],
+          fg = h.fg and ("#%06x"):format(h.fg) or vim.NIL,
+          italic = h.italic or false,
+        })
+      end
+      table.insert(below, line)
+    end
+  end
+  if #below > 0 then
+    local bf = io.open(out .. ".below.json", "w")
+    bf:write(vim.json.encode(below))
+    bf:close()
+  end
   local wb = vim.wo[win].winbar ~= ""
       and vim.api.nvim_eval_statusline(vim.wo[win].winbar, { winid = win, use_winbar = true }).str
     or ""
