@@ -128,6 +128,7 @@ M.builtin = {
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
+  projects = { module = "logpose.projects", complete = false, desc = "logpose: manage projects" },
   standup = {
     module = "logpose.standup",
     complete = false,

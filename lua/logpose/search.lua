@@ -190,7 +190,7 @@ end
 ---@return string[]
 function M.projects(root, items)
   local seen, out = {}, {}
-  for _, list in ipairs({ index.projects(items), require("logpose.project").known(root) }) do
+  for _, list in ipairs({ index.projects(items), require("logpose.project").known(root, { archived = true }) }) do
     for _, name in ipairs(list) do
       if not seen[name] then
         seen[name] = true

@@ -309,6 +309,7 @@ function M.rename_project_command(opts)
         if require("logpose.state").get("project") == o then
           require("logpose.state").set("project", n)
         end
+        project.changed()
         for dir, name in pairs(config.get().projects.paths) do
           if project.normalize(name) == o then
             require("logpose.util.ui").notify(
