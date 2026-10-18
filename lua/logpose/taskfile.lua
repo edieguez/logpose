@@ -164,6 +164,11 @@ end
 ---@param root string
 ---@param opts? { archived?: boolean }
 ---@return logpose.Task[]
+-- Parsed tasks by path: { sec, nsec, size, at, task }. Valid while the file is unchanged on
+-- disk and the options are the same table (parsing depends on the columns and capture status);
+-- see `index.fresh` for when an entry is trusted.
+local cache, cache_opts = {}, nil
+
 function M.list(root, opts)
   opts = opts or {}
   local dir = M.dir(root)
@@ -171,12 +176,35 @@ function M.list(root, opts)
   if not fs.is_dir(dir) then
     return out
   end
-  for name, kind in vim.fs.dir(dir, { depth = 4 }) do
+  local cfg = config.get()
+  if cache_opts ~= cfg then
+    cache, cache_opts = {}, cfg
+  end
+  local uv = vim.uv or vim.loop
+  -- Archived tasks live under tasks/archive/: don't even walk there unless they're wanted.
+  local skip = not opts.archived and function(d)
+    return d ~= "archive"
+  end or nil
+  for name, kind in vim.fs.dir(dir, { depth = 4, skip = skip }) do
     if kind == "file" and name:sub(-3) == ".md" then
       local path = fs.join(dir, name)
       local buf = fs.find_buf(path)
-      local lines = buf and vim.api.nvim_buf_get_lines(buf, 0, -1, false) or fs.read_lines(path) or {}
-      local task = M.parse(path, lines, root)
+      local task
+      if buf and vim.bo[buf].modified then
+        -- unsaved edits: the buffer is the truth, and it isn't cached
+        task = M.parse(path, vim.api.nvim_buf_get_lines(buf, 0, -1, false), root)
+      else
+        local st = uv.fs_stat(path)
+        local hit = cache[path]
+        if require("logpose.index").fresh(hit, st) then
+          task = hit.task
+        else
+          task = M.parse(path, fs.read_lines(path) or {}, root)
+          if st then
+            cache[path] = { sec = st.mtime.sec, nsec = st.mtime.nsec, size = st.size, at = os.time(), task = task }
+          end
+        end
+      end
       if opts.archived or not task.archived then
         table.insert(out, task)
       end
