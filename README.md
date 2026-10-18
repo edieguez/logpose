@@ -297,17 +297,15 @@ item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q` 
 
 ### Switching
 
-`:Logpose project` (or `P` on the board) opens a switcher in your picker. The active project
-comes first, then the ones you switched to recently, and each one previews what's going on in
-it: work in progress, blocked tasks with their reasons, what's due and the last meeting.
-Switching opens that project's board (if you're already on the board, it switches in place),
-and takes effect everywhere else at once. `projects = { open_board = false }` switches without
-leaving where you are.
+`:Logpose project` (or `P` on the board) opens the projects screen below; `<CR>` on a project
+switches to it. Switching brings back your board on that project (as you left it: filter, marks,
+folded columns) and takes effect everywhere else at once. `projects = { open_board = false }`
+switches without leaving where you are.
 
 ```vim
-:Logpose project          " the switcher
+:Logpose project          " the projects screen
 :Logpose project acme     " switch directly
-:Logpose project none     " go back to automatic detection
+:Logpose project none     " go back to automatic detection (c on the projects screen)
 ```
 
 When you haven't pinned a project, logpose works it out from where you are:
@@ -348,7 +346,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `c` | Go back to automatic detection. |
 
 **The project page** (`projects/acme.md`) is where a project lives. Its frontmatter is what the
-switcher and the manager show, and you can edit it by hand:
+projects screen shows, and you can edit it by hand (or with `e` there):
 
 ```markdown
 ---
@@ -366,8 +364,8 @@ color: "#e0af68"
 - `color` (a hex colour or a highlight group) colours the project's cards on the board.
 - The rest of the page is yours: overview, links, decisions, open questions.
 
-**Moving a task to another project:** `m` on the board, or `:Logpose move [project]` in a task
-file. The move is logged in the task, and `u` on the board undoes it.
+**Moving a task to another project:** `m` on the board, or change `project` in the edit form
+(`:Logpose edit` in the task file). The move is logged in the task, and `u` on the board undoes it.
 
 **Merging** (`M`, or `:Logpose merge-project old new`) moves everything from one project into
 another: tasks, notes, meetings (files and series) and links. The old project page stays,
@@ -375,7 +373,7 @@ archived and marked `merged_into`, so links to it keep working. Like a rename, i
 change before applying it.
 
 **Archiving** hides a project you're done with, without losing anything. Its tasks and notes
-stay where they are and remain searchable, but it leaves completion, the switcher and the
+stay where they are and remain searchable, but it leaves completion, the projects screen and the
 all-projects board. logpose records this as `archived: true` in the project page, and `U`
 undoes it.
 
@@ -602,8 +600,6 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `capture[!] [TEXT]` | New task in Backlog. `+name` picks the project. `!` opens it. |
 | `done` | In a task file: move it to Done. On checkboxes: check them off. |
 | `promote` | Turn the checkbox under the cursor into a task file. |
-| `move [PROJECT\|none]` | In a task file: move the task to another project. |
-| `triage [FILTERS]` | Open the board on Backlog. |
 | `migrate[!]` | Turn open INBOX.md items into task files. `!` skips the preview. |
 | `actions [open\|mine\|overdue\|all] [FILTERS]` | Meeting action items in the quickfix list. |
 
@@ -622,7 +618,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `note [TITLE]` | Create or open a topic note. |
-| `project [NAME\|none]` | Switch project (a picker without a name), or go back to detection. |
+| `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
 | `edit [last]` | Edit this note's frontmatter (or the last captured task's, or the tasks on selected quickfix lines) in a form. |
@@ -652,7 +648,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `u` | undo | `<C-r>` | redo |
 | `c` | compact one-line cards | `s` | one row per project |
 | `<CR>` | open the task file | `/` | filter (same filters as `find`) |
-| `p` | this project / all projects | `P` | switch project |
+| `p` | this project / all projects | `P` | projects screen (switch there) |
 | `m` | move the card to another project | `e` | edit the card's fields |
 | `v` | mark / unmark the card | `V` `<Esc>` | unmark all |
 | `r` | refresh | `q` | close |
@@ -690,7 +686,7 @@ and it never replaces a key you've mapped yourself.
 | `<leader>jj` | command menu | `<leader>jd` | daily note |
 | `<leader>jy` | today | `<leader>js` | standup |
 | `<leader>jk` | board | `<leader>jm` | meeting note |
-| `<leader>jw` | switch project | `<leader>jP` | manage projects |
+| `<leader>jP` | projects (switch, manage) | | |
 | `<leader>je` | edit frontmatter | | |
 | `<leader>jc` | capture a task | `<leader>jx` | mark done (normal and visual) |
 | `<leader>jp` | promote to task file | `<leader>jn` | topic note |
