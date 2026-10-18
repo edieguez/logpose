@@ -132,8 +132,9 @@ M.defaults = {
     url = nil,
   },
   telemetry = {
-    --- Local, opt-in usage counts (stdpath("data")/logpose/usage.json). Nothing leaves your machine.
-    enabled = false,
+    --- Local usage counts (stdpath("data")/logpose/usage.json), on by default. Nothing leaves
+    --- your machine; set to false to stop counting.
+    enabled = true,
     retention_days = 180,
   },
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.

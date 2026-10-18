@@ -59,7 +59,7 @@ function M.check()
   if config.get().telemetry.enabled then
     h.ok("On (local only): " .. vim.fn.fnamemodify(require("logpose.telemetry").path(), ":~"))
   else
-    h.info("Off. Enable with setup({ telemetry = { enabled = true } }); see :Logpose stats")
+    h.info("Off (telemetry.enabled = false). They're local only; see :Logpose stats")
   end
 
   h.start("logpose: tasks")

@@ -35,8 +35,14 @@ local function usage()
   return vim.json.decode(H.read(usage_path()))
 end
 
-T["off by default: nothing is recorded"] = function()
+T["on by default"] = function()
   setup()
+  child.cmd("Logpose daily")
+  eq(usage().days["2026-10-14"].daily, { ok = 1, err = 0 })
+end
+
+T["turned off: nothing is recorded"] = function()
+  setup("{ telemetry = { enabled = false } }")
   child.cmd("Logpose daily")
   child.lua("require('logpose.telemetry').flush()")
   eq(H.read(usage_path()), nil)
