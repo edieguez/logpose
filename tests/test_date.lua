@@ -130,4 +130,16 @@ T["workdays"]["raise on empty workdays"] = function()
   end, "empty")
 end
 
+T["resolve_due adds weekday names: the next one, today included"] = function()
+  local thu = "2026-10-15"
+  eq(date.resolve_due("fri", thu), "2026-10-16")
+  eq(date.resolve_due("Friday", thu), "2026-10-16")
+  eq(date.resolve_due("thu", thu), thu)
+  eq(date.resolve_due("wed", thu), "2026-10-21")
+  eq(date.resolve_due("+3d", thu), "2026-10-18") -- everything resolve takes
+  eq(date.resolve_due("mo", thu), nil) -- too short to tell
+  eq(date.resolve_due("someday", thu), nil)
+  eq(date.resolve("fri", thu), nil) -- search filters keep their meaning
+end
+
 return T
