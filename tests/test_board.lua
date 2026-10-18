@@ -144,11 +144,33 @@ T["a adds a card to the focused column with the active project"] = function()
   child.lua([[vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('New idea') end]])
   child.type_keys("ll")
   child.type_keys("a")
-  eq(child.lua_get("_G.prompt"), "New task in In progress: ")
+  eq(child.lua_get("_G.prompt"), "New task in In progress → acme (this board): ")
   local content = H.read(root .. "/tasks/new-idea.md")
   H.contains(content, "status: in-progress")
   H.contains(content, "project: acme")
   H.contains(screen(), "New idea")
+  -- the text is parsed like a capture: tags, due date, another project
+  child.lua([[vim.ui.input = function(opts, cb) cb('Draft intro #writing due:fri +thesis') end]])
+  child.type_keys("a")
+  content = H.read(root .. "/tasks/draft-intro.md")
+  H.contains(content, "project: thesis")
+  H.contains(content, "tags: [writing]")
+  H.contains(content, "due: 2026-10-16")
+end
+
+T["a in rows per project adds the card to the row you're in"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("s")
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  for i, l in ipairs(lines) do
+    if l:find("Read paper", 1, true) then
+      child.api.nvim_win_set_cursor(0, { i, (l:find("Read paper", 1, true)) })
+    end
+  end
+  child.lua([[vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('Outline') end]])
+  child.type_keys("a")
+  H.contains(child.lua_get("_G.prompt"), "→ thesis (this row): ")
+  H.contains(H.read(root .. "/tasks/outline.md"), "project: thesis")
 end
 
 T["the active project scopes the board; p shows all"] = function()

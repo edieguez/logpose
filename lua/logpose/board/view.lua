@@ -136,7 +136,7 @@ function M.render_lanes(b, add_row, today)
   end
   for _, lane in ipairs(lanes) do
     local label = " " .. ic.project .. " " .. (lane == "" and "no project" or lane) .. " "
-    add_row({
+    local divider = add_row({
       {
         chunks = text.fit_chunks({
           { ic.box.normal.h .. ic.box.normal.h, "LogposeBoardHint" },
@@ -145,6 +145,7 @@ function M.render_lanes(b, add_row, today)
         }, total),
       },
     })
+    b.lane_rows[divider] = lane
     local blocks, rows = {}, 0
     for ci, col in ipairs(b.columns) do
       local block = {}
@@ -169,9 +170,27 @@ function M.render_lanes(b, add_row, today)
         local seg = block[r] or { chunks = { { string.rep(" ", b.widths[ci]) } } }
         segs[ci] = { chunks = seg.chunks, card = seg.card, ci = ci }
       end
-      add_row(segs)
+      b.lane_rows[add_row(segs)] = lane
     end
   end
+end
+
+--- The project row (lane) under the cursor when cards are grouped by project: a project name,
+--- "" for the "no project" row, or nil when not in that mode.
+---@param b logpose.Board
+---@return string?
+function M.lane_at_cursor(b)
+  if not b.lanes or b.stacked or not b.lane_rows then
+    return nil
+  end
+  local win = vim.fn.bufwinid(b.buf)
+  local row = win ~= -1 and vim.api.nvim_win_get_cursor(win)[1] or nil
+  local lane = row and b.lane_rows[row]
+  if lane == nil then
+    local it = M.focused(b)
+    lane = it and (it.project or "") or nil
+  end
+  return lane
 end
 
 --- Render into the board buffer and remember where each card is.
@@ -227,7 +246,7 @@ function M.render(b, width, height)
     vim.wo[bar_win].winbar = bar
   end
   local lines, hls = {}, {}
-  b.segments, b.regions, b.cards_at = {}, {}, {}
+  b.segments, b.regions, b.cards_at, b.lane_rows = {}, {}, {}, {}
 
   --- Append a buffer row from per-column chunk lists; records highlights and card regions.
   ---@param segs { chunks: logpose.Chunk[], ci?: integer, card?: integer }[]
@@ -261,6 +280,7 @@ function M.render(b, width, height)
     lines[row] = (table.concat(parts):gsub("%s+$", "")) -- no trailing whitespace, ever
     b.segments[row] = starts
     b.regions[row] = region
+    return row
   end
 
   local blocks = {}
