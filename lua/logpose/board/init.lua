@@ -38,6 +38,7 @@ local M = {}
 ---@field widths integer[] width per column (folded ones are narrow)
 ---@field offset table<integer, integer> first visible card per column
 ---@field collapsed table<string, boolean> folded columns by key
+---@field marked table<string, boolean> marked cards by file (v); actions apply to all of them
 
 ---@type table<integer, logpose.Board>
 M.boards = {}
@@ -96,6 +97,7 @@ function M.open_board(root, opts)
     tab = tab,
     compact = config.get().board.compact,
     lanes = config.get().board.lanes,
+    marked = {},
     collapsed = {},
   }
   for _, key in ipairs(config.get().board.collapsed) do
