@@ -137,9 +137,17 @@ T["rename-project refuses to overwrite"] = function()
   eq(vim.fn.filereadable(p("meetings/acme/a.md")), 1)
 end
 
+--- Pretend a file was last changed `secs` seconds ago.
+local function age(path, secs)
+  local t = os.time() - secs
+  vim.uv.fs_utime(path, t, t)
+end
+
 T["index cache"] = function()
   H.write(p("a.md"), "# a\n- [ ] one\n")
   H.write(p("b.md"), "# b\n")
+  age(p("a.md"), 10)
+  age(p("b.md"), 10)
   child.lua(("require('logpose.index').build(%q)"):format(root))
   local reads = child.lua_get("require('logpose.index').reads")
   child.lua(("require('logpose.index').build(%q)"):format(root))
@@ -150,6 +158,54 @@ T["index cache"] = function()
   eq(items, 4)
   vim.fn.delete(p("b.md"))
   eq(child.lua_get(("#require('logpose.index').build(%q)"):format(root)), 3)
+end
+
+T["index: one build per command, unless something is written"] = function()
+  H.write(p("a.md"), "# a\n")
+  age(p("a.md"), 10)
+  -- several builds in one go (one command) parse nothing new and return equal, separate lists
+  eq(
+    child.lua_get(([[(function()
+      local index = require('logpose.index')
+      local x = index.build(%q)
+      table.insert(x, 'junk') -- a caller changing its list doesn't affect the next build
+      local y = index.build(%q)
+      return { #x, #y }
+    end)()]]):format(root, root)),
+    { 2, 1 }
+  )
+  -- a write in between is seen at once
+  eq(
+    child.lua_get(([[(function()
+      local index = require('logpose.index')
+      local before = #index.build(%q)
+      require('logpose.util.fs').write_file(%q, '# b\n- [ ] new\n')
+      return { before, #index.build(%q) }
+    end)()]]):format(root, p("b.md"), root)),
+    { 1, 3 }
+  )
+  -- a file changed behind logpose's back is seen by the next command
+  H.write(p("c.md"), "# c\n")
+  eq(child.lua_get(("#require('logpose.index').build(%q)"):format(root)), 4)
+end
+
+T["index cache: a file changed just now is read again until its timestamp is settled"] = function()
+  H.write(p("a.md"), "# a\n")
+  child.lua(("require('logpose.index').build(%q)"):format(root))
+  local reads = child.lua_get("require('logpose.index').reads")
+  -- same second, same size, new content: a coarse-mtime filesystem couldn't tell them apart
+  H.write(p("a.md"), "# b\n")
+  local st = vim.uv.fs_stat(p("a.md"))
+  child.lua(("require('logpose.index').build(%q)"):format(root))
+  eq(child.lua_get("require('logpose.index').reads"), reads + 1)
+  H.contains(vim.inspect(child.lua_get(("require('logpose.index').build(%q)[1].title"):format(root))), "b")
+  -- once the timestamp is old, the entry is trusted
+  age(p("a.md"), 10)
+  child.lua(("require('logpose.index').build(%q)"):format(root))
+  reads = child.lua_get("require('logpose.index').reads")
+  child.lua(("require('logpose.index').build(%q)"):format(root))
+  eq(child.lua_get("require('logpose.index').reads"), reads)
+  eq(st ~= nil, true)
 end
 
 return T
