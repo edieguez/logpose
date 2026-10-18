@@ -187,7 +187,9 @@ where the task will go (`Capture → acme (this repo)`), and so does the message
 that's wrong, `:Logpose edit last` fixes it.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
-shows its title, with the details under it in a quiet colour: `◆ project · due Tue · #tags`.
+shows its title and, under it, `◆ project · due Tue · #tags`. The project is in its own colour,
+picked from your colour scheme (or set with `color:` on its project page, `e` in
+`:Logpose projects`), so you can tell projects apart at a glance. The rest is in a quiet colour.
 
 Colour is kept for what needs your attention:
 
