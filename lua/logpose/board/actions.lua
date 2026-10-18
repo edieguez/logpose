@@ -15,32 +15,119 @@ function M.count(b, name)
   require("logpose.telemetry").record("board", { name }, true)
 end
 
---- Run `fn` with the focused card; refresh after (keeping focus on `follow` or the card).
+--- The cards an action applies to: the marked ones (in board order), else the focused one.
+---@param b logpose.Board
+---@return logpose.Item[]
+function M.targets(b)
+  if next(b.marked) then
+    local out = {}
+    for _, col in ipairs(b.columns) do
+      for _, it in ipairs(col.cards) do
+        if b.marked[it.file] then
+          table.insert(out, it)
+        end
+      end
+    end
+    if #out > 0 then
+      return out
+    end
+  end
+  local it = view.focused(b)
+  return it and { it } or {}
+end
+
+--- What an action did to several cards, for the message after it.
+local DID = {
+  move = "moved",
+  done = "done",
+  block = "updated",
+  project = "moved",
+}
+
+--- Run `fn` on each target card (the marked ones, or the focused one) as one undo step;
+--- refresh after (keeping focus on the path `fn` returns, or the focused card).
 ---@param b logpose.Board
 ---@param name string telemetry keyword
 ---@param fn fun(it: logpose.Item): string|boolean|nil  return a path to follow, or false to skip
-
-local function with_card(b, name, fn)
-  local it = view.focused(b)
-  if not it then
+---@param suffix? string  added to the message after a bulk change ("to thesis")
+local function with_card(b, name, fn, suffix)
+  local targets = M.targets(b)
+  if #targets == 0 then
     require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   local before = history.snapshot(b)
-  local ok, res = pcall(fn, it)
+  local changed, follow, err = 0, nil, nil
+  for _, it in ipairs(targets) do
+    local ok, res = pcall(fn, it)
+    if not ok then
+      err = res
+      break
+    end
+    if res ~= false then
+      changed = changed + 1
+      follow = follow or (type(res) == "string" and res or it.file)
+    end
+  end
   history.record(b, name, before)
-  if not ok then
-    require("logpose.util.ui").notify(tostring(res), vim.log.levels.ERROR)
+  if err then
+    require("logpose.util.ui").notify(tostring(err), vim.log.levels.ERROR)
+    if changed > 0 then
+      view.refresh(b, (view.focused(b) or {}).file)
+    end
     return
   end
-  if res == false then
+  if changed == 0 then
     return
   end
   M.count(b, name)
-  view.refresh(b, type(res) == "string" and res or it.file)
+  if #targets > 1 then
+    view.refresh(b, (view.focused(b) or {}).file)
+    require("logpose.util.ui").notify(
+      ("logpose: %s %d of %d marked cards%s · u undoes"):format(
+        DID[name] or "changed",
+        changed,
+        #targets,
+        suffix and (" " .. suffix) or ""
+      ),
+      vim.log.levels.INFO
+    )
+    return
+  end
+  view.refresh(b, follow)
   if name == "move" or name == "done" then
     M.flash(b)
   end
+end
+
+--- `v`: mark or unmark the focused card, then go to the next one in the column.
+---@param b logpose.Board
+function M.toggle_mark(b)
+  local it = view.focused(b)
+  if not it then
+    return
+  end
+  b.marked[it.file] = not b.marked[it.file] or nil
+  M.count(b, "mark")
+  local col = b.columns[b.focus.col]
+  if col and b.focus.row < #col.cards then
+    b.focus.row = b.focus.row + 1
+  end
+  view.highlight_focus(b)
+  view.place_cursor(b)
+end
+
+--- `V` / `<Esc>`: unmark every card. Returns whether there were marks.
+---@param b logpose.Board
+---@return boolean
+function M.clear_marks(b)
+  if not next(b.marked) then
+    return false
+  end
+  b.marked = {}
+  view.highlight_focus(b)
+  view.place_cursor(b)
+  return true
 end
 
 local flash_ns = vim.api.nvim_create_namespace("logpose.board.flash")
@@ -72,6 +159,7 @@ function M.flash(b)
   end, require("logpose.board").flash_ms)
 end
 
+--- Move the card(s) to column `target`.
 ---@param b logpose.Board
 ---@param target integer column index
 function M.move_to(b, target)
@@ -84,13 +172,21 @@ function M.move_to(b, target)
     end
     taskfile.set_status(it.file, b.columns[target].key)
     return it.file
-  end)
+  end, "to " .. b.columns[target].label)
 end
 
+--- Move the card(s) `delta` columns left or right (each from its own column).
 ---@param b logpose.Board
 ---@param delta integer
 function M.move(b, delta)
-  M.move_to(b, b.focus.col + delta)
+  with_card(b, "move", function(it)
+    local target = (taskfile.column_index(it.status) or b.focus.col) + delta
+    if target < 1 or target > #b.columns then
+      return false
+    end
+    taskfile.set_status(it.file, b.columns[target].key)
+    return it.file
+  end)
 end
 
 ---@param b logpose.Board
@@ -107,9 +203,28 @@ end
 
 ---@param b logpose.Board
 function M.toggle_block(b)
-  local it = view.focused(b)
+  local targets = M.targets(b)
+  local it = targets[1]
   if not it then
     require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  if #targets > 1 then
+    vim.ui.input(
+      { prompt = ("Block %d cards by (empty unblocks): "):format(#targets) },
+      ui.safely(function(reason)
+        if reason == nil then
+          return
+        end
+        reason = vim.trim(reason)
+        with_card(b, "block", function(card)
+          if (reason == "" and not card.blocked) or card.blocked == reason then
+            return false
+          end
+          taskfile.set_blocked(card.file, reason ~= "" and reason or nil)
+        end)
+      end)
+    )
     return
   end
   if it.blocked then
@@ -134,15 +249,19 @@ end
 --- Move the focused card to another project (asks which).
 ---@param b logpose.Board
 function M.move_to_project(b)
-  local it = view.focused(b)
+  local targets = M.targets(b)
+  local it = targets[1]
   if not it then
     require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
-  require("logpose.tasks").choose_project(b.root, it.project, function(target)
+  require("logpose.tasks").choose_project(b.root, #targets == 1 and it.project or nil, function(target)
     with_card(b, "project", function(card)
+      if card.project == target then
+        return false
+      end
       taskfile.set_project(card.file, target)
-    end)
+    end, "to " .. (target or "no project"))
     if b.project and not b.all and target ~= b.project then
       require("logpose.util.ui").notify(
         ("logpose: moved to %s (p shows all projects)"):format(target or "no project"),
@@ -155,12 +274,32 @@ end
 --- Edit the focused card's frontmatter in a form; the change can be undone with `u`.
 ---@param b logpose.Board
 function M.edit(b)
-  local it = view.focused(b)
+  local targets = M.targets(b)
+  local it = targets[1]
   if not it then
     require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
     return
   end
   local before = history.snapshot(b)
+  if #targets > 1 then
+    require("logpose.edit").open_bulk(
+      vim.tbl_map(function(t)
+        return t.file
+      end, targets),
+      {
+        root = b.root,
+        on_save = function(_, keys)
+          if #keys == 0 then
+            return
+          end
+          history.record(b, "edit", before)
+          M.count(b, "edit")
+          view.refresh(b, (view.focused(b) or {}).file)
+        end,
+      }
+    )
+    return
+  end
   require("logpose.edit").open(it.file, {
     root = b.root,
     on_save = function(path, keys)
