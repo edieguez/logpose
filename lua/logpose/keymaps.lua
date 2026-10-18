@@ -9,6 +9,7 @@ M.MAPS = {
   { "y", "n", "<cmd>Logpose today<cr>", "Today" },
   { "s", "n", "<Plug>(logpose-standup)", "Standup" },
   { "k", "n", "<Plug>(logpose-board)", "Board" },
+  { "w", "n", "<Plug>(logpose-project)", "Switch project" },
   { "P", "n", "<cmd>Logpose projects<cr>", "Projects" },
   { "m", "n", "<Plug>(logpose-meeting)", "Meeting note" },
   { "c", "n", "<Plug>(logpose-capture)", "Capture a task" },

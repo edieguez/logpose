@@ -8,7 +8,7 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
----@alias logpose.ProjectSource "explicit"|"path"|"git"
+---@alias logpose.ProjectSource "explicit"|"path"|"page"|"git"
 
 --- Project names are used in paths, so they are always slugs.
 ---@param name string
@@ -37,7 +37,8 @@ local function is_within(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
---- Active project: set explicitly -> `projects.paths` -> git repo -> none.
+--- Active project: set explicitly -> `projects.paths` -> a project page's `paths:` -> git repo
+--- -> none.
 --- Detection never applies inside the journal itself.
 ---@param root? string journal root
 ---@return string? name, logpose.ProjectSource? source
@@ -64,6 +65,20 @@ function M.resolve(root)
     return M.normalize(best), "path"
   end
 
+  if root then
+    for name, page in pairs(M.pages(root)) do
+      for _, dir in ipairs(page.paths) do
+        local d = fs.normalize(dir):gsub("/+$", "")
+        if is_within(ctx, d) and (not best_len or #d > best_len) then
+          best, best_len = name, #d
+        end
+      end
+    end
+    if best then
+      return best, "page"
+    end
+  end
+
   if opts.detect then
     local repo = vim.fs.root(ctx, ".git")
     if repo then
@@ -80,10 +95,20 @@ function M.current()
   return (M.resolve(root))
 end
 
+---@class logpose.ProjectPage
+---@field path string
+---@field archived boolean
+---@field title? string        display name ("Acme API")
+---@field description? string  one line about the project
+---@field paths string[]       folders (repos) that belong to the project, for detection
+---@field color? string        "#7aa2f7" or a highlight group, for its cards on the board
+---@field merged_into? string
+
 --- Project pages: `projects/<name>.md`, keyed by project. A page is what makes a project exist
---- before it has any notes or tasks, and where `archived: true` is kept.
+--- before it has any notes or tasks, and holds what logpose knows about it: its display name,
+--- description, repo folders, colour, and whether it's archived.
 ---@param root string
----@return table<string, { path: string, archived: boolean, title?: string }>
+---@return table<string, logpose.ProjectPage>
 function M.pages(root)
   local out = {}
   local dir = config.path("projects", root)
@@ -97,10 +122,21 @@ function M.pages(root)
       local fm = index.frontmatter(fs.read_lines(path) or {})
       local name = M.normalize(type(fm.project) == "string" and fm.project or entry:gsub("%.md$", ""))
       if name then
+        local function str(v)
+          return type(v) == "string" and v ~= "" and v or nil
+        end
+        local paths = fm.paths
+        if type(paths) == "string" then
+          paths = paths ~= "" and { paths } or {}
+        end
         out[name] = {
           path = path,
           archived = fm.archived == "true" or fm.archived == "yes",
-          title = type(fm.title) == "string" and fm.title or nil,
+          title = str(fm.title),
+          description = str(fm.description),
+          paths = paths or {},
+          color = str(fm.color),
+          merged_into = str(fm.merged_into),
         }
       end
     end
@@ -166,13 +202,23 @@ function M.known(root, opts)
   return out
 end
 
---- Archive (or restore) a project: `archived: true` in its page, created if it has none. Its
---- notes and tasks stay where they are and stay searchable; it just drops out of completion,
---- the project picker and the all-projects board. Archiving the pinned project unpins it.
+--- Display name of a project: its page title, else the project name.
+---@param root? string
+---@param name string
+---@return string
+function M.title(root, name)
+  local page = root and M.pages(root)[name]
+  return page and page.title or name
+end
+
+--- Set (or remove, with nil) a frontmatter key in a project's page, creating the page if it has
+--- none.
 ---@param root string
 ---@param name string
----@param archived boolean
-function M.set_archived(root, name, archived)
+---@param key string
+---@param value? string already formatted as YAML
+---@return string path
+function M.set_page_field(root, name, key, value)
   local slug = M.normalize(name)
   if not slug then
     error(("logpose: invalid project name %q"):format(name), 0)
@@ -190,15 +236,16 @@ function M.set_archived(root, name, archived)
     if lines[1] ~= "---" or not close then
       return nil
     end
+    local at = close
     for i = 2, close - 1 do
-      if lines[i]:match("^archived:") then
+      if lines[i]:match("^" .. vim.pesc(key) .. ":") then
         table.remove(lines, i)
-        close = close - 1
+        close, at = close - 1, i
         break
       end
     end
-    if archived then
-      table.insert(lines, close, "archived: true")
+    if value ~= nil then
+      table.insert(lines, at, key .. ": " .. value)
     end
     return lines
   end, { tidy = true })
@@ -206,10 +253,78 @@ function M.set_archived(root, name, archived)
     error(err, 0)
   end
   require("logpose.index").clear_cache()
+  return path
+end
+
+--- Archive (or restore) a project: `archived: true` in its page, created if it has none. Its
+--- notes and tasks stay where they are and stay searchable; it just drops out of completion,
+--- the project picker and the all-projects board. Archiving the pinned project unpins it.
+---@param root string
+---@param name string
+---@param archived boolean
+function M.set_archived(root, name, archived)
+  local slug = M.normalize(name)
+  M.set_page_field(root, name, "archived", archived and "true" or nil)
   if archived and state.get("project") == slug then
     state.set("project", nil)
   end
   M.changed()
+end
+
+--- Create a project: its page, with a display name and the folders that belong to it.
+---@param root string
+---@param title string as typed ("Acme API")
+---@param paths? string[] repo folders (`~` kept as typed)
+---@return string slug
+function M.add(root, title, paths)
+  local slug = M.normalize(title)
+  if not slug then
+    error(("logpose: invalid project name %q"):format(title), 0)
+  end
+  require("logpose.notes.topic").project_page(root, title, { open = false })
+  if paths and #paths > 0 then
+    M.set_page_field(root, slug, "paths", "[" .. table.concat(paths, ", ") .. "]")
+  end
+  M.changed()
+  return slug
+end
+
+--- Projects you switched to, most recent first.
+---@return string[]
+function M.recent()
+  local list = state.get("recent_projects")
+  return type(list) == "table" and list or {}
+end
+
+---@param name string
+local function remember(name)
+  local list = { name }
+  for _, p in ipairs(M.recent()) do
+    if p ~= name and #list < 20 then
+      table.insert(list, p)
+    end
+  end
+  state.set("recent_projects", list)
+end
+
+--- Highlight group for a project's colour (nil when its page sets none).
+---@param root string
+---@param name string
+---@param pages? table<string, logpose.ProjectPage>
+---@return string?
+function M.hl(root, name, pages)
+  local page = (pages or M.pages(root))[name]
+  local color = page and page.color
+  if not color then
+    return nil
+  end
+  local group = "LogposeProject_" .. name:gsub("[^%w]", "_")
+  if color:match("^#%x%x%x%x%x%x$") then
+    vim.api.nvim_set_hl(0, group, { fg = color, default = false })
+  else
+    vim.api.nvim_set_hl(0, group, { link = color, default = false })
+  end
+  return group
 end
 
 --- Tell open boards, the statusline and anyone listening (`User LogposeProjectChanged`) that the
@@ -224,6 +339,7 @@ end
 local SOURCE_LABEL = {
   explicit = "set with :Logpose project",
   path = "from projects.paths",
+  page = "from its project page",
   git = "from the git repo",
 }
 
@@ -255,6 +371,7 @@ function M.set(name)
     error(("logpose: invalid project name %q"):format(name), 0)
   end
   state.set("project", slug)
+  remember(slug)
   M.changed()
   require("logpose.util.ui").notify("logpose: project set to " .. slug, vim.log.levels.INFO)
 end
@@ -273,42 +390,9 @@ function M.command(opts)
     return
   end
 
-  local root = config.resolve_root()
-  local current, source = M.resolve(root)
-  local items = {}
-  for _, name in ipairs(M.known(root)) do
-    table.insert(items, { label = name, value = name })
-  end
-  table.insert(items, { label = "New project…", new = true })
-  table.insert(items, { label = "Auto-detect (clear)", clear = true })
-  vim.ui.select(
-    items,
-    {
-      prompt = "Project (now: " .. M.describe(current, source) .. ")",
-      format_item = function(item)
-        return item.label
-      end,
-    },
-    ui.safely(function(choice)
-      if not choice then
-        return
-      end
-      if choice.clear then
-        M.set(nil)
-      elseif choice.new then
-        vim.ui.input(
-          { prompt = "Project name: " },
-          ui.safely(function(input)
-            if input and vim.trim(input) ~= "" then
-              M.set(input)
-            end
-          end)
-        )
-      else
-        M.set(choice.value)
-      end
-    end)
-  )
+  config.with_root(ui.safely(function(root)
+    require("logpose.projects").switch(root)
+  end))
 end
 
 ---@return string[]
