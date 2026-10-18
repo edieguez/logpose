@@ -147,7 +147,7 @@ function M.render_lanes(b, add_row, today)
       {
         chunks = text.fit_chunks({
           { ic.box.normal.h .. ic.box.normal.h, "LogposeBoardHint" },
-          { label, cards.project_hl[lane] or "LogposeBoardProject" },
+          { label, lane ~= "" and cards.project_group(lane) or "LogposeBoardProject" },
           { string.rep(ic.box.normal.h, math.max(total - vim.fn.strdisplaywidth(label) - 2, 0)), "LogposeBoardHint" },
         }, total),
       },
@@ -437,6 +437,8 @@ end
 --- Window options that would eat columns, scroll sideways or draw over the board.
 M.WINDOW_OPTIONS = {
   wrap = false,
+  -- the focused card has its own background; a cursorline would draw a band across the board
+  cursorline = false,
   number = false,
   relativenumber = false,
   signcolumn = "no",
