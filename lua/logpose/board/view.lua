@@ -52,8 +52,14 @@ local function column_block(b, ci, w, avail, today)
   end
   local lines = {}
   for ri, it in ipairs(col.cards) do
-    lines[ri] =
-      cards.card_lines(it, w, today, col_hl, ci == b.focus.col and ri == b.focus.row, b.compact, b.marked[it.file])
+    lines[ri] = cards.card_lines(it, w, today, {
+      col_hl = col_hl,
+      focused = ci == b.focus.col and ri == b.focus.row,
+      compact = b.compact,
+      marked = b.marked[it.file],
+      -- on a one-project board the project is on every card: say it once, in the bar
+      show_project = b.all or not b.project,
+    })
   end
   -- Do cards first..last fit, counting the "more" markers they'd need?
   local function fits(first, last)
@@ -155,17 +161,13 @@ function M.render_lanes(b, add_row, today)
           if lane_of(it) == lane then
             local focused = ci == b.focus.col and ri == b.focus.row
             for _, l in
-              ipairs(
-                cards.card_lines(
-                  it,
-                  b.widths[ci],
-                  today,
-                  "LogposeBoardColumn" .. ci,
-                  focused,
-                  b.compact,
-                  b.marked[it.file]
-                )
-              )
+              ipairs(cards.card_lines(it, b.widths[ci], today, {
+                col_hl = "LogposeBoardColumn" .. ci,
+                focused = focused,
+                compact = b.compact,
+                marked = b.marked[it.file],
+                show_project = false, -- the row says which project
+              }))
             do
               table.insert(block, { chunks = l, card = ri })
             end
@@ -367,6 +369,24 @@ function M.render(b, width, height)
         end_col = math.min(h.col + h.len, len),
         hl_group = h.hl,
       })
+    end
+  end
+  -- The focused card gets a background (under its colours), so it reads as selected anywhere.
+  local at = b.cards_at[b.focus.col] and b.cards_at[b.focus.col][b.focus.row]
+  if at then
+    for row = at.first, at.last do
+      local starts = b.segments[row] or {}
+      local start = b.stacked and 0 or starts[b.focus.col]
+      local len = #(lines[row] or "")
+      local stop = (not b.stacked and starts[b.focus.col + 1]) and (starts[b.focus.col + 1] - 1) or len
+      -- only the card's own rows, not the gap below it
+      if start and start < len and (lines[row]:sub(start + 1, math.min(stop, len)):match("%S")) then
+        pcall(vim.api.nvim_buf_set_extmark, b.buf, ns, row - 1, start, {
+          end_col = math.min(stop, len),
+          hl_group = "LogposeBoardFocusBg",
+          priority = 100,
+        })
+      end
     end
   end
 end

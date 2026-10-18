@@ -80,9 +80,11 @@ T["shows columns side by side with cards, counts and meta"] = function()
     H.contains(headers, h) -- "Old work" finished last week: not in Done
   end
   H.contains(s, "⊘ waiting on ana")
-  H.contains(s, "◆ acme #perf ◷ 10-14")
+  H.contains(s, "◆ acme · overdue 1d · #perf") -- details: project, when it's due, tags
+  H.contains(s, "✓ Ship it") -- done
   H.contains(s, "╭─") -- cards are boxes
   H.contains(s, "┏━") -- the focused one has a heavy border
+  H.contains(s, "┃ Queue design") -- a blocked card's left edge
   eq(s:find("Old work", 1, true), nil)
   -- no trailing whitespace anywhere, the last column included
   for _, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
@@ -358,38 +360,137 @@ T["D deletes a card after asking"] = function()
   H.contains(child.notifications()[#child.notifications()].msg, "deleted read-paper.md")
 end
 
-T["cards show how long they've been in their column; stale ones fade"] = function()
-  -- queue: In progress since 10-12 (started), no log -> created 10-09
-  local s = screen()
+T["time in the column shows once a card is stale; stale cards fade, blocked ones don't"] = function()
+  local function groups()
+    return child.lua_get([[(function()
+      local seen = {}
+      for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+        seen[m[4].hl_group] = true
+      end
+      return seen
+    end)()]])
+  end
   child.cmd("Logpose board")
-  s = screen()
-  H.contains(s, "6d") -- Queue design: created 2026-10-09, no move logged
-  H.contains(s, "5d") -- Fix flaky test: created 2026-10-10
+  -- Queue design has sat 6 days, Fix flaky test 5: under the 7-day threshold, nothing shows
+  eq(screen():find("idle", 1, true), nil)
+  eq(groups().LogposeBoardFaded, nil)
+  setup("{ board = { stale_days = 5 } }")
+  child.cmd("Logpose board")
+  local s = screen()
+  H.contains(s, "◆ acme · idle 6d") -- Queue design: created 2026-10-09, no move logged
+  H.contains(s, "overdue 1d · idle 5d") -- Fix flaky test: created 2026-10-10
   task(
     "moved",
     { title = "Moved recently", status = "todo", created = "2026-09-01" },
     "\n## Log\n\n- 2026-10-14 09:00: Backlog → TODO\n"
   )
   child.type_keys("r")
-  H.contains(screen(), "1d") -- the log says when it reached TODO
-  local groups = child.lua_get([[(function()
-    local seen = {}
-    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
-      seen[m[4].hl_group] = true
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  for i, l in ipairs(lines) do
+    if l:find("Moved recently", 1, true) then
+      -- the log says it reached TODO yesterday: not stale
+      eq((lines[i + 1] or ""):find("idle", 1, true), nil)
     end
-    return seen
+  end
+  local g = groups()
+  eq({ g.LogposeBoardStale, g.LogposeBoardFaded }, { true, true })
+  -- the blocked card isn't faded: what blocks it matters
+  local faded = child.lua_get([[(function()
+    local out = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+      if m[4].hl_group == "LogposeBoardFaded" then
+        local line = vim.api.nvim_buf_get_lines(0, m[2], m[2] + 1, false)[1]
+        table.insert(out, line:sub(m[3] + 1, m[4].end_col))
+      end
+    end
+    return out
   end)()]])
-  eq(groups.LogposeBoardAge, true)
-  setup("{ board = { stale_days = 3 } }")
+  eq(vim.tbl_contains(faded, "Queue design"), false)
+  eq(vim.tbl_contains(faded, "Fix flaky test"), true)
+end
+
+T["due dates read as words, coloured by urgency"] = function()
+  local function due(d, status)
+    return child.lua_get(
+      ("{ require('logpose.board.cards').due_text({ due = %q, status = %q }, '2026-10-15') }"):format(
+        d,
+        status or "todo"
+      )
+    )
+  end
+  eq(due("2026-10-13"), { "overdue 2d", "LogposeBoardOverdue" })
+  eq(due("2026-10-15"), { "due today", "LogposeBoardDueSoon" })
+  eq(due("2026-10-16"), { "due tomorrow", "LogposeBoardDueSoon" })
+  eq(due("2026-10-20"), { "due Tue", "LogposeBoardDue" })
+  eq(due("2026-11-03"), { "due 3 Nov", "LogposeBoardDue" })
+  eq(due("2026-10-13", "done"), {}) -- done: no date
+end
+
+T["details fit by importance: the date stays whole, then the project, then whole tags"] = function()
+  local function details(it, width)
+    return child.lua_get(([[table.concat(vim.tbl_map(function(c) return c[1] end,
+      require('logpose.board.cards').details(%s, '2026-10-15', true, %d)))]]):format(it, width))
+  end
+  local it = "{ project = 'thesis-work', due = '2026-10-16', status = 'todo', tags = { 'writing', 'ch3' } }"
+  eq(details(it, 60), "◆ thesis-work · due tomorrow · #writing · #ch3")
+  eq(details(it, 40), "◆ thesis-work · due tomorrow · #writing")
+  eq(details(it, 24), "◆ thesis… · due tomorrow")
+  eq(details(it, 18), "◆ due tomorrow") -- too short for a name: the colour mark alone
+end
+
+T["the focused card has a background; a one-project board leaves the project off its cards"] = function()
+  setup(("{ projects = { paths = { [%q] = 'acme' } } }"):format(child.fn.getcwd()))
   child.cmd("Logpose board")
-  groups = child.lua_get([[(function()
-    local seen = {}
+  eq(title(), "Board · acme")
+  local s = screen()
+  eq(s:find("◆ acme", 1, true), nil)
+  H.contains(s, "overdue 1d · #perf")
+  child.type_keys("l") -- Backlog is empty on this board: go to a card
+  local bg_rows = child.lua_get([[(function()
+    local rows = {}
     for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
-      seen[m[4].hl_group] = true
+      if m[4].hl_group == "LogposeBoardFocusBg" then
+        rows[#rows + 1] = m[2]
+      end
     end
-    return seen
+    return rows
   end)()]])
-  eq({ groups.LogposeBoardStale, groups.LogposeBoardFaded }, { true, true })
+  eq(#bg_rows >= 3, true) -- the whole card: borders, title, details
+  child.type_keys("p") -- all projects: the project is back
+  H.contains(screen(), "◆ acme")
+end
+
+T["board.border = 'column' colours each card like its column"] = function()
+  local function border_groups()
+    return child.lua_get([[(function()
+      local seen = {}
+      for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
+        seen[m[4].hl_group] = true
+      end
+      return seen
+    end)()]])
+  end
+  child.cmd("Logpose board")
+  eq(border_groups().LogposeBoardBorder, true)
+  child.cmd("bwipeout")
+  setup("{ board = { border = 'column' } }")
+  child.cmd("Logpose board")
+  local g = border_groups()
+  eq(g.LogposeBoardBorder, nil)
+  eq(g.LogposeBoardColumn2, true)
+  MiniTest.expect.error(function()
+    setup("{ board = { border = 'rainbow' } }")
+  end, "board.border")
+end
+
+T["compact cards follow the same rules"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("c")
+  local s = screen()
+  H.contains(s, "• Fix flaky test")
+  H.contains(s, "overdue 1d")
+  H.contains(s, "⊘ Queue design")
+  H.contains(s, "✓ Ship it")
 end
 
 T["WIP limits show in the header and turn red above it"] = function()
@@ -616,7 +717,8 @@ T["icons can be ascii or nerd font"] = function()
   H.contains(s, "+---")
   H.contains(s, "#===") -- focused
   H.contains(s, "! waiting on ana")
-  H.contains(s, "+ acme #perf due 10-14")
+  H.contains(s, "+ acme  overdue 1d  #perf")
+  H.contains(s, "v Ship it")
   eq(s:find("[╭◆◷⊘●]"), nil)
   -- long titles are cut with "~", not "…": the whole board is plain ASCII
   task("long", { title = "A very long task title that cannot possibly fit on one card line", status = "todo" })
