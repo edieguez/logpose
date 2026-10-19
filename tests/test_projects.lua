@@ -367,21 +367,24 @@ T["manager"]["b opens the board for that project and n its page"] = function()
   eq(child.api.nvim_buf_get_name(0), root .. "/projects/acme.md")
 end
 
-T["manager"]["t, f and o search its tasks, notes and to-dos apart"] = function()
+T["manager"]["t and o search its tasks and to-dos apart; f opens its notes"] = function()
   task("a", "acme")
   H.write(root .. "/meetings/acme/2026-10-14 - retro.md", '---\ntitle: "Retro"\nproject: acme\n---\n- [ ] ship it\n')
   child.lua([[vim.ui.select = function(items, o, cb) table.insert(_G.seen, { o.prompt, #items }); cb(nil) end]])
   child.lua("_G.seen = {}")
-  for _, key in ipairs({ "t", "f", "o" }) do
+  for _, key in ipairs({ "t", "o" }) do
     child.cmd("Logpose projects")
     on("acme")
     child.type_keys(key)
   end
   eq(child.lua_get("_G.seen"), {
     { "Tasks open project:acme", 1 },
-    { "Notes project:acme", 1 },
     { "To-dos open project:acme", 1 },
   })
+  child.cmd("Logpose projects")
+  on("acme")
+  child.type_keys("f")
+  eq(child.bo.filetype, "logpose-notes")
 end
 
 T["merge"] = MiniTest.new_set()
