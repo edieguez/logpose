@@ -88,6 +88,31 @@ T["today shows the day at a glance and opens what you pick"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], 9)
 end
 
+T["today lists the notes edited lately, newest first"] = function()
+  local uv = vim.uv or vim.loop
+  local now = os.time()
+  local function note(path, text, ago)
+    H.write(root .. "/" .. path, text)
+    uv.fs_utime(root .. "/" .. path, now - ago, now - ago)
+  end
+  note("notes/ideas.md", "# Ideas\n", 2 * 3600)
+  note("meetings/2026-10-14 - sync.md", '---\ntitle: "Sync"\nproject: acme\n---\n', 26 * 3600)
+  note("notes/old.md", "# Old\n", 10 * 86400) -- too long ago
+  note("tasks/t.md", '---\ntitle: "A task"\nstatus: todo\n---\n', 60) -- tasks are on the board
+  note("daily/daily-2026-10-16.md", "# d\n", 60) -- today's note has its own section
+  child.cmd("Logpose today")
+  local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(s, "## Recently edited (2)\n\n- Ideas  (2h ago)\n- Sync  (yesterday)  ◆ acme")
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  for i, l in ipairs(lines) do
+    if l:find("Ideas", 1, true) then
+      child.api.nvim_win_set_cursor(0, { i, 0 })
+    end
+  end
+  child.type_keys("<CR>")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "ideas.md")
+end
+
 T["today with nothing on says so"] = function()
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
