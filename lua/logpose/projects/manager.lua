@@ -15,7 +15,7 @@ M.HELP = {
   "  <CR>   switch to the project (on a detail line: open it)",
   "  <Tab>  show / hide what's going on in it",
   "  b      its board                 n  its project page",
-  "  t      its open tasks            f  its notes",
+  "  t      its open tasks            f  its notes (the notes screen)",
   "  o      its open to-dos (checkboxes in its notes)",
   "  a      add a project             p  link a repo folder",
   "  e      edit name, description, repo folders, colour",
@@ -344,7 +344,7 @@ function M.open(root)
   map(
     "f",
     on_project(function(p)
-      vim.cmd("Logpose find notes project:" .. p)
+      require("logpose.notes.browse").open(root, { project = p })
     end, true),
     "Notes"
   )
