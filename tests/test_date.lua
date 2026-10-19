@@ -155,6 +155,13 @@ T["dates read the same everywhere: due, relative, short"] = function()
   eq(date.relative("2026-10-10", thu), "5 days ago")
   eq(date.short("2026-10-16", thu), "Fri 16 Oct")
   eq(date.short("2027-01-05", thu), "Tue 5 Jan 2027")
+  local now = 1000000
+  eq(date.ago(now - 10, now), "just now")
+  eq(date.ago(now - 300, now), "5 min ago")
+  eq(date.ago(now - 3 * 3600, now), "3h ago")
+  eq(date.ago(now - 30 * 3600, now), "yesterday")
+  eq(date.ago(now - 4 * 86400, now), "4 days ago")
+  eq(date.ago(now + 60, now), "just now")
 end
 
 return T

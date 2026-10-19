@@ -1,5 +1,6 @@
 --- `:Logpose today`: the day at a glance. Today's meetings, what's in progress and blocked,
---- what's due, overdue action items and what's left in today's daily note. <CR> opens an item.
+--- what's due, overdue action items, what's left in today's daily note and the notes edited
+--- lately. <CR> opens an item.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local ui = require("logpose.util.ui")
@@ -13,6 +14,10 @@ local ns = vim.api.nvim_create_namespace("logpose.today")
 ---@field hl? string
 ---@field file? string
 ---@field lnum? integer
+
+--- How many notes "Recently edited" lists, edited within how many days.
+M.RECENT = 5
+M.RECENT_DAYS = 7
 
 --- The sections, as lines.
 ---@param root string
@@ -102,12 +107,46 @@ function M.build(root, today)
     end
   end
 
+  -- Notes edited lately (not tasks: they're on the board), so a note is easy to get back to.
+  local recent = {}
+  local now = os.time()
+  local daily_n = fs.normalize(daily)
+  -- project pages stay out: logpose itself writes them (colours, archiving)
+  local kinds = { daily = true, meeting = true, topic = true, other = true }
+  for _, it in ipairs(items) do
+    if
+      it.kind == "note"
+      and kinds[it.note_type]
+      and it.mtime
+      and now - it.mtime < M.RECENT_DAYS * 86400
+      and it.file ~= daily_n
+    then
+      table.insert(recent, it)
+    end
+  end
+  table.sort(recent, function(a, b)
+    if a.mtime ~= b.mtime then
+      return a.mtime > b.mtime
+    end
+    return a.title < b.title
+  end)
+  local edited = {}
+  for i = 1, math.min(M.RECENT, #recent) do
+    local it = recent[i]
+    table.insert(edited, {
+      text = ("- %s  (%s)%s"):format(it.title, date.ago(it.mtime, now), proj(it)),
+      file = it.file,
+      lnum = 1,
+    })
+  end
+
   section("Meetings", meetings)
   section(require("logpose.taskfile").label(cfg.board.start), doing)
   section("Blocked", blocked)
   section("Due soon", due)
   section("Overdue action items", overdue)
   section("Left in today's note", left)
+  section("Recently edited", edited)
   add("")
   add("<CR> open · d daily note · b board · r refresh · q close", { hl = "Comment" })
   return lines
