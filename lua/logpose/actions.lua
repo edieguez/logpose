@@ -51,8 +51,8 @@ function M.collect(root, mode, args, today)
   local me = normalize_me(opts.me)
   local out = {}
   for _, it in ipairs(index.build(root)) do
-    local from_note = it.note_type == "meeting" or (opts.actions.include_daily and it.note_type == "daily")
-    if it.kind == "task" and from_note and query.match(it, q) then
+    local from_note = it.file_type == "meeting" or (opts.actions.include_daily and it.file_type == "daily")
+    if it.kind == "todo" and from_note and query.match(it, q) then
       local owners, due = M.meta(it.text)
       it.owners, it.due = owners, due
       it.overdue = not it.checked and due ~= nil and due < today

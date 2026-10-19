@@ -59,7 +59,7 @@ function M.collect(root, opts)
   local items = index.build(root)
   local related = require("logpose.links").related(root, items)
   for _, it in ipairs(items) do
-    if it.kind == "note" and it.note_type == "task" and not it.archived then
+    if it.kind == "task" and not it.archived then
       local in_scope
       if opts.project then
         in_scope = it.project == opts.project or vim.tbl_contains(it.tags, opts.project)

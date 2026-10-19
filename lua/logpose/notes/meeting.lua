@@ -68,7 +68,7 @@ end
 ---@field content string
 ---@field cursor integer[]
 ---@field previous? logpose.Item  previous note in the series
----@field carried logpose.Item[]   open tasks carried over from it
+---@field carried logpose.Item[]   open to-dos carried over from it
 
 --- Build (but don't write) a meeting note.
 ---@param root string
@@ -186,17 +186,17 @@ function M.build(root, key, input, iso, project, attendees)
   }
 end
 
---- Most recent earlier note of `series` and its open tasks.
+--- Most recent earlier note of `series` and its open to-dos.
 ---@param root string
 ---@param series string
 ---@param iso string
 ---@param path string the new note (excluded)
----@return logpose.Item? previous, logpose.Item[] open_tasks
+---@return logpose.Item? previous, logpose.Item[] open_todos
 function M.previous(root, series, iso, path)
   local items = require("logpose.index").build(root)
   local best
   for _, it in ipairs(items) do
-    if it.kind == "note" and it.note_type == "meeting" and it.series == series and it.date and it.file ~= path then
+    if it.kind == "note" and it.file_type == "meeting" and it.series == series and it.date and it.file ~= path then
       local earlier = it.date < iso or (it.date == iso and it.file < path)
       if earlier and (not best or it.date > best.date or (it.date == best.date and it.file > best.file)) then
         best = it
@@ -206,7 +206,7 @@ function M.previous(root, series, iso, path)
   local open = {}
   if best and config.get().series.carry_over then
     for _, it in ipairs(items) do
-      if it.kind == "task" and it.file == best.file and not it.checked then
+      if it.kind == "todo" and it.file == best.file and not it.checked then
         table.insert(open, it)
       end
     end
@@ -235,7 +235,7 @@ function M.series_lines(path, previous, carried, root)
   return lines
 end
 
---- Mark carried tasks in the previous note as `- [>]` (migrated), so they aren't listed twice.
+--- Mark carried to-dos in the previous note as `- [>]` (carried over), so they aren't listed twice.
 ---@param note logpose.MeetingNote
 ---@return "file"|"buffer"|nil
 function M.mark_carried(note)

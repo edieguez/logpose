@@ -63,14 +63,14 @@ T["notes get title, date, type, project and tags"] = function()
   eq(#items, 4)
   local note, open, done, line = items[1], items[2], items[3], items[4]
   eq(
-    { note.kind, note.text, note.date, note.note_type, note.type, note.project, note.lnum },
+    { note.kind, note.text, note.date, note.file_type, note.type, note.project, note.lnum },
     { "note", "Retro", "2026-10-14", "meeting", "retro", "acme", 1 }
   )
   eq(note.tags, { "team", "perf", "idea" })
   eq(note.fm_tags, { "team", "perf" })
   eq(
     { open.kind, open.text, open.checked, open.lnum, open.project, open.title },
-    { "task", "follow up #perf", false, 9, "acme", "Retro" }
+    { "todo", "follow up #perf", false, 9, "acme", "Retro" }
   )
   eq(open.tags, { "perf" })
   eq({ done.checked, done.text }, { true, "done one" })
@@ -88,26 +88,44 @@ T["falls back to the heading, then the filename; dates from filenames"] = functi
     end
   end
   eq({ by_file["daily-2026-10-13.md"].text, by_file["daily-2026-10-13.md"].date }, { "Tuesday notes", "2026-10-13" })
-  eq(by_file["daily-2026-10-13.md"].note_type, "daily")
-  eq({ by_file["plain.md"].text, by_file["plain.md"].date, by_file["plain.md"].note_type }, { "plain", nil, "other" })
+  eq(by_file["daily-2026-10-13.md"].file_type, "daily")
+  eq({ by_file["plain.md"].text, by_file["plain.md"].date, by_file["plain.md"].file_type }, { "plain", nil, "other" })
 end
 
-T["task dates come from the enclosing day section"] = function()
-  H.write(root .. "/INBOX.md", "# INBOX\n\n## 2026-10-12\n- [ ] a\n\n## Someday\n- [ ] b\n\n## 2026-10-13\n- [ ] c\n")
+T["to-do dates come from the enclosing day section"] = function()
+  H.write(root .. "/log.md", "# Log\n\n## 2026-10-12\n- [ ] a\n\n## Someday\n- [ ] b\n\n## 2026-10-13\n- [ ] c\n")
   local items = build()
-  eq(items[1].note_type, "inbox")
   eq({ items[2].date, items[3].date, items[4].date }, { "2026-10-12", nil, "2026-10-13" })
 end
 
-T["classifies INBOX, DONE and archives"] = function()
-  H.write(root .. "/DONE.md", "# DONE\n")
-  H.write(root .. "/journal-entries/week-2026-10-05.md", "# W\n")
-  H.write(root .. "/done-entries/done-sprint-41.md", "# D\n")
-  local types = {}
+T["notes, tasks and to-dos are different kinds"] = function()
+  H.write(root .. "/daily/daily-2026-10-13.md", "# d\n- [ ] in a note\n")
+  H.write(root .. "/tasks/fix.md", '---\ntitle: "Fix"\nstatus: todo\n---\n- [ ] in a task\n')
+  H.write(root .. "/notes/how-to.md", "# How to\n")
+  H.write(root .. "/projects/acme.md", "# Acme\n")
+  local got = {}
   for _, it in ipairs(build()) do
-    types[vim.fs.basename(it.file)] = it.note_type
+    table.insert(got, { vim.fs.basename(it.file), it.kind, it.file_type })
   end
-  eq(types, { ["DONE.md"] = "done", ["week-2026-10-05.md"] = "archive", ["done-sprint-41.md"] = "archive" })
+  table.sort(got, function(a, b)
+    return a[1] .. a[2] < b[1] .. b[2]
+  end)
+  eq(got, {
+    { "acme.md", "note", "project" },
+    { "daily-2026-10-13.md", "note", "daily" },
+    { "daily-2026-10-13.md", "todo", "daily" },
+    { "fix.md", "task", "task" },
+    { "fix.md", "todo", "task" },
+    { "how-to.md", "note", "topic" },
+  })
+  local is_file = child.lua_get([[(function()
+    local index, out = require('logpose.index'), {}
+    for _, kind in ipairs({ 'note', 'task', 'todo', 'line' }) do
+      out[kind] = index.is_file({ kind = kind })
+    end
+    return out
+  end)()]])
+  eq(is_file, { note = true, task = true, todo = false, line = false })
 end
 
 T["skips templates and dot-directories"] = function()
@@ -139,22 +157,22 @@ T["sections"] = function()
     "## Action items",
     "- [ ] ship it #acme",
   }, "\n") .. "\n")
-  H.write(root .. "/INBOX.md", "# INBOX\n## Blockers\n- waiting on infra\n## 2026-10-13\n- [ ] dated task\n")
+  H.write(root .. "/log.md", "# Log\n## Blockers\n- waiting on infra\n## 2026-10-13\n- [ ] dated task\n")
   local items = build()
   local got = {}
   for _, it in ipairs(items) do
-    if it.kind ~= "note" then
+    if not child.lua_get("require('logpose.index').is_file(...)", { it }) then
       table.insert(got, { it.kind, it.text, it.section or false, it.section_title or false })
     end
   end
   eq(got, {
     { "line", "waiting on infra", "blockers", "Blockers" },
-    { "task", "dated task", false, false },
+    { "todo", "dated task", false, false },
     { "line", "Use Postgres for the queue", "decisions", "Decisions" },
     { "line", "Keep sprints at two weeks", "decisions", "Decisions" },
-    { "task", "write ADR", "decisions", "Decisions" },
+    { "todo", "write ADR", "decisions", "Decisions" },
     { "line", "sub point", "decisions", "Decisions" },
-    { "task", "ship it #acme", "action items", "Action items" },
+    { "todo", "ship it #acme", "action items", "Action items" },
   })
 end
 
@@ -171,7 +189,7 @@ T["retrieval sections are configurable"] = function()
 end
 
 T["tag_counts and projects"] = function()
-  H.write(root .. "/INBOX.md", "# INBOX\n- [ ] a #perf\n- [ ] b #perf #ux\n")
+  H.write(root .. "/log.md", "# Log\n- [ ] a #perf\n- [ ] b #perf #ux\n")
   H.write(root .. "/m.md", "---\nproject: thesis\ntags: [perf]\n---\n# M\n")
   eq(child.lua_get(("require('logpose.index').tag_counts(require('logpose.index').build(%q))"):format(root)), {
     { tag = "perf", count = 3 },

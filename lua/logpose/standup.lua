@@ -4,7 +4,7 @@ local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
 local markdown = require("logpose.markdown")
-local tasks = require("logpose.tasks")
+local todos = require("logpose.todos")
 local ui = require("logpose.util.ui")
 
 local M = {}
@@ -67,70 +67,31 @@ function M.previous_daily(root, iso)
   return daily.path(best, root), best
 end
 
---- Items closed in DONE.md on `iso`, as plain bullets.
----@param root string
----@param iso string
----@return string[]
-local function done_on(root, iso)
-  local content = fs.read_file(config.path("done", root))
-  if not content then
-    return {}
-  end
-  for _, block in ipairs(markdown.parse(content).blocks) do
-    if block.kind == "date" and block.date == iso then
-      local out = {}
-      for _, line in ipairs(markdown.trim_blank(markdown.body(block))) do
-        local task = tasks.parse_task(line)
-        if task then
-          table.insert(out, "- " .. task.text)
-        elseif vim.trim(line) ~= "" then
-          table.insert(out, line)
-        end
-      end
-      return out
-    end
-  end
-  return {}
-end
-
 ---@class logpose.Prefill
 ---@field yesterday string[]  lines for ## Yesterday
----@field today string[]      open tasks carried into ## Today
+---@field today string[]      open to-dos carried into ## Today
 ---@field carried integer[]   their line numbers in the previous note
 
 --- What a new daily note takes from the previous one.
 ---@param prev_lines string[]
----@param root string
----@param prev_date string
 ---@return logpose.Prefill
-function M.prefill(prev_lines, root, prev_date)
+function M.prefill(prev_lines)
   local opts = config.get().standup
   local first, last = M.section_range(prev_lines, opts.sections.today)
   local yesterday, today, carried = {}, {}, {}
   if first then
     for lnum = first, last do
       local line = prev_lines[lnum]
-      local task = tasks.parse_task(line)
-      if task then
-        if task.checked then
-          table.insert(yesterday, task.indent .. "- " .. task.text)
-        elseif vim.trim(task.text) ~= "" and opts.carry_forward then
-          table.insert(today, task.indent .. "- [ ] " .. task.text)
+      local todo = todos.parse(line)
+      if todo then
+        if todo.checked then
+          table.insert(yesterday, todo.indent .. "- " .. todo.text)
+        elseif vim.trim(todo.text) ~= "" and opts.carry_forward then
+          table.insert(today, todo.indent .. "- [ ] " .. todo.text)
           table.insert(carried, lnum)
         end
       elseif vim.trim(line) ~= "" and not line:match("^%s*[-*+]%s+%[>%]") then
         table.insert(yesterday, line) -- notes and plain bullets
-      end
-    end
-  end
-  if opts.include_done then
-    local seen = {}
-    for _, l in ipairs(yesterday) do
-      seen[vim.trim(l)] = true
-    end
-    for _, l in ipairs(done_on(root, prev_date)) do
-      if not seen[vim.trim(l)] then
-        table.insert(yesterday, l)
       end
     end
   end
@@ -192,7 +153,7 @@ function M.mark_carried(path, rows)
   end)
   if not ok then
     require("logpose.util.ui").notify(
-      "logpose: couldn't mark carried tasks in the previous daily note: " .. err,
+      "logpose: couldn't mark carried to-dos in the previous daily note: " .. err,
       vim.log.levels.WARN
     )
   end
@@ -205,7 +166,7 @@ end
 ---@param cursor integer[]
 ---@return string text, integer[] cursor, fun()? after_write
 function M.prepare(root, iso, text, cursor)
-  local prev_path, prev_date = M.previous_daily(root, iso)
+  local prev_path = M.previous_daily(root, iso)
   if not prev_path then
     return text, cursor
   end
@@ -213,7 +174,7 @@ function M.prepare(root, iso, text, cursor)
   if not prev_lines then
     return text, cursor
   end
-  local fill = M.prefill(prev_lines, root, prev_date)
+  local fill = M.prefill(prev_lines)
   local new_text, new_cursor = M.apply(text, cursor, fill)
   return new_text, new_cursor, function()
     M.mark_carried(prev_path, fill.carried)
@@ -264,20 +225,17 @@ local function group(items, projects)
   return out
 end
 
---- Task-file lines for each standup section: done since the previous workday, in progress,
+--- Task lines for each standup section: done since the previous workday, in progress,
 --- blocked. Each line carries `#project` so grouping works.
 ---@param root string
 ---@param iso string
 ---@return table<string, string[]>
 function M.board_items(root, iso)
   local out = { yesterday = {}, today = {}, blockers = {} }
-  if config.get().tasks.mode ~= "files" then
-    return out
-  end
   local cfg = config.get().board
   local since = date.prev_workday(iso, config.get().workdays)
   local tasks = vim.tbl_filter(function(it)
-    return it.kind == "note" and it.note_type == "task" and not it.archived
+    return it.kind == "task" and not it.archived
   end, require("logpose.index").build(root))
   table.sort(tasks, function(a, b)
     return a.file < b.file

@@ -141,7 +141,7 @@ end
 T["path joins dirs onto the root"] = function()
   local journal = H.journal()
   child.lua(("require('logpose').setup({ root = %q })"):format(journal))
-  eq(child.lua_get("require('logpose.config').path('inbox')"), journal .. "/INBOX.md")
+  eq(child.lua_get("require('logpose.config').path('tasks')"), journal .. "/tasks")
 end
 
 return T

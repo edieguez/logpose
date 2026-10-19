@@ -76,7 +76,7 @@ end
 
 T["person: and @ filters"] = function()
   select_picks()
-  child.cmd("Logpose find tasks @ana")
+  child.cmd("Logpose find todos @ana")
   eq(#child.lua_get("_G.offered")[1].labels, 2) -- fix CI, ask about leave
   child.cmd("Logpose find meetings person:bob-smith")
   eq(child.lua_get("_G.offered")[2].labels, { "2026-10-08  meeting/retro  Retro" })

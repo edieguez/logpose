@@ -2,12 +2,12 @@
 ---   project:acme  p:acme   item's project, or a #acme tag
 ---   #perf  tag:perf        tagged
 ---   type:retro             meeting type
----   open | done            tasks by state
+---   open | done            tasks (Done or not) and to-dos (checked or not)
 ---   since:DATE  until:DATE   DATE = YYYY-MM-DD, today, yesterday, -7d, +2w…
 ---   week:SPEC  sprint:SPEC   SPEC = current, -1, +1, a date, or a sprint number
 ---   section:decisions      under a `## ` heading containing the text
 ---   person:ana  @ana       involves the person (attendee, 1:1, @mention)
----   status:todo  blocked   task files: board column; blocked tasks
+---   status:todo  blocked   tasks: board column; blocked tasks
 ---   anything else          words that must all appear in the text
 local date = require("logpose.util.date")
 
@@ -126,11 +126,10 @@ function M.match(item, q)
     return false
   end
   if q.state then
-    local is_file = item.note_type == "task" and item.kind == "note"
     local done
-    if is_file then
+    if item.kind == "task" then
       done = item.status == require("logpose.config").get().board.done
-    elseif item.kind == "task" then
+    elseif item.kind == "todo" then
       done = item.checked
     else
       return false
@@ -139,10 +138,10 @@ function M.match(item, q)
       return false
     end
   end
-  if q.status and not (item.kind == "note" and item.status == q.status) then
+  if q.status and not (item.kind == "task" and item.status == q.status) then
     return false
   end
-  if q.blocked and not (item.kind == "note" and item.blocked) then
+  if q.blocked and not (item.kind == "task" and item.blocked) then
     return false
   end
   if q.since and (not item.date or item.date < q.since) then

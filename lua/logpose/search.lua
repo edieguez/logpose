@@ -7,33 +7,35 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
+--- Notes, tasks and to-dos are separate scopes: `notes` never lists tasks, `tasks` are the task
+--- files on the board, `todos` the checkboxes inside notes.
 M.SCOPES =
-  { "notes", "daily", "meetings", "topics", "archives", "tasks", "decisions", "blockers", "tags", "projects", "people" }
+  { "notes", "daily", "meetings", "topics", "tasks", "todos", "decisions", "blockers", "tags", "projects", "people" }
 
 local SCOPE_FILTER = {
   notes = function(it)
     return it.kind == "note"
   end,
   daily = function(it)
-    return it.kind == "note" and it.note_type == "daily"
+    return it.kind == "note" and it.file_type == "daily"
   end,
   meetings = function(it)
-    return it.kind == "note" and it.note_type == "meeting"
+    return it.kind == "note" and it.file_type == "meeting"
   end,
   topics = function(it)
-    return it.kind == "note" and (it.note_type == "topic" or it.note_type == "project")
-  end,
-  archives = function(it)
-    return it.kind == "note" and it.note_type == "archive"
+    return it.kind == "note" and (it.file_type == "topic" or it.file_type == "project")
   end,
   tasks = function(it)
-    return it.kind == "task" or (it.kind == "note" and it.note_type == "task" and not it.archived)
+    return it.kind == "task" and not it.archived
+  end,
+  todos = function(it)
+    return it.kind == "todo"
   end,
   decisions = function(it)
-    return it.kind ~= "note" and it.section ~= nil and it.section:find("decision", 1, true) ~= nil
+    return not index.is_file(it) and it.section ~= nil and it.section:find("decision", 1, true) ~= nil
   end,
   blockers = function(it)
-    return it.kind ~= "note" and it.section ~= nil and it.section:find("blocker", 1, true) ~= nil
+    return not index.is_file(it) and it.section ~= nil and it.section:find("blocker", 1, true) ~= nil
   end,
 }
 
@@ -42,34 +44,34 @@ local SCOPE_FILTER = {
 ---@return string
 function M.display(it)
   local project = it.project and ("  @" .. it.project) or ""
-  if it.kind == "note" and it.note_type == "task" then
+  if it.kind == "task" then
     local status = require("logpose.taskfile").label(it.status or "")
     local due = it.due and ("  due " .. it.due) or ""
     local blocked = it.blocked and "  ⛔" or ""
     return ("[%s] %s%s%s%s"):format(status, it.text, blocked, due, project)
   end
   if it.kind == "note" then
-    local label = it.type and (it.note_type .. "/" .. it.type) or it.note_type
+    local label = it.type and (it.file_type .. "/" .. it.type) or it.file_type
     return ("%s  %s  %s%s"):format(it.date or "----------", label, it.text, project)
   end
   local where = it.title or vim.fn.fnamemodify(it.file, ":t:r")
   if it.section_title then
     where = where .. " › " .. it.section_title
   end
-  if it.kind == "task" then
+  if it.kind == "todo" then
     return ("[%s] %s  · %s%s"):format(it.checked and "x" or " ", it.text, where, project)
   end
   return ("%s  · %s%s"):format(it.text, where, project)
 end
 
---- Whether a task (checkbox or task file) is closed; nil for anything else.
+--- Whether a task (in Done) or a to-do (checked) is closed; nil for anything else.
 ---@param it logpose.Item
 ---@return boolean?
 function M.is_closed(it)
-  if it.kind == "task" then
+  if it.kind == "todo" then
     return it.checked == true
   end
-  if it.kind == "note" and it.note_type == "task" then
+  if it.kind == "task" then
     return it.status == config.get().board.done
   end
 end
@@ -158,18 +160,18 @@ local function list_preview(items)
   return table.concat(lines, "\n")
 end
 
---- Items carrying `tag`: tasks and lines with it, notes tagging it in frontmatter.
+--- Items carrying `tag`: to-dos and lines with it, notes and tasks tagging it in frontmatter.
 ---@param items logpose.Item[]
 ---@param tag string
 ---@return logpose.Item[]
 function M.with_tag(items, tag)
   return vim.tbl_filter(function(it)
-    local tags = it.kind == "note" and (it.fm_tags or {}) or it.tags
+    local tags = index.is_file(it) and (it.fm_tags or {}) or it.tags
     return vim.tbl_contains(tags, tag)
   end, items)
 end
 
---- Notes and tasks of `project` (by frontmatter or #project tag).
+--- Notes, tasks and to-dos of `project` (by frontmatter or #project tag).
 ---@param items logpose.Item[]
 ---@param name string
 ---@return logpose.Item[]
@@ -178,8 +180,8 @@ function M.of_project(items, name)
     if it.kind == "line" then
       return false
     end
-    -- A note belongs by frontmatter (project or tag); a task also by an inline #tag.
-    local tags = it.kind == "note" and (it.fm_tags or {}) or it.tags
+    -- A note or task belongs by frontmatter (project or tag); a to-do also by an inline #tag.
+    local tags = index.is_file(it) and (it.fm_tags or {}) or it.tags
     return it.project == name or vim.tbl_contains(tags, name)
   end, items)
 end
@@ -286,7 +288,7 @@ function M.find(root, scope, args)
   if not keep then
     error(("logpose: unknown scope %q. Valid: %s"):format(scope, table.concat(M.SCOPES, ", ")), 0)
   end
-  local label = scope:sub(1, 1):upper() .. scope:sub(2)
+  local label = scope == "todos" and "To-dos" or (scope:sub(1, 1):upper() .. scope:sub(2))
   -- The filters go into the prompt (live) or are applied once, so start from the whole scope.
   show(vim.tbl_filter(keep, all), label, root, args)
 end

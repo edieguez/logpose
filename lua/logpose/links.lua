@@ -47,7 +47,7 @@ end
 local function names(items)
   local by_name = {}
   for _, it in ipairs(items) do
-    if it.kind == "note" then
+    if index.is_file(it) then
       local stem = vim.fn.fnamemodify(it.file, ":t:r"):lower()
       by_name[stem] = by_name[stem] or {}
       table.insert(by_name[stem], it.file)
@@ -73,7 +73,7 @@ function M.all(root, items)
   local by_name = names(items)
   local out = {}
   for _, it in ipairs(items) do
-    if it.kind == "note" then
+    if index.is_file(it) then
       for _, l in ipairs(it.links or {}) do
         table.insert(out, {
           from = it.file,
@@ -95,7 +95,7 @@ end
 --- are resolved, so this stays cheap on a big journal. Newest first.
 ---@param root string
 ---@param items? logpose.Item[]
----@return table<string, { file: string, title: string, note_type: string, date?: string, lnum: integer }[]>  by task file
+---@return table<string, { file: string, title: string, file_type: string, date?: string, lnum: integer }[]>  by task file
 function M.related(root, items)
   items = items or index.build(root)
   -- plain string work here: this runs on every board refresh, over every link in the journal
@@ -105,9 +105,9 @@ function M.related(root, items)
   end
   local notes, tasks, stems = {}, {}, {}
   for _, it in ipairs(items) do
-    if it.kind == "note" then
+    if index.is_file(it) then
       notes[it.file] = it
-      if it.note_type == "task" then
+      if it.kind == "task" then
         tasks[it.file] = true
         stems[stem(it.file)] = true
       end
@@ -125,7 +125,7 @@ function M.related(root, items)
     table.insert(out[task], {
       file = note.file,
       title = note.title or stem(note.file),
-      note_type = note.note_type,
+      file_type = note.file_type,
       date = note.date,
       lnum = lnum,
     })
@@ -221,20 +221,20 @@ function M.links_command()
   )
 end
 
---- Completion candidates for a link written into `source`: one per note, newest first.
+--- Completion candidates for a link written into `source`: one per note or task, newest first.
 ---@param root string
 ---@param source string
 ---@return { label: string, detail: string, link: string, file: string }[]
 function M.candidates(root, source)
   local link = require("logpose.link")
   local notes = vim.tbl_filter(function(it)
-    return it.kind == "note" and canonical(it.file) ~= canonical(source)
+    return index.is_file(it) and canonical(it.file) ~= canonical(source)
   end, index.build(root))
   require("logpose.search").sort(notes)
   return vim.tbl_map(function(it)
     return {
       label = it.title,
-      detail = link.relpath(root, it.file),
+      detail = (it.kind == "task" and "task · " or "") .. link.relpath(root, it.file),
       link = link.make(source, it.file, it.title, root),
       file = it.file,
     }

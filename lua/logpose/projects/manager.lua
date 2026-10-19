@@ -16,6 +16,7 @@ M.HELP = {
   "  <Tab>  show / hide what's going on in it",
   "  b      its board                 n  its project page",
   "  t      its open tasks            f  its notes",
+  "  o      its open to-dos (checkboxes in its notes)",
   "  a      add a project             p  link a repo folder",
   "  e      edit name, description, repo folders, colour",
   "  R      rename                    M  merge into another project",
@@ -346,6 +347,13 @@ function M.open(root)
       vim.cmd("Logpose find notes project:" .. p)
     end, true),
     "Notes"
+  )
+  map(
+    "o",
+    on_project(function(p)
+      vim.cmd("Logpose find todos open project:" .. p)
+    end, true),
+    "Open to-dos"
   )
   map("a", function()
     M.ask("New project: ", nil, function(p, typed)
