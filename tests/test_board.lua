@@ -313,7 +313,7 @@ T["standup lists board work; report and health count it"] = function()
   H.contains(report, "### In progress for more than 14 days (0)")
 
   child.cmd("checkhealth logpose")
-  H.contains(screen(), "Task files: Backlog 1 · TODO 1 · In progress 1 · Follow-up 0 · Done 3")
+  H.contains(screen(), "Tasks: Backlog 1 · TODO 1 · In progress 1 · Follow-up 0 · Done 3")
 end
 
 T["archive moves done tasks from earlier periods"] = function()
@@ -321,10 +321,7 @@ T["archive moves done tasks from earlier periods"] = function()
     [[vim.ui.select = function(items, opts, cb) _G.preview = vim.api.nvim_buf_get_lines(0, 0, -1, false); cb('Archive') end]]
   )
   child.cmd("Logpose archive")
-  H.contains(
-    table.concat(child.lua_get("_G.preview"), "\n"),
-    "Done tasks\n  → tasks/archive/week-2026-09-28/: old.md"
-  )
+  H.contains(table.concat(child.lua_get("_G.preview"), "\n"), "  → tasks/archive/week-2026-09-28/: old.md")
   eq(H.read(root .. "/tasks/old.md"), nil)
   H.contains(H.read(root .. "/tasks/archive/week-2026-09-28/old.md"), "Old work")
   H.contains(child.notifications()[1].msg, "archived 1 done task")

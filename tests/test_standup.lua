@@ -87,12 +87,12 @@ T["a new daily note starts from the previous one"] = function()
   H.contains(prev, "- [x] review PR #acme\n")
 end
 
-T["carried tasks are only listed once by search"] = function()
+T["carried to-dos are only listed once by search"] = function()
   H.write(d("2026-10-12"), PREV)
   child.cmd("Logpose daily")
   child.lua([[vim.ui.select = function(items, opts, cb) _G.labels = vim.tbl_map(opts.format_item, items); cb(nil) end]])
   setup("{ picker = 'select' }")
-  child.cmd("Logpose find tasks open #acme")
+  child.cmd("Logpose find todos open #acme")
   eq(#child.lua_get("_G.labels"), 1)
 end
 
@@ -111,29 +111,6 @@ T["mark_carried = false leaves the previous note alone"] = function()
   child.cmd("Logpose daily")
   H.contains(H.read(d("2026-10-14")), "## Today\n\n- [ ] fix flaky test #acme\n")
   eq(H.read(d("2026-10-12")), PREV)
-end
-
-T["include_done adds yesterday's DONE entries without duplicates"] = function()
-  setup("{ standup = { include_done = true } }")
-  H.write(d("2026-10-12"), PREV)
-  H.write(
-    root .. "/DONE.md",
-    lines(
-      "# DONE",
-      "",
-      "## 2026-10-12",
-      "- [x] shipped release ([[meetings/x|x]])",
-      "- [x] review PR #acme",
-      "",
-      "## 2026-10-13",
-      "- [x] other day"
-    )
-  )
-  child.cmd("Logpose daily")
-  H.contains(
-    H.read(d("2026-10-14")),
-    "## Yesterday\n\n- review PR #acme\nPaired with Ana on CI\n- shipped release ([[meetings/x|x]])\n\n## Today"
-  )
 end
 
 T["no previous note leaves the template as is"] = function()

@@ -160,7 +160,7 @@ T["index and find see task files with their board fields"] = function()
   local q = function(args)
     return child.lua_get(
       ([[vim.tbl_map(function(it) return it.text end,
-      vim.tbl_filter(function(it) return it.kind == 'note' and it.note_type == 'task' end,
+      vim.tbl_filter(function(it) return it.kind == 'task' end,
         require('logpose.query').filter(require('logpose.index').build(%q), require('logpose.query').parse(%s))))]]):format(
         root,
         args
@@ -213,8 +213,6 @@ T["capture completes +projects, #tags and due:"] = function()
   eq(complete("Logpose capture Fix +th"), { "+thesis" })
   eq(complete("Logpose capture Fix #pe"), { "#perf" })
   eq(complete("Logpose capture Fix due:to"), { "due:today", "due:tomorrow" })
-  -- the prompt's completion gets the whole line and keeps the start of it
-  eq(child.lua_get("require('logpose.tasks').complete_input('', 'Fix it +th', 10)"), { "Fix it +thesis" })
 end
 
 T["capture creates a Backlog task; capture! opens it"] = function()
@@ -232,10 +230,9 @@ T["capture creates a Backlog task; capture! opens it"] = function()
   child.cmd("Logpose capture! write the retro")
   eq(child.api.nvim_buf_get_name(0), root .. "/tasks/write-the-retro.md")
   eq(child.api.nvim_win_get_cursor(0)[1], 14) -- the blank line under ## Context
-  eq(H.read(root .. "/INBOX.md"), nil)
 end
 
-T["done moves a task file to Done; checkboxes elsewhere are just checked"] = function()
+T["done moves the task you're in to Done"] = function()
   local path = create("{ title = 'Finish me' }")
   child.cmd("edit " .. path)
   child.cmd("Logpose done")
@@ -243,16 +240,9 @@ T["done moves a task file to Done; checkboxes elsewhere are just checked"] = fun
   H.contains(child.notifications()[1].msg, "moved to Done")
   child.cmd("Logpose done")
   H.contains(child.notifications()[2].msg, "already Done")
-
-  H.write(root .. "/daily/daily-2026-10-15.md", "# daily\n## Today\n- [ ] small thing\n")
-  child.cmd("edit " .. root .. "/daily/daily-2026-10-15.md")
-  child.api.nvim_win_set_cursor(0, { 3, 0 })
-  child.cmd("Logpose done")
-  H.contains(H.read(root .. "/daily/daily-2026-10-15.md"), "- [x] small thing")
-  eq(H.read(root .. "/DONE.md"), nil) -- no DONE.md log with task files
 end
 
-T["promote turns a checkbox into a linked task file"] = function()
+T["promote turns a to-do into a linked task"] = function()
   H.write(
     root .. "/meetings/acme/2026-10-15 - retro.md",
     '---\ntype: retro\nproject: acme\ntitle: "Retro"\n---\n# Retro\n## Action items\n- [ ] fix CI #perf @ana due:2026-10-20\n'
@@ -268,50 +258,7 @@ T["promote turns a checkbox into a linked task file"] = function()
   eq(child.bo.modified, false) -- saved
   child.api.nvim_win_set_cursor(0, { 6, 0 })
   child.cmd("Logpose promote")
-  H.contains(child.notifications()[#child.notifications()].msg, "no checkbox on this line")
-end
-
-T["migrate turns open INBOX items into task files"] = function()
-  H.write(root .. "/meetings/acme/2026-10-01 - retro.md", "---\ntype: retro\nproject: acme\n---\n# Retro\n")
-  H.write(
-    root .. "/INBOX.md",
-    table.concat({
-      "# INBOX",
-      "",
-      "## 2026-10-13",
-      "- [ ] fix flaky test #perf #acme due:2026-10-20",
-      "  - seen on Mondays",
-      "  - logs in CI",
-      "- [x] already done",
-      "- [ ] read paper",
-      "",
-      "## Someday",
-      "- [ ] learn rust",
-      "",
-    }, "\n")
-  )
-  child.cmd("Logpose migrate!")
-  local a = fm(root .. "/tasks/fix-flaky-test.md")
-  eq({ a.status, a.project, a.tags, a.due, a.created }, { "backlog", "acme", { "perf" }, "2026-10-20", "2026-10-13" })
-  H.contains(H.read(root .. "/tasks/fix-flaky-test.md"), "## Context\n\n- seen on Mondays\n- logs in CI\n\n## Log")
-  eq(fm(root .. "/tasks/read-paper.md").created, "2026-10-13")
-  eq(fm(root .. "/tasks/learn-rust.md").tags, { "someday" })
-  eq(H.read(root .. "/INBOX.md"), "# INBOX\n\n## 2026-10-13\n\n- [x] already done\n\n## Someday\n")
-  H.contains(child.notifications()[1].msg, "migrated 3 tasks to Backlog")
-  child.cmd("Logpose migrate")
-  H.contains(child.notifications()[2].msg, "no open INBOX tasks")
-end
-
-T["migrate previews and can be cancelled"] = function()
-  H.write(root .. "/INBOX.md", "# INBOX\n\n## 2026-10-13\n- [ ] one #ux\n")
-  child.lua([[vim.ui.select = function(items, opts, cb)
-    _G.preview = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    cb('Cancel')
-  end]])
-  child.cmd("Logpose migrate")
-  eq(child.lua_get("_G.preview"), { "Migrate 1 INBOX task to Backlog:", "", "  one  (#ux)" })
-  eq(H.read(root .. "/INBOX.md"), "# INBOX\n\n## 2026-10-13\n- [ ] one #ux\n")
-  eq(child.lua_get(("vim.fn.isdirectory(%q)"):format(root .. "/tasks")), 0)
+  H.contains(child.notifications()[#child.notifications()].msg, "no to-do on this line")
 end
 
 T["config rejects bad columns"] = function()
@@ -321,7 +268,6 @@ T["config rejects bad columns"] = function()
   H.contains(err("{ board = { columns = { { key = 'a' } } } }"), "at least two columns")
   H.contains(err("{ board = { columns = { { key = 'a' }, { key = 'a' } } } }"), 'duplicate board column "a"')
   H.contains(err("{ board = { columns = { { key = 'a' }, { key = 'b' } } } }"), "is not a board column")
-  H.contains(err("{ tasks = { mode = 'kanban' } }"), "`tasks.mode`")
 end
 
 return T

@@ -1,4 +1,4 @@
---- logpose.nvim — daily notes, meeting notes and sprint archives for Scrum/Kanban work.
+--- logpose.nvim — notes (daily, meetings, topics) and tasks (a Kanban board) for Scrum/Kanban work.
 local M = {}
 
 --- Configure logpose. Optional: commands work with defaults.

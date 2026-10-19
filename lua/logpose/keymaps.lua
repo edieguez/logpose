@@ -5,23 +5,28 @@ local M = {}
 --- suffix, modes, rhs, description
 M.MAPS = {
   { "j", "n", "<cmd>Logpose<cr>", "Menu" },
-  { "d", "n", "<Plug>(logpose-daily)", "Daily note" },
   { "y", "n", "<cmd>Logpose today<cr>", "Today" },
   { "s", "n", "<Plug>(logpose-standup)", "Standup" },
-  { "k", "n", "<Plug>(logpose-board)", "Board" },
-  { "e", "n", "<Plug>(logpose-edit)", "Edit frontmatter" },
-  { "P", "n", "<cmd>Logpose projects<cr>", "Projects" },
-  { "m", "n", "<Plug>(logpose-meeting)", "Meeting note" },
-  { "c", "n", "<Plug>(logpose-capture)", "Capture a task" },
-  { "x", { "n", "x" }, "<Plug>(logpose-done)", "Mark done" },
-  { "p", "n", "<Plug>(logpose-promote)", "Promote to task file" },
-  { "n", "n", "<Plug>(logpose-note)", "Topic note" },
-  { "f", "n", "<Plug>(logpose-find)", "Find notes" },
-  { "t", "n", "<cmd>Logpose find tasks open<cr>", "Open tasks" },
-  { "a", "n", "<Plug>(logpose-actions)", "Action items" },
-  { "b", "n", "<Plug>(logpose-backlinks)", "Backlinks" },
   { "r", "n", "<Plug>(logpose-report)", "Report" },
+  { "P", "n", "<cmd>Logpose projects<cr>", "Projects" },
+  { "e", "n", "<Plug>(logpose-edit)", "Edit details (frontmatter)" },
+  -- notes
+  { "d", "n", "<Plug>(logpose-daily)", "Note: daily" },
+  { "m", "n", "<Plug>(logpose-meeting)", "Note: meeting" },
+  { "n", "n", "<Plug>(logpose-note)", "Note: topic" },
+  { "f", "n", "<Plug>(logpose-find)", "Find notes" },
+  { "b", "n", "<Plug>(logpose-backlinks)", "Backlinks" },
   { "/", "n", "<Plug>(logpose-grep)", "Grep journal" },
+  -- tasks
+  { "k", "n", "<Plug>(logpose-board)", "Tasks: board" },
+  { "c", "n", "<Plug>(logpose-capture)", "Task: new" },
+  { "X", "n", "<Plug>(logpose-done)", "Task: done" },
+  { "t", "n", "<cmd>Logpose find tasks open<cr>", "Tasks: open" },
+  -- to-dos (checkboxes in notes)
+  { "x", { "n", "x" }, "<Plug>(logpose-check)", "To-do: check off" },
+  { "p", "n", "<Plug>(logpose-promote)", "To-do: make it a task" },
+  { "o", "n", "<cmd>Logpose find todos open<cr>", "To-dos: open" },
+  { "a", "n", "<Plug>(logpose-actions)", "To-dos: meeting action items" },
 }
 
 ---@param opts boolean|{ prefix?: string }

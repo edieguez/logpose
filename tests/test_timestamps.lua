@@ -100,7 +100,7 @@ end
 
 T["date filters use the day a task was created"] = function()
   child.cmd("Logpose capture fix flaky test")
-  local n = child.lua_get(([[#vim.tbl_filter(function(it) return it.note_type == 'task' and it.kind == 'note' end,
+  local n = child.lua_get(([[#vim.tbl_filter(function(it) return it.kind == 'task' end,
     require('logpose.query').filter(require('logpose.index').build(%q),
       require('logpose.query').parse({ 'until:2026-10-15', 'since:2026-10-15' })))]]):format(root))
   eq(n, 1)

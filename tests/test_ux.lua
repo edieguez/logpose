@@ -37,10 +37,11 @@ T["keymaps"]["keymaps = true installs <leader>j… without touching your own map
   child.lua([[vim.keymap.set("n", " jk", ":echo 'mine'<cr>")]])
   setup("{ keymaps = true }")
   eq(child.fn.maparg(" jd", "n"), "<Plug>(logpose-daily)")
-  eq(child.fn.maparg(" jx", "x"), "<Plug>(logpose-done)")
+  eq(child.fn.maparg(" jx", "x"), "<Plug>(logpose-check)") -- to-dos: check off
+  eq(child.fn.maparg(" jX", "n"), "<Plug>(logpose-done)") -- tasks: done
   eq(child.fn.maparg(" jj", "n"), "<Cmd>Logpose<CR>")
   eq(child.fn.maparg(" jk", "n"), ":echo 'mine'<CR>") -- left alone
-  eq(child.lua_get("vim.fn.maparg(' jd', 'n', false, true).desc"), "Daily note")
+  eq(child.lua_get("vim.fn.maparg(' jd', 'n', false, true).desc"), "Note: daily")
   setup("{ keymaps = { prefix = '<leader>n' } }")
   eq(child.fn.maparg(" nd", "n"), "<Plug>(logpose-daily)")
 end
@@ -69,12 +70,13 @@ T["today shows the day at a glance and opens what you pick"] = function()
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   H.contains(s, "# Today · Friday 2026-10-16  ·  sprint-43, day 2 of 10")
-  H.contains(s, "## Meetings (1)\n\n- Retro  ◆ acme")
-  H.contains(s, "## In progress (1)\n\n- Fix flaky  ◆ acme")
-  H.contains(s, "## Blocked (1)\n\n- Queue: waiting on ana")
-  H.contains(s, "## Due soon (2)\n\n- Fix flaky  (overdue 2d)  ◆ acme\n- Queue  (due Sun)") -- as on the board
-  H.contains(s, "## Overdue action items (1)\n\n- write ADR @ana  (overdue 6d)  ◆ acme")
-  H.contains(s, "## Left in today's note (1)\n\n- [ ] review PR")
+  -- tasks first, then notes, kept apart
+  H.contains(s, "## Tasks\n\n### In progress (1)\n\n- Fix flaky  ◆ acme")
+  H.contains(s, "### Blocked (1)\n\n- Queue: waiting on ana")
+  H.contains(s, "### Due soon (2)\n\n- Fix flaky  (overdue 2d)  ◆ acme\n- Queue  (due Sun)") -- as on the board
+  H.contains(s, "## Notes\n\n### Meetings today (1)\n\n- Retro  ◆ acme")
+  H.contains(s, "### To-dos left in today's note (1)\n\n- [ ] review PR")
+  H.contains(s, "### Overdue action items (1)\n\n- write ADR @ana  (overdue 6d)  ◆ acme")
   eq(s:find("Later", 1, true), nil)
   -- <CR> opens the item at its line
   local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
@@ -102,7 +104,7 @@ T["today lists the notes edited lately, newest first"] = function()
   note("daily/daily-2026-10-16.md", "# d\n", 60) -- today's note has its own section
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  H.contains(s, "## Recently edited (2)\n\n- Ideas  (2h ago)\n- Sync  (yesterday)  ◆ acme")
+  H.contains(s, "### Recently edited (2)\n\n- Ideas  (2h ago)\n- Sync  (yesterday)  ◆ acme")
   local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
   for i, l in ipairs(lines) do
     if l:find("Ideas", 1, true) then
@@ -116,7 +118,7 @@ end
 T["today with nothing on says so"] = function()
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  H.contains(s, "## Meetings (0)\n\n  nothing")
+  H.contains(s, "### Meetings today (0)\n\n  nothing")
   child.type_keys("q")
   eq(child.bo.filetype ~= "markdown" or child.api.nvim_buf_get_name(0) ~= "logpose://today", true)
 end

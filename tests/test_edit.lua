@@ -236,7 +236,7 @@ T["a new task: set everything first; saving creates it, then the form edits it"]
   H.contains(text, "tags: [db, ops]")
   H.contains(text, "due: 2026-10-16")
   -- now it edits that task
-  eq(child.api.nvim_win_get_config(0).title[1][1], " Edit · Plan the migration ")
+  eq(child.api.nvim_win_get_config(0).title[1][1], " Edit task · Plan the migration ")
   eq(drawn().below[1], "no changes yet")
   set("blocked", "waiting on the DBA")
   child.cmd("write")
@@ -421,6 +421,7 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
     "# 2026-10-14 daily notes\n\n## Meetings\n\n- acme: [[meetings/acme/2026-10-14 - retro|Retro]]\n"
   )
   edit(old)
+  eq(child.api.nvim_win_get_config(0).title[1][1], " Edit meeting · Retro ") -- says what it edits
   set("project", "web")
   set("attendees", "Ana, Maria")
   local d = drawn()

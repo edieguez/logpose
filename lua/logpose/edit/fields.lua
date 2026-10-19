@@ -140,7 +140,7 @@ end
 ---@param root string
 ---@return logpose.EditModel
 function M.load(path, root)
-  local kind = require("logpose.index").note_type(path, root)
+  local kind = require("logpose.index").file_type(path, root)
   kind = M.FIELDS[kind] and kind or "other"
   local entries = M.read(M.note_lines(path))
   local old, keys, seen, info = {}, {}, {}, {}

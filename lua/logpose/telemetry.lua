@@ -13,8 +13,8 @@ local KEYWORDS = {
     "daily",
     "meetings",
     "topics",
-    "archives",
     "tasks",
+    "todos",
     "decisions",
     "blockers",
     "tags",
@@ -39,6 +39,7 @@ local KEYWORDS = {
     "switch",
     "edit",
     "mark",
+    "notes",
   }, -- recorded by the board's keys
 }
 

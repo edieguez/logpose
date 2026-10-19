@@ -38,16 +38,7 @@ function M.init(dir)
   if empty then
     fs.mkdir_p(config.path("daily", root))
     fs.mkdir_p(config.path("meetings", root))
-    if config.get().tasks.mode == "files" then
-      fs.mkdir_p(config.path("tasks", root))
-    else
-      for _, item in ipairs({ { "inbox", "# INBOX\n" }, { "done", "# DONE\n" } }) do
-        local path = config.path(item[1], root)
-        if not fs.exists(path) then
-          write(path, item[2])
-        end
-      end
-    end
+    fs.mkdir_p(config.path("tasks", root))
   end
 
   state.set("root", root)

@@ -123,8 +123,8 @@ end
 --- `complete(arglead, args)`. Modules load only when the subcommand runs or completes.
 M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
-  actions = { module = "logpose.actions", desc = "logpose: list meeting action items" },
-  archive = { module = "logpose.archive", desc = "logpose: file away done work from past weeks or sprints" },
+  actions = { module = "logpose.actions", desc = "logpose: meeting action items (to-dos in meeting notes)" },
+  archive = { module = "logpose.archive", desc = "logpose: move done tasks from past weeks or sprints off the board" },
   daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
@@ -165,29 +165,35 @@ M.builtin = {
     complete_fn = "complete_projects",
     desc = "logpose: merge one project into another",
   },
-  edit = { module = "logpose.edit", desc = "logpose: edit this note's (or the last capture's) details" },
-  capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: new task in Backlog" },
+  edit = { module = "logpose.edit", desc = "logpose: edit the details (frontmatter) of this note or task" },
+  capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: new task (on the board, in Backlog)" },
   find = {
     module = "logpose.search",
     fn = "find_command",
-    desc = "logpose: search notes, tasks, tags, projects, people",
+    desc = "logpose: search notes, tasks, to-dos, tags, projects, people",
   },
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
   done = {
     module = "logpose.tasks",
     fn = "done_command",
-    desc = "logpose: mark a task or checkbox done",
+    complete = false,
+    desc = "logpose: move the task you're in to Done",
+  },
+  check = {
+    module = "logpose.todos",
+    fn = "check_command",
+    complete = false,
+    desc = "logpose: check off the to-do on this line (or the selected ones)",
     plug = { "n", "x" },
   },
-  board = { module = "logpose.board", desc = "logpose: Kanban board of task files" },
-  today = { module = "logpose.today", complete = false, desc = "logpose: today at a glance" },
-  migrate = { module = "logpose.migrate", complete = false, desc = "logpose: turn INBOX items into task files" },
   promote = {
-    module = "logpose.migrate",
+    module = "logpose.todos",
     fn = "promote_command",
     complete = false,
-    desc = "logpose: turn the checkbox under the cursor into a task file",
+    desc = "logpose: turn the to-do on this line into a task",
   },
+  board = { module = "logpose.board", desc = "logpose: Kanban board of tasks" },
+  today = { module = "logpose.today", complete = false, desc = "logpose: today at a glance: tasks and notes" },
 }
 
 --- Create `:Logpose` and register built-in subcommands. Called once from plugin/logpose.lua.

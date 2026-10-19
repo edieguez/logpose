@@ -21,255 +21,85 @@ local function p(rel)
   return root .. "/" .. rel
 end
 
-local lines = H.md
-
-local INBOX = lines(
-  "# INBOX",
-  "",
-  "## 2026-10-05",
-  "- [ ] a",
-  "- [ ] b",
-  "",
-  "## 2026-10-07",
-  "- [ ] c",
-  "",
-  "## 2026-09-29",
-  "- [ ] old",
-  "",
-  "## 2026-10-12",
-  "- [ ] current",
-  "",
-  "## 2026-10-14",
-  "- [ ] today"
-)
-
-T["moves past weeks into one file per week and keeps the current week"] = function()
-  H.write(p("INBOX.md"), INBOX)
-  child.cmd("Logpose archive!")
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-12", "- [ ] current", "", "## 2026-10-14", "- [ ] today"))
-  eq(
-    H.read(p("journal-entries/week-2026-10-05.md")),
-    lines("# Journal: week of 2026-10-05", "", "## 2026-10-05", "- [ ] a", "- [ ] b", "", "## 2026-10-07", "- [ ] c")
-  )
-  eq(
-    H.read(p("journal-entries/week-2026-09-28.md")),
-    lines("# Journal: week of 2026-09-28", "", "## 2026-09-29", "- [ ] old")
-  )
-  H.contains(child.notifications()[1].msg, "archived 3 sections into 2 files")
-end
-
-T["archives DONE.md into done-entries"] = function()
-  H.write(p("DONE.md"), lines("# DONE", "", "## 2026-10-08", "- [x] shipped", "", "## 2026-10-13", "- [x] now"))
-  child.cmd("Logpose archive!")
-  eq(H.read(p("DONE.md")), lines("# DONE", "", "## 2026-10-13", "- [x] now"))
-  eq(
-    H.read(p("done-entries/done-week-2026-10-05.md")),
-    lines("# Done: week of 2026-10-05", "", "## 2026-10-08", "- [x] shipped")
-  )
-end
-
-T["merges into an existing week file"] = function()
-  H.write(p("INBOX.md"), INBOX)
+--- A task file, done on `done` (or open when nil).
+local function task(name, done)
   H.write(
-    p("journal-entries/week-2026-10-05.md"),
-    lines("# My week", "", "## 2026-10-07", "- [x] earlier", "", "## 2026-10-09", "- [ ] friday")
-  )
-  child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/week-2026-10-05.md")),
-    lines(
-      "# My week",
-      "",
-      "## 2026-10-05",
-      "- [ ] a",
-      "- [ ] b",
-      "",
-      "## 2026-10-07",
-      "- [x] earlier",
-      "- [ ] c",
-      "",
-      "## 2026-10-09",
-      "- [ ] friday"
+    p("tasks/" .. name .. ".md"),
+    ('---\ntitle: "%s"\nstatus: %s\n%s---\n'):format(
+      name,
+      done and "done" or "todo",
+      done and ("done: " .. done .. "\n") or ""
     )
   )
-end
-
-T["follows newest-first files"] = function()
-  H.write(
-    p("INBOX.md"),
-    lines("# INBOX", "", "## 2026-10-13", "- [ ] now", "", "## 2026-10-07", "- [ ] c", "", "## 2026-10-05", "- [ ] a")
-  )
-  child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/week-2026-10-05.md")),
-    lines("# Journal: week of 2026-10-05", "", "## 2026-10-07", "- [ ] c", "", "## 2026-10-05", "- [ ] a")
-  )
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-13", "- [ ] now"))
-end
-
-T["section_order can be forced"] = function()
-  child.lua(("require('logpose').setup({ root = %q, section_order = 'newest_first' })"):format(root))
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-05", "- [ ] a", "", "## 2026-10-07", "- [ ] c"))
-  child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/week-2026-10-05.md")),
-    lines("# Journal: week of 2026-10-05", "", "## 2026-10-07", "- [ ] c", "", "## 2026-10-05", "- [ ] a")
-  )
-end
-
-T["crosses the year boundary"] = function()
-  H.freeze(child, 2026, 1, 7)
-  H.write(
-    p("INBOX.md"),
-    lines(
-      "# INBOX",
-      "",
-      "## 2025-12-30",
-      "- [ ] dec",
-      "",
-      "## 2026-01-02",
-      "- [ ] jan",
-      "",
-      "## 2026-01-05",
-      "- [ ] now"
-    )
-  )
-  child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/week-2025-12-29.md")),
-    lines("# Journal: week of 2025-12-29", "", "## 2025-12-30", "- [ ] dec", "", "## 2026-01-02", "- [ ] jan")
-  )
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-01-05", "- [ ] now"))
-end
-
-T["keeps non-date sections and the preamble"] = function()
-  H.write(
-    p("INBOX.md"),
-    lines(
-      "# INBOX",
-      "Intro text.",
-      "",
-      "## Someday",
-      "- idea",
-      "",
-      "## 2026-10-05",
-      "- [ ] a",
-      "",
-      "## Waiting",
-      "- reply"
-    )
-  )
-  child.cmd("Logpose archive!")
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "Intro text.", "", "## Someday", "- idea", "", "## Waiting", "- reply"))
-end
-
-T["leaves no trailing blank lines when the last section moves"] = function()
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-13", "- [ ] now", "", "## 2026-10-05", "- [ ] a", "", ""))
-  child.cmd("Logpose archive!")
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-13", "- [ ] now"))
-end
-
-T["archiving everything leaves just the title"] = function()
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-05", "- [ ] a"))
-  child.cmd("Logpose archive!")
-  eq(H.read(p("INBOX.md")), lines("# INBOX"))
-end
-
-T["nothing to archive touches nothing"] = function()
-  local current = lines("# INBOX", "", "## 2026-10-12", "- [ ] current")
-  H.write(p("INBOX.md"), current)
-  child.cmd("Logpose archive")
-  H.contains(child.notifications()[1].msg, "nothing to archive")
-  eq(H.read(p("INBOX.md")), current)
-  eq(vim.fn.isdirectory(p("journal-entries")), 0)
-end
-
-T["missing INBOX/DONE are fine"] = function()
-  child.cmd("Logpose archive!")
-  H.contains(child.notifications()[1].msg, "nothing to archive")
-end
-
-T["a second run has nothing to do"] = function()
-  H.write(p("INBOX.md"), INBOX)
-  child.cmd("Logpose archive!")
-  child.cmd("Logpose archive!")
-  H.contains(child.notifications()[2].msg, "nothing to archive")
-end
-
-T["re-running after an interrupted archive doesn't duplicate"] = function()
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-05", "- [ ] a", "", "## 2026-10-13", "- [ ] now"))
-  -- as if the archive file was written but INBOX.md wasn't
-  local week = lines("# Journal: week of 2026-10-05", "", "## 2026-10-05", "- [ ] a")
-  H.write(p("journal-entries/week-2026-10-05.md"), week)
-  child.cmd("Logpose archive!")
-  eq(H.read(p("journal-entries/week-2026-10-05.md")), week)
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-13", "- [ ] now"))
-end
-
-T["refuses when INBOX.md has unsaved changes, writing nothing"] = function()
-  H.write(p("INBOX.md"), INBOX)
-  child.cmd("edit " .. p("INBOX.md"))
-  child.api.nvim_buf_set_lines(0, 0, 1, false, { "# INBOX (edited)" })
-  child.cmd("Logpose archive!")
-  H.contains(child.notifications()[1].msg, "INBOX.md has unsaved changes")
-  eq(H.read(p("INBOX.md")), INBOX)
-  eq(vim.fn.isdirectory(p("journal-entries")), 0)
-end
-
-T["reloads a clean INBOX.md buffer"] = function()
-  H.write(p("INBOX.md"), INBOX)
-  child.cmd("edit " .. p("INBOX.md"))
-  child.cmd("Logpose archive!")
-  eq(child.api.nvim_buf_get_lines(0, 0, 3, false), { "# INBOX", "", "## 2026-10-12" })
 end
 
 local function stub_select(choice)
-  child.lua(([[vim.ui.select = function(items, opts, cb)
-    _G.preview = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    _G.preview_name = vim.api.nvim_buf_get_name(0)
-    _G.items = items
-    cb(%s)
-  end]]):format(vim.inspect(choice)))
+  child.lua(
+    ([[vim.ui.select = function(items, opts, cb) _G.preview = vim.api.nvim_buf_get_lines(0, 0, -1, false); cb(%q) end]]):format(
+      choice
+    )
+  )
+end
+
+T["moves done tasks from past weeks into tasks/archive/<week>/"] = function()
+  task("old", "2026-10-02")
+  task("older", "2026-09-29")
+  task("this-week", "2026-10-13")
+  task("open")
+  child.cmd("Logpose archive!")
+  eq(H.read(p("tasks/old.md")), nil)
+  H.contains(H.read(p("tasks/archive/week-2026-09-28/old.md")), 'title: "old"')
+  H.contains(H.read(p("tasks/archive/week-2026-09-28/older.md")), 'title: "older"')
+  H.contains(H.read(p("tasks/this-week.md")), "status: done") -- the current week stays
+  H.contains(H.read(p("tasks/open.md")), "status: todo")
+  H.contains(child.notifications()[1].msg, "archived 2 done tasks")
+end
+
+T["nothing to archive touches nothing"] = function()
+  task("this-week", "2026-10-13")
+  child.cmd("Logpose archive!")
+  H.contains(child.notifications()[1].msg, "nothing to archive")
+  eq(vim.fn.isdirectory(p("tasks/archive")), 0)
+end
+
+T["refuses when a task has unsaved changes, moving nothing"] = function()
+  task("old", "2026-10-02")
+  child.cmd("edit " .. p("tasks/old.md"))
+  child.api.nvim_buf_set_lines(0, -1, -1, false, { "unsaved" })
+  child.cmd("Logpose archive!")
+  H.contains(child.notifications()[1].msg, "unsaved changes")
+  H.contains(H.read(p("tasks/old.md")), "status: done")
+end
+
+T["a buffer showing the task follows it"] = function()
+  task("old", "2026-10-02")
+  child.cmd("edit " .. p("tasks/old.md"))
+  child.cmd("Logpose archive!")
+  eq(child.api.nvim_buf_get_name(0), p("tasks/archive/week-2026-09-28/old.md"))
 end
 
 T["preview"] = MiniTest.new_set()
 
-T["preview"]["lists the moves and asks before writing"] = function()
-  H.write(p("INBOX.md"), INBOX)
-  H.write(p("journal-entries/week-2026-09-28.md"), lines("# W", "", "## 2026-09-29", "- [ ] old"))
+T["preview"]["lists the moves and asks first"] = function()
+  task("old", "2026-10-02")
   stub_select("Archive")
   child.cmd("Logpose archive")
-  eq(child.lua_get("_G.items"), { "Archive", "Cancel" })
-  local preview = table.concat(child.lua_get("_G.preview"), "\n")
-  H.contains(preview, "Archive sections from before the current week (week of 2026-10-12)")
-  H.contains(preview, "INBOX.md\n  → journal-entries/week-2026-09-28.md (merge): 2026-09-29 (already there)")
-  H.contains(preview, "  → journal-entries/week-2026-10-05.md (new): 2026-10-05, 2026-10-07")
-  H.contains(child.lua_get("_G.preview_name"), "logpose://archive-preview")
-  eq(#child.api.nvim_list_wins(), 1) -- preview closed
-  H.contains(H.read(p("INBOX.md")), "## 2026-10-12")
-  eq(vim.fn.filereadable(p("journal-entries/week-2026-10-05.md")), 1)
+  eq(child.lua_get("_G.preview"), {
+    "Archive done tasks from before the current week (week of 2026-10-12)",
+    "",
+    "  → tasks/archive/week-2026-09-28/: old.md",
+    "",
+    "q: close",
+  })
+  eq(H.read(p("tasks/old.md")), nil)
 end
 
-T["preview"]["cancel writes nothing"] = function()
-  H.write(p("INBOX.md"), INBOX)
+T["preview"]["cancel moves nothing"] = function()
+  task("old", "2026-10-02")
   stub_select("Cancel")
   child.cmd("Logpose archive")
-  eq(H.read(p("INBOX.md")), INBOX)
-  eq(vim.fn.isdirectory(p("journal-entries")), 0)
-  eq(#child.api.nvim_list_wins(), 1)
   H.contains(child.notifications()[1].msg, "cancelled")
-end
-
-T["honours custom dirs, affixes and titles"] = function()
-  child.lua(([[require('logpose').setup({
-    root = %q,
-    dirs = { inbox = "journal/INBOX.md", journal_entries = "journal/weeks" },
-    affixes = { week = "w-" },
-    archive = { journal_title = "# Semana {period}" },
-  })]]):format(root))
-  H.write(p("journal/INBOX.md"), INBOX)
-  child.cmd("Logpose archive!")
-  eq(H.read(p("journal/weeks/w-2026-09-28.md")), lines("# Semana 2026-09-28", "", "## 2026-09-29", "- [ ] old"))
+  H.contains(H.read(p("tasks/old.md")), "status: done")
 end
 
 T["sprints"] = MiniTest.new_set()
@@ -280,62 +110,28 @@ local function sprints(extra)
   )
 end
 
-T["sprints"]["archive whole past sprints, Thursday to Wednesday"] = function()
+T["sprints"]["go by whole sprints, Thursday to Wednesday"] = function()
   sprints([[{ anchor = "2026-10-01", first_number = 42 }]])
-  H.write(
-    p("INBOX.md"),
-    lines(
-      "# INBOX",
-      "",
-      "## 2026-09-17",
-      "- [ ] a",
-      "",
-      "## 2026-09-30",
-      "- [ ] b",
-      "",
-      "## 2026-10-01",
-      "- [ ] c",
-      "",
-      "## 2026-10-14",
-      "- [ ] d"
-    )
-  )
-  H.write(p("DONE.md"), lines("# DONE", "", "## 2026-09-24", "- [x] e"))
+  task("a", "2026-09-17")
+  task("b", "2026-09-30")
+  task("c", "2026-10-01")
   child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/sprint-41.md")),
-    lines(
-      "# Journal: sprint-41 (2026-09-17 – 2026-09-30)",
-      "",
-      "## 2026-09-17",
-      "- [ ] a",
-      "",
-      "## 2026-09-30",
-      "- [ ] b"
-    )
-  )
-  eq(
-    H.read(p("done-entries/done-sprint-41.md")),
-    lines("# Done: sprint-41 (2026-09-17 – 2026-09-30)", "", "## 2026-09-24", "- [x] e")
-  )
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-01", "- [ ] c", "", "## 2026-10-14", "- [ ] d"))
+  H.contains(H.read(p("tasks/archive/sprint-41/a.md")), "done: 2026-09-17")
+  H.contains(H.read(p("tasks/archive/sprint-41/b.md")), "done: 2026-09-30")
+  H.contains(H.read(p("tasks/c.md")), "done: 2026-10-01")
 end
 
 T["sprints"]["sprint 9 is older than sprint 10"] = function()
   sprints([[{ anchor = "2026-10-01", first_number = 9 }]])
   H.freeze(child, 2026, 10, 15) -- first day of sprint 10
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-02", "- [ ] old", "", "## 2026-10-16", "- [ ] now"))
+  task("old", "2026-10-02")
   child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/sprint-9.md")),
-    lines("# Journal: sprint-9 (2026-10-01 – 2026-10-14)", "", "## 2026-10-02", "- [ ] old")
-  )
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-16", "- [ ] now"))
+  H.contains(H.read(p("tasks/archive/sprint-9/old.md")), "done: 2026-10-02")
 end
 
 T["sprints"]["the preview names the current sprint"] = function()
   sprints([[{ anchor = "2026-10-01", first_number = 42 }]])
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-09-30", "- [ ] b"))
+  task("b", "2026-09-30")
   stub_select("Cancel")
   child.cmd("Logpose archive")
   H.contains(
@@ -346,13 +142,11 @@ end
 
 T["weeks can start on Thursday"] = function()
   child.lua(("require('logpose').setup({ root = %q, period = { week_start = 4 } })"):format(root))
-  H.write(p("INBOX.md"), lines("# INBOX", "", "## 2026-10-07", "- [ ] wed", "", "## 2026-10-08", "- [ ] thu"))
+  task("wed", "2026-10-07")
+  task("thu", "2026-10-08")
   child.cmd("Logpose archive!")
-  eq(
-    H.read(p("journal-entries/week-2026-10-01.md")),
-    lines("# Journal: week of 2026-10-01", "", "## 2026-10-07", "- [ ] wed")
-  )
-  eq(H.read(p("INBOX.md")), lines("# INBOX", "", "## 2026-10-08", "- [ ] thu"))
+  H.contains(H.read(p("tasks/archive/week-2026-10-01/wed.md")), "done: 2026-10-07")
+  H.contains(H.read(p("tasks/thu.md")), "done: 2026-10-08")
 end
 
 T["completes as a subcommand"] = function()

@@ -15,10 +15,6 @@ M.defaults = {
   dirs = {
     daily = "daily",
     meetings = "meetings",
-    inbox = "INBOX.md",
-    done = "DONE.md",
-    journal_entries = "journal-entries",
-    done_entries = "done-entries",
     templates = "templates",
     reports = "reports",
     notes = "notes",
@@ -27,11 +23,10 @@ M.defaults = {
   },
   affixes = {
     daily = "daily-",
+    --- Prefixes of the folders done tasks are archived in, under tasks/archive/ (the week's start
+    --- date or the sprint name follows: week-2026-10-12/, sprint-42/).
     week = "week-",
-    done_week = "done-week-",
-    --- Prefixes for sprint archives (the sprint name follows, e.g. sprint-42.md, done-sprint-42.md).
     sprint = "",
-    done_sprint = "done-",
   },
   ---@type "wiki"|"markdown"
   link_style = "wiki",
@@ -65,16 +60,7 @@ M.defaults = {
   --- Subdirectory of `dirs.meetings` for meeting notes. `{project}` is the active project
   --- (empty when there is none); "" keeps every note directly in `dirs.meetings`.
   meeting_subdir = "{project}",
-  --- Order of `## YYYY-MM-DD` sections when logpose inserts one: "auto" follows the file
-  --- (falling back to oldest first), or force "newest_first" / "oldest_first".
-  section_order = "auto",
-  archive = {
-    --- Title of a new archive file. {period} is the period key (the week's start date or the
-    --- sprint name); {period_label} reads "week of 2026-10-05" or "sprint-42 (2026-10-01 – 2026-10-14)".
-    journal_title = "# Journal: {period_label}",
-    done_title = "# Done: {period_label}",
-  },
-  --- How the archive groups dated sections.
+  --- Weeks or sprints: reports, the standup, `today` and the task archive go by them.
   period = {
     ---@type "week"|"sprint"
     kind = "week",
@@ -95,7 +81,7 @@ M.defaults = {
   ---@type string?
   me = nil,
   actions = {
-    --- Also collect tasks from daily notes (meetings only by default).
+    --- Also collect to-dos from daily notes (meetings only by default).
     include_daily = false,
     --- Items without an @owner count as yours for `mine`.
     unassigned_mine = true,
@@ -111,17 +97,15 @@ M.defaults = {
   standup = {
     --- Daily-note section names.
     sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
-    --- A new daily note gets the previous one's open Today tasks.
+    --- A new daily note gets the previous one's open Today to-dos.
     carry_forward = true,
     --- ...and marks them `- [>]` in the previous note so they're tracked once.
     mark_carried = true,
-    --- Also list what was closed in DONE.md on the previous day under Yesterday.
-    include_done = false,
     --- Group :Logpose standup items by project (#project tags).
     group_by_project = true,
   },
   review = {
-    --- Open tasks older than this many days are listed as stale in reports.
+    --- Open to-dos older than this many days, and tasks in progress longer, are flagged in reports.
     stale_days = 14,
   },
   tickets = {
@@ -140,11 +124,7 @@ M.defaults = {
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
   tasks = {
-    --- "files": one markdown file per task, shown on :Logpose board. "inbox": the INBOX.md /
-    --- DONE.md checkbox flow (capture, done) as before.
-    ---@type "files"|"inbox"
-    mode = "files",
-    --- Column a captured task starts in, and one promoted from a checkbox.
+    --- Column a captured task starts in, and one promoted from a to-do.
     capture_status = "backlog",
     promote_status = "todo",
   },
@@ -280,17 +260,6 @@ local function validate(opts)
   if not opts.meeting_filename:find("{slug}", 1, true) then
     error("logpose: `meeting_filename` must contain {slug}", 0)
   end
-  if not vim.tbl_contains({ "auto", "newest_first", "oldest_first" }, opts.section_order) then
-    error(
-      ('logpose: `section_order` must be "auto", "newest_first" or "oldest_first", got %s'):format(
-        vim.inspect(opts.section_order)
-      ),
-      0
-    )
-  end
-  check("archive", opts.archive, "table")
-  check("archive.journal_title", opts.archive.journal_title, "string")
-  check("archive.done_title", opts.archive.done_title, "string")
   check("period", opts.period, "table")
   if opts.period.kind ~= "week" and opts.period.kind ~= "sprint" then
     error(('logpose: `period.kind` must be "week" or "sprint", got %s'):format(vim.inspect(opts.period.kind)), 0)
@@ -333,7 +302,7 @@ local function validate(opts)
   for _, k in ipairs({ "yesterday", "today", "blockers" }) do
     check("standup.sections." .. k, opts.standup.sections[k], "string")
   end
-  for _, k in ipairs({ "carry_forward", "mark_carried", "include_done", "group_by_project" }) do
+  for _, k in ipairs({ "carry_forward", "mark_carried", "group_by_project" }) do
     check("standup." .. k, opts.standup[k], "boolean")
   end
   check("review", opts.review, "table")
@@ -349,9 +318,6 @@ local function validate(opts)
     check("views." .. tostring(name), v, "string")
   end
   check("tasks", opts.tasks, "table")
-  if opts.tasks.mode ~= "files" and opts.tasks.mode ~= "inbox" then
-    error(('logpose: `tasks.mode` must be "files" or "inbox", got %s'):format(vim.inspect(opts.tasks.mode)), 0)
-  end
   check("board", opts.board, "table")
   check("board.columns", opts.board.columns, "table")
   if #opts.board.columns < 2 then

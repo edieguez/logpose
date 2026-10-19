@@ -608,7 +608,10 @@ local function window_title(model, width)
   if model.bulk then
     return " Edit " .. model.title .. " "
   end
-  return " Edit · " .. require("logpose.board.text").fit(model.title, width - 12):gsub("%s+$", "") .. " "
+  -- say what's being edited: a task and a note are different things
+  local what = ({ task = "task", meeting = "meeting", project = "project page" })[model.kind] or "note"
+  local head = (" Edit %s · "):format(what)
+  return head .. require("logpose.board.text").fit(model.title, width - #head - 4):gsub("%s+$", "") .. " "
 end
 
 --- After a save: read the note(s) back, so the form shows what was written (dates resolved,

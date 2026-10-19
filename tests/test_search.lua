@@ -20,7 +20,11 @@ local T = MiniTest.new_set({
       root = H.journal()
       child.cmd("cd " .. H.tmpdir())
       setup()
-      H.write(root .. "/INBOX.md", "# INBOX\n\n## 2026-10-13\n- [ ] fix flaky test #perf #acme\n- [x] ship #perf\n")
+      H.write(root .. "/tasks/fix-flaky-test.md", '---\ntitle: "Fix flaky test"\nstatus: todo\nproject: acme\n---\n')
+      H.write(
+        root .. "/daily/daily-2026-10-13.md",
+        "# 2026-10-13 daily notes\n- [ ] fix flaky test #perf #acme\n- [x] ship #perf\n"
+      )
       H.write(
         root .. "/meetings/acme/2026-10-14 - retro.md",
         '---\ntype: retro\ndate: 2026-10-14\nproject: acme\ntitle: "Retro"\ntags: [team]\n---\n# Retro\n- [ ] follow up #perf\n'
@@ -69,32 +73,47 @@ T["find meetings by project, newest first"] = function()
   eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "2026-10-14 - retro.md")
 end
 
-T["find notes (default scope) sorts by date"] = function()
+T["find notes (default scope) sorts by date and leaves tasks out"] = function()
   select_picks()
   child.cmd("Logpose find")
   local labels = offered()[1].labels
   eq(#labels, 4)
   H.contains(labels[1], "2026-10-14")
-  H.contains(labels[3], "2026-10-10  meeting/1on1  Advisor  @thesis")
-  H.contains(labels[4], "----------  inbox  INBOX")
+  H.contains(labels[3], "2026-10-13  daily  2026-10-13 daily notes")
+  H.contains(labels[4], "2026-10-10  meeting/1on1  Advisor  @thesis")
+  eq(table.concat(labels, "\n"):find("Fix flaky", 1, true), nil)
 end
 
-T["find tasks: open first, filters, opens at the line"] = function()
-  select_picks("fix flaky")
-  child.cmd("Logpose find tasks #perf")
+T["find tasks lists task files only"] = function()
+  select_picks("Fix flaky")
+  child.cmd("Logpose find tasks")
+  eq(offered()[1].prompt, "Tasks")
+  eq(offered()[1].labels, { "[TODO] Fix flaky test  @acme" })
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "fix-flaky-test.md")
+end
+
+T["find todos: open first, filters, opens at the line"] = function()
+  select_picks("ship")
+  child.cmd("Logpose find todos #perf")
+  eq(offered()[1].prompt, "To-dos #perf")
   eq(offered()[1].labels, {
     "[ ] follow up #perf  · Retro  @acme",
-    "[ ] fix flaky test #perf #acme  · INBOX",
-    "[x] ship #perf  · INBOX",
+    "[ ] fix flaky test #perf #acme  · 2026-10-13 daily notes",
+    "[x] ship #perf  · 2026-10-13 daily notes",
   })
-  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "INBOX.md")
-  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "daily-2026-10-13.md")
+  eq(child.api.nvim_win_get_cursor(0)[1], 3)
 end
 
-T["find tasks open project:acme matches frontmatter and tags"] = function()
+T["open and project: work on tasks and to-dos alike"] = function()
   select_picks()
   child.cmd("Logpose find tasks open project:acme")
-  eq(#offered()[1].labels, 2)
+  eq(#offered()[1].labels, 1)
+  child.cmd("Logpose find todos open project:acme")
+  eq(offered()[2].labels, {
+    "[ ] follow up #perf  · Retro  @acme",
+    "[ ] fix flaky test #perf #acme  · 2026-10-13 daily notes",
+  })
 end
 
 T["find tags, then everything carrying the chosen tag"] = function()
@@ -107,12 +126,12 @@ T["find tags, then everything carrying the chosen tag"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], 2)
 end
 
-T["find projects, then its notes and tasks"] = function()
+T["find projects, then its notes, tasks and to-dos"] = function()
   select_picks("acme")
   child.cmd("Logpose find projects")
-  eq(offered()[1].labels, { "acme (3)", "thesis (2)" })
+  eq(offered()[1].labels, { "acme (4)", "thesis (2)" })
   eq(offered()[2].prompt, "Project acme")
-  eq(#offered()[2].labels, 3)
+  eq(#offered()[2].labels, 4) -- the retro, the task, and two to-dos
 end
 
 T["find decisions and blockers, with relative dates"] = function()
@@ -169,8 +188,8 @@ T["completion"] = function()
     "daily",
     "meetings",
     "topics",
-    "archives",
     "tasks",
+    "todos",
     "decisions",
     "blockers",
     "tags",
@@ -206,12 +225,12 @@ T["backends"]["snacks: fixed results with file previews"] = function()
     end,
     grep = function(o) _G.grep = o end,
   } }]])
-  child.cmd("Logpose find tasks #perf")
+  child.cmd("Logpose find todos #perf")
   local o = child.lua_get("_G.o")
-  eq({ o.title, o.preview, o.item_preview, o.n, o.pos }, { "Tasks #perf", "preview", "file", 3, { 9, 0 } })
+  eq({ o.title, o.preview, o.item_preview, o.n, o.pos }, { "To-dos #perf", "preview", "file", 3, { 9, 0 } })
   eq(o.first, "[ ] follow up #perf  · Retro  @acme")
   eq(child.lua_get("_G.closed"), true)
-  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "INBOX.md")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "daily-2026-10-13.md")
   child.cmd("Logpose grep flaky")
   eq(child.lua_get("_G.grep"), { cwd = root, dirs = { root }, search = "flaky" })
 end
@@ -230,16 +249,16 @@ T["backends"]["snacks: live search re-filters as the prompt changes"] = function
       o.confirm({ close = function() end }, items[1])
     end,
   } }]])
-  child.cmd("Logpose find tasks #perf")
+  child.cmd("Logpose find todos #perf")
   local o = child.lua_get("_G.o")
-  eq({ o.title, o.live, o.search, o.preview }, { "Tasks", true, "#perf ", "preview" })
+  eq({ o.title, o.live, o.search, o.preview }, { "To-dos", true, "#perf ", "preview" })
   eq(#o.initial, 3)
   -- `project:` is still being typed: ignored, not an error and not a word to match
-  eq(o.typed, { "[ ] follow up #perf  · Retro  @acme", "[ ] fix flaky test #perf #acme  · INBOX" })
-  eq(o.narrowed, { "[ ] fix flaky test #perf #acme  · INBOX" })
-  eq(#o.bad, 4) -- an unfinished date is skipped: every task
+  eq(o.typed, { "[ ] follow up #perf  · Retro  @acme", "[ ] fix flaky test #perf #acme  · 2026-10-13 daily notes" })
+  eq(o.narrowed, { "[ ] fix flaky test #perf #acme  · 2026-10-13 daily notes" })
+  eq(#o.bad, 4) -- an unfinished date is skipped: every to-do
   eq(child.notifications(), {})
-  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
 end
 
 T["backends"]["snacks: tag list previews what each tag leads to"] = function()
@@ -257,7 +276,7 @@ T["backends"]["snacks: tag list previews what each tag leads to"] = function()
   child.cmd("Logpose find tags")
   local list = child.lua_get("_G.list")
   eq({ list.preview, list.first }, { "preview", "#perf (3)" })
-  H.contains(list.text, "- [ ] fix flaky test #perf #acme  · INBOX")
+  H.contains(list.text, "- [ ] fix flaky test #perf #acme  · 2026-10-13 daily notes")
   eq(child.lua_get("_G.second"), { title = "#perf", n = 3 })
 end
 
@@ -270,10 +289,13 @@ T["backends"]["fzf-lua: fixed results as file:line entries"] = function()
     end,
     live_grep = function(o) _G.grep = o end,
   }]])
-  child.cmd("Logpose find tasks #perf")
-  eq(child.lua_get("_G.entries")[2], "INBOX.md:4: [ ] fix flaky test #perf #acme  · INBOX")
-  eq(child.lua_get("_G.o"), { cwd = root, previewer = "builtin", prompt = "Tasks #perf> " })
-  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+  child.cmd("Logpose find todos #perf")
+  eq(
+    child.lua_get("_G.entries")[2],
+    "daily/daily-2026-10-13.md:2: [ ] fix flaky test #perf #acme  · 2026-10-13 daily notes"
+  )
+  eq(child.lua_get("_G.o"), { cwd = root, previewer = "builtin", prompt = "To-dos #perf> " })
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
   child.cmd("Logpose grep flaky")
   eq(child.lua_get("_G.grep"), { cwd = root, search = "flaky" })
 end
@@ -289,11 +311,14 @@ T["backends"]["fzf-lua: live search reloads entries"] = function()
       o.actions.default({ entries[1] })
     end,
   }]])
-  child.cmd("Logpose find tasks #perf")
-  eq(child.lua_get("_G.o"), { query = "#perf ", previewer = "builtin", prompt = "Tasks> " })
+  child.cmd("Logpose find todos #perf")
+  eq(child.lua_get("_G.o"), { query = "#perf ", previewer = "builtin", prompt = "To-dos> " })
   eq(child.lua_get("_G.initial"), 3)
-  eq(child.lua_get("_G.entries"), { "INBOX.md:4: [ ] fix flaky test #perf #acme  · INBOX" })
-  eq(child.api.nvim_win_get_cursor(0)[1], 4)
+  eq(
+    child.lua_get("_G.entries"),
+    { "daily/daily-2026-10-13.md:2: [ ] fix flaky test #perf #acme  · 2026-10-13 daily notes" }
+  )
+  eq(child.api.nvim_win_get_cursor(0)[1], 2)
 end
 
 T["backends"]["fzf-lua: list entries preview their text"] = function()
@@ -305,7 +330,7 @@ T["backends"]["fzf-lua: list entries preview their text"] = function()
     end,
   }]])
   child.cmd("Logpose find projects")
-  eq(child.lua_get("_G.first"), "acme (3)")
+  eq(child.lua_get("_G.first"), "acme (4)")
   eq(child.lua_get("_G.previewer"), vim.NIL)
   H.contains(child.lua_get("_G.text"), "- 2026-10-14  meeting/retro  Retro  @acme")
 end
@@ -342,11 +367,11 @@ local telescope_stub = [[
 T["backends"]["telescope: fixed results with filename and lnum"] = function()
   setup("{ picker = 'telescope', search = { live = false } }")
   child.lua(telescope_stub)
-  child.cmd("Logpose find tasks #perf")
-  eq(child.lua_get("_G.spec"), { title = "Tasks #perf", previewer = "previewer", sorter = "sorter", n = 3 })
-  eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · INBOX", filename = true, lnum = 5 })
+  child.cmd("Logpose find todos #perf")
+  eq(child.lua_get("_G.spec"), { title = "To-dos #perf", previewer = "previewer", sorter = "sorter", n = 3 })
+  eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · 2026-10-13 daily notes", filename = true, lnum = 3 })
   eq(child.lua_get("_G.closed"), true)
-  eq(child.api.nvim_win_get_cursor(0)[1], 5)
+  eq(child.api.nvim_win_get_cursor(0)[1], 3)
   child.cmd("Logpose grep flaky")
   eq(child.lua_get("_G.grep"), { cwd = root, default_text = "flaky" })
 end
@@ -354,12 +379,12 @@ end
 T["backends"]["telescope: live search through a dynamic finder"] = function()
   setup("{ picker = 'telescope' }")
   child.lua(telescope_stub)
-  child.cmd("Logpose find tasks #perf")
+  child.cmd("Logpose find todos #perf")
   eq(
     child.lua_get("_G.spec"),
-    { title = "Tasks", previewer = "previewer", sorter = "empty", default_text = "#perf ", n = 1 }
+    { title = "To-dos", previewer = "previewer", sorter = "empty", default_text = "#perf ", n = 1 }
   )
-  eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · INBOX", filename = true, lnum = 5 })
+  eq(child.lua_get("_G.entry"), { display = "[x] ship #perf  · 2026-10-13 daily notes", filename = true, lnum = 3 })
 end
 
 T["backends"]["auto prefers snacks, then fzf-lua, then telescope"] = function()

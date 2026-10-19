@@ -58,8 +58,6 @@ function M.build(root, p, args, today, dest)
   local function ref(it)
     return link.make(dest, it.file, it.title or vim.fn.fnamemodify(it.file, ":t:r"), root)
   end
-  local done_path = config.path("done", root)
-  local done_dir = config.path("done_entries", root)
 
   local title = "# Report: " .. p.label
   if #args > 0 then
@@ -67,32 +65,25 @@ function M.build(root, p, args, today, dest)
   end
   local out = { title, "", ("Generated %s."):format(today) }
 
-  -- Done: DONE.md and the done archives.
+  -- Tasks done in the period (archived ones too); a task is dated by when it finished.
   local done_status = config.get().board.done
   local done = vim.tbl_filter(function(it)
-    if it.kind == "note" and it.note_type == "task" then
-      return it.status == done_status -- task files (archived ones too); dated by when they finished
-    end
-    return it.kind == "task" and it.checked and (it.file == done_path or vim.startswith(it.file, done_dir .. "/"))
+    return it.kind == "task" and it.status == done_status
   end, in_period(items, p))
-  section(out, "Done", #done)
+  section(out, "Done tasks", #done)
   local dates, by_date = group_by(done, function(it)
     return it.date
   end)
   for _, d in ipairs(dates) do
     table.insert(out, "### " .. d)
     for _, it in ipairs(by_date[d]) do
-      if it.kind == "note" then
-        table.insert(out, ("- %s (%s)%s"):format(it.text, ref(it), it.project and ("  @" .. it.project) or ""))
-      else
-        table.insert(out, "- " .. it.text)
-      end
+      table.insert(out, ("- %s (%s)%s"):format(it.text, ref(it), it.project and ("  @" .. it.project) or ""))
     end
   end
 
   -- Meetings held, by type.
   local meetings = vim.tbl_filter(function(it)
-    return it.kind == "note" and it.note_type == "meeting"
+    return it.kind == "note" and it.file_type == "meeting"
   end, in_period(items, p))
   section(out, "Meetings", #meetings)
   local types, by_type = group_by(meetings, function(it)
@@ -110,7 +101,9 @@ function M.build(root, p, args, today, dest)
 
   -- Decisions.
   local decisions = vim.tbl_filter(function(it)
-    return it.kind ~= "note" and it.section ~= nil and it.section:find("decision", 1, true) ~= nil
+    return (it.kind == "todo" or it.kind == "line")
+      and it.section ~= nil
+      and it.section:find("decision", 1, true) ~= nil
   end, in_period(items, p))
   section(out, "Decisions", #decisions)
   for _, it in ipairs(decisions) do
@@ -143,17 +136,17 @@ function M.build(root, p, args, today, dest)
 
   local stale_before = date.add_days(today, -config.get().review.stale_days)
   local stale = vim.tbl_filter(function(it)
-    return it.kind == "task" and not it.checked and it.date ~= nil and it.date < stale_before
+    return it.kind == "todo" and not it.checked and it.date ~= nil and it.date < stale_before
   end, items)
   table.insert(out, "")
-  table.insert(out, ("### Stale open tasks, older than %d days (%d)"):format(config.get().review.stale_days, #stale))
+  table.insert(out, ("### Open to-dos older than %d days (%d)"):format(config.get().review.stale_days, #stale))
   for _, it in ipairs(stale) do
     table.insert(out, ("- %s %s (%s)"):format(it.date, it.text, ref(it)))
   end
 
-  -- Task files: blocked, and in progress for too long.
+  -- Tasks: blocked, and in progress for too long.
   local task_files = vim.tbl_filter(function(it)
-    return it.kind == "note" and it.note_type == "task" and not it.archived and it.status ~= done_status
+    return it.kind == "task" and not it.archived and it.status ~= done_status
   end, items)
   if #task_files > 0 then
     local taskfile = require("logpose.taskfile")
@@ -180,36 +173,6 @@ function M.build(root, p, args, today, dest)
     end
   end
 
-  local inbox_path = config.path("inbox", root)
-  local inbox_open = vim.tbl_filter(function(it)
-    return it.kind == "task" and not it.checked and it.file == inbox_path and it.section ~= "someday"
-  end, items)
-  local aging = vim.tbl_filter(function(it)
-    return it.date ~= nil and it.date < p.start
-  end, inbox_open)
-  table.insert(out, "")
-  table.insert(out, ("### INBOX items from before this period (%d)"):format(#aging))
-  for _, it in ipairs(aging) do
-    table.insert(out, ("- %s %s"):format(it.date, it.text))
-  end
-
-  local known = {}
-  for _, name in ipairs(require("logpose.search").projects(root, all)) do
-    known[name] = true
-  end
-  local unfiled = vim.tbl_filter(function(it)
-    for _, tag in ipairs(it.tags) do
-      if known[tag] then
-        return false
-      end
-    end
-    return true
-  end, inbox_open)
-  table.insert(out, "")
-  table.insert(out, ("### INBOX items without a project (%d)"):format(#unfiled))
-  for _, it in ipairs(unfiled) do
-    table.insert(out, "- " .. it.text)
-  end
   local markdown = require("logpose.markdown")
   local wrapped = {}
   for _, line in ipairs(out) do
