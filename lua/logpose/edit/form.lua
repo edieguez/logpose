@@ -602,6 +602,9 @@ end
 ---@param width integer
 ---@return string
 local function window_title(model, width)
+  if model.new then
+    return " New task "
+  end
   if model.bulk then
     return " Edit " .. model.title .. " "
   end
@@ -653,6 +656,27 @@ function M.save(f)
   end
   -- the form stays open for more changes: q (or :wq) closes it
   local model = f.model
+  if model.new then
+    if vim.trim(r.values.title or "") == "" then
+      goto_field(f, 1)
+      error("logpose: give the task a title", 0)
+    end
+    local path = save.create(model.root, r.values)
+    reload(f, path) -- from now on, the form edits the task it created
+    local v = r.values
+    ui.notify(
+      ("logpose: created “%s” → %s · %s"):format(
+        v.title,
+        (type(v.project) == "string" and v.project ~= "") and v.project or "no project",
+        require("logpose.taskfile").label(v.status ~= "" and v.status or config.get().tasks.capture_status)
+      ),
+      vim.log.levels.INFO
+    )
+    if f.on_save then
+      f.on_save(path, { "created" })
+    end
+    return
+  end
   if model.bulk then
     local updated, keys = save.bulk(model, r.changed)
     reload(f)
@@ -898,8 +922,11 @@ function M.show(model, opts)
     return next_field
   end, "Accept or next field", true)
 
-  -- start on the first value
+  -- start on the first value; a new task starts with typing its title
   goto_field(f, 1)
+  if model.new then
+    vim.cmd("startinsert!")
+  end
   return win
 end
 
