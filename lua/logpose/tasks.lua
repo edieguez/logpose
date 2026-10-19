@@ -221,8 +221,6 @@ local SOURCES = {
   path = "projects.paths",
   page = "its folder",
   git = "this repo",
-  board = "this board",
-  lane = "this row",
 }
 
 --- "acme (this repo)", "thesis", or "no project".
@@ -343,6 +341,11 @@ function M.capture_command(opts)
     end
     if text ~= "" then
       capture(text)
+      return
+    end
+    if files then
+      -- no text: the new-task form, to set the project, tags, due date… before it exists
+      require("logpose.edit").open_new(root, { project = project, status = config.get().tasks.capture_status })
       return
     end
     local prompt = ("Capture → %s (+name for another): "):format(M.describe_project(project, source))

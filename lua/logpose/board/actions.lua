@@ -379,38 +379,23 @@ end
 function M.add(b)
   local col = b.columns[b.focus.col]
   -- the project row the cursor is in, when cards are grouped by project; else the board's
-  local project, source = (not b.all) and b.project or nil, "board"
+  local project = (not b.all) and b.project or nil
   local lane = view.lane_at_cursor(b)
   if lane ~= nil then
-    project, source = lane ~= "" and lane or nil, "lane"
+    project = lane ~= "" and lane or nil
   end
-  local tasks = require("logpose.tasks")
-  vim.ui.input(
-    {
-      prompt = ("New task in %s → %s: "):format(col.label, tasks.describe_project(project, source)),
-      completion = "customlist,v:lua.require'logpose.tasks'.complete_input",
-    },
-    ui.safely(function(text)
-      text = text and vim.trim(text) or ""
-      if text == "" then
-        return
-      end
-      local title, tags, due, explicit = taskfile.from_text(text)
-      if explicit ~= nil then
-        project = explicit or nil
-      end
-      tags = vim.tbl_filter(function(t)
-        return t ~= project
-      end, tags)
-      local before = history.snapshot(b)
-      local path =
-        taskfile.create(b.root, { title = title, status = col.key, project = project, tags = tags, due = due })
-      tasks.last = path
-      history.record(b, "add", before)
-      M.count(b, "add")
+  local before = history.snapshot(b)
+  local created = false
+  require("logpose.edit").open_new(b.root, { status = col.key, project = project }, {
+    on_save = function(path)
+      -- one undo step per save: the card's creation, then each later change in the form
+      history.record(b, created and "edit" or "add", before)
+      before = history.snapshot(b)
+      M.count(b, created and "edit" or "add")
+      created = true
       view.refresh(b, path)
-    end)
-  )
+    end,
+  })
 end
 
 ---@param b logpose.Board

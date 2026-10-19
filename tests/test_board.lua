@@ -140,24 +140,42 @@ T["b blocks with a reason and unblocks"] = function()
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "unblocked")
 end
 
-T["a adds a card to the focused column with the active project"] = function()
+--- In the new-task form (open, in insert mode on the title): type the title, set other fields
+--- by row, save and close.
+local function fill_new(title, rows)
+  child.type_keys(title, "<Esc>")
+  for row, value in pairs(rows or {}) do
+    child.api.nvim_buf_set_lines(0, row - 1, row, false, { value })
+  end
+  child.cmd("write")
+  child.type_keys("q")
+end
+
+T["a opens the new-task form in the focused column with the active project"] = function()
   setup(("{ projects = { paths = { [%q] = 'acme' } } }"):format(child.fn.getcwd()))
   child.cmd("Logpose board")
-  child.lua([[vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('New idea') end]])
-  child.type_keys("ll")
-  child.type_keys("a")
-  eq(child.lua_get("_G.prompt"), "New task in In progress → acme (this board): ")
+  child.type_keys("ll", "a")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(child.fn.mode(), "i") -- typing the title
+  eq(vim.list_slice(child.api.nvim_buf_get_lines(0, 0, -1, false), 1, 3), { "", "in-progress", "acme" })
+  fill_new("New idea")
+  eq(child.bo.filetype, "logpose-board")
   local content = H.read(root .. "/tasks/new-idea.md")
   H.contains(content, "status: in-progress")
   H.contains(content, "project: acme")
   H.contains(screen(), "New idea")
-  -- the text is parsed like a capture: tags, due date, another project
-  child.lua([[vim.ui.input = function(opts, cb) cb('Draft intro #writing due:fri +thesis') end]])
+  -- everything can be set before it exists: another project, tags, a due date, a blocker
   child.type_keys("a")
+  fill_new(
+    "Draft intro",
+    { [3] = "thesis", [4] = "writing", [5] = "fri", [6] = "waiting on Ana", [7] = "see the outline" }
+  )
   content = H.read(root .. "/tasks/draft-intro.md")
   H.contains(content, "project: thesis")
   H.contains(content, "tags: [writing]")
   H.contains(content, "due: 2026-10-16")
+  H.contains(content, "blocked: waiting on Ana")
+  H.contains(content, "## Context\n\nsee the outline")
 end
 
 T["a in rows per project adds the card to the row you're in"] = function()
@@ -169,9 +187,9 @@ T["a in rows per project adds the card to the row you're in"] = function()
       child.api.nvim_win_set_cursor(0, { i, (l:find("Read paper", 1, true)) })
     end
   end
-  child.lua([[vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('Outline') end]])
   child.type_keys("a")
-  H.contains(child.lua_get("_G.prompt"), "→ thesis (this row): ")
+  eq(child.api.nvim_buf_get_lines(0, 2, 3, false)[1], "thesis")
+  fill_new("Outline")
   H.contains(H.read(root .. "/tasks/outline.md"), "project: thesis")
 end
 
@@ -644,8 +662,8 @@ T["u undoes board changes exactly and <C-r> redoes them"] = function()
   child.type_keys("u")
   eq(H.read(flaky), original)
   -- adding and deleting cards undo too
-  child.lua([[vim.ui.input = function(_, cb) cb('Undo me') end]])
   child.type_keys("a")
+  fill_new("Undo me")
   eq(H.read(root .. "/tasks/undo-me.md") ~= nil, true)
   child.type_keys("u")
   eq(H.read(root .. "/tasks/undo-me.md"), nil)

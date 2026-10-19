@@ -187,11 +187,14 @@ T["+name in a capture picks the project; :Logpose edit last fixes a wrong one"] 
   child.cmd("Logpose capture Water the plants +none")
   eq(fm(root .. "/tasks/water-the-plants.md").project, nil)
   H.contains(child.notifications()[2].msg, "→ no project")
-  -- the prompt says where it'll go
-  child.lua([[vim.ui.input = function(opts, cb) _G.opts = opts; cb('Ship it') end]])
+  -- no text: the new-task form, starting from the detected project
   child.cmd("Logpose capture")
-  eq(child.lua_get("_G.opts.prompt"), "Capture → acme (projects.paths) (+name for another): ")
-  H.contains(child.lua_get("_G.opts.completion"), "complete_input")
+  eq(child.bo.filetype, "logpose-edit")
+  eq(vim.list_slice(child.api.nvim_buf_get_lines(0, 0, -1, false), 1, 3), { "", "backlog", "acme" })
+  child.type_keys("Ship it", "<Esc>")
+  child.cmd("write")
+  H.contains(child.notifications()[#child.notifications()].msg, "created “Ship it” → acme · Backlog")
+  child.type_keys("q")
   -- not in a journal note: :Logpose edit opens the last capture
   child.cmd("Logpose edit")
   eq(child.bo.filetype, "logpose-edit")
