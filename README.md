@@ -19,7 +19,8 @@ Requires Neovim 0.10 or later.
 - **Start:** [Install](#install) · [Quick start](#quick-start) ·
   [Tasks, notes and to-dos](#tasks-notes-and-to-dos) · [How it fits a sprint](#how-it-fits-a-sprint)
 - **Guide:** [Daily notes and standup](#daily-notes-and-standup) · [Meetings](#meetings) ·
-  [Tasks and the board](#tasks-and-the-board) · [Today screen](#the-today-screen) ·
+  [Tasks and the board](#tasks-and-the-board) · [Notes screen](#the-notes-screen) ·
+  [Today screen](#the-today-screen) ·
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
   [Editing details](#editing-details) · [Links](#topic-notes-and-links) ·
   [Sprints and reports](#sprints-archives-and-reports) ·
@@ -80,7 +81,7 @@ logpose keeps three things apart, and every command, screen and search uses thes
 | | What it is | Where it lives | You work with it |
 |---|---|---|---|
 | **Task** | Work to get done, with a status, project, tags and due date. | A file in `tasks/`. | `:Logpose board`, `capture`, `done`, `find tasks` |
-| **Note** | What you write down: daily notes, meeting notes, topic notes, project pages. | `daily/`, `meetings/`, `notes/`, `projects/` | `:Logpose daily`, `meeting`, `note`, `find notes` |
+| **Note** | What you write down: daily notes, meeting notes, topic notes, project pages. | `daily/`, `meetings/`, `notes/`, `projects/` | `:Logpose notes`, `daily`, `meeting`, `note`, `find notes` |
 | **To-do** | A checkbox (`- [ ]`) inside a note: a reminder, or a meeting's action item. | The note it's written in. | `:Logpose check`, `actions`, `find todos` |
 
 A to-do that grows into real work becomes a task with `:Logpose promote`: the task links back to
@@ -304,6 +305,34 @@ unchecks it. `:Logpose done` only works in a task file.
 
 > **Configure:** columns, WIP limits, colours and glyphs are all in [`board`](#configuration).
 
+## The notes screen
+
+**The board is for tasks; this is for notes.**
+
+![The notes screen: meetings, topic notes, daily notes and project pages, newest first, with open to-dos, linked tasks and projects](docs/images/notes.png)
+
+`:Logpose notes` lists your notes newest first, in sections: meetings, topic notes, daily notes
+and project pages. Each line shows the note's date and title, how many open to-dos it holds
+(`☐ 2 to-dos`), how many tasks it's linked with (`→ 1 task`) and, on the all-projects view, its
+project. Long sections show the newest eight; `<CR>` on `… N more` shows the rest.
+
+Like the board, it shows the active project's notes (by `project:` or a `#project` tag, so a
+daily note mentioning `#acme` counts), or all of them when there's none. `f` on a project in
+`:Logpose projects` opens it for that project.
+
+| Key | Does |
+|---|---|
+| `<CR>` | Open the note. On a heading, fold or unfold the section. |
+| `e` | Edit the note's details (frontmatter) in the form. |
+| `/` | Filter, with the `find` filters: `#tag`, `@ana`, `type:retro`, `since:-7d`… |
+| `p` | This project / all projects. |
+| `g` | Group by type / by project. |
+| `z` | Fold or unfold the section. |
+| `n` / `d` / `b` | New topic note / today's daily note / the board. |
+| `r` / `q` / `?` | Refresh / close / help. |
+
+`:Logpose notes #perf` starts with a filter.
+
 ## The today screen
 
 **Your day on one screen.**
@@ -361,7 +390,8 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `<Tab>` | Show or hide what's going on in the project. |
 | `b` | Open the project's board. |
 | `n` | Open its project page. |
-| `t` / `f` / `o` | Search its open tasks / its notes / its open to-dos. |
+| `t` / `o` | Search its open tasks / its open to-dos. |
+| `f` | Open the notes screen for it. |
 | `a` | Add a project: its name, then its repo folder (suggested from where you came from). |
 | `p` | Link another repo folder to the project. |
 | `e` | Edit its name, description, repo folders and colour in a form. |
@@ -655,6 +685,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 
 | Command | Does |
 |---|---|
+| `notes [FILTERS]` | The notes screen: notes by type or project, with their to-dos and linked tasks. |
 | `note [TITLE]` | Create or open a topic note. |
 | `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
@@ -725,9 +756,10 @@ and it never replaces a key you've mapped yourself.
 | | `<leader>jj` | command menu | `<leader>jy` | today |
 | | `<leader>js` | standup | `<leader>jr` | report |
 | | `<leader>jP` | projects (switch, manage) | `<leader>je` | edit details (frontmatter) |
-| **Notes** | `<leader>jd` | daily note | `<leader>jm` | meeting note |
-| | `<leader>jn` | topic note | `<leader>jf` | find notes |
-| | `<leader>jb` | backlinks | `<leader>j/` | grep the journal |
+| **Notes** | `<leader>jl` | notes screen | `<leader>jd` | daily note |
+| | `<leader>jm` | meeting note | `<leader>jn` | topic note |
+| | `<leader>jf` | find notes | `<leader>jb` | backlinks |
+| | `<leader>j/` | grep the journal | | |
 | **Tasks** | `<leader>jk` | board | `<leader>jc` | new task |
 | | `<leader>jX` | task done | `<leader>jt` | open tasks |
 | **To-dos** | `<leader>jx` | check off (normal and visual) | `<leader>jp` | make it a task |
@@ -806,7 +838,9 @@ Colours come from highlight groups linked to your colour scheme. Override
 `LogposeBoardNotes` (the linked-notes count),
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`, `LogposeBoardStale`,
 `LogposeBoardDone`, `LogposeBoardMarked`, `LogposeBoardProject`, `LogposeBoardTag`,
-`LogposeBoardTitle` or `LogposeBoardHint` to change them.
+`LogposeBoardTitle` or `LogposeBoardHint` to change them. The notes screen uses
+`LogposeNotesHeading`, `LogposeNotesDate`, `LogposeNotesMeta`, `LogposeNotesTodos`,
+`LogposeNotesTasks` and `LogposeNotesHint`.
 
 </details>
 

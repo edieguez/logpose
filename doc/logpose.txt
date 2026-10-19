@@ -16,6 +16,7 @@ CONTENTS                                                    *logpose-contents*
        Daily notes and standup ............. |logpose-standup|
        Meetings ............................ |logpose-meetings|
        Tasks and the board ................. |logpose-board|
+       Notes screen ........................ |logpose-notes|
        Today screen ........................ |logpose-today|
        Projects ............................ |logpose-projects|
        Managing projects ................... |logpose-project-manager|
@@ -237,6 +238,31 @@ A column's `hl` picks another group, or override these:
 Options: `board`, `tasks`.
 
 ------------------------------------------------------------------------------
+NOTES SCREEN                                                   *logpose-notes*
+
+The board is for tasks; |:Logpose-notes| is for notes. It lists them newest
+first in sections (meetings, topic notes, daily notes, project pages), each
+line with the note's date and title, its open to-dos (`☐ 2 to-dos`), the
+tasks it's linked with (`→ 1 task`) and, on the all-projects view, its
+project. A section shows its newest eight; `<CR>` on `… N more` shows all.
+
+It shows the active project's notes (by `project:` or a `#project` tag), or
+all of them when there is none. `f` on a project in |:Logpose-projects|
+opens it for that project.
+
+  <CR>   open the note (a heading: fold / unfold)
+  e      edit its details (|logpose-edit|)
+  /      filter, with |logpose-filters|
+  p      this project / all projects
+  g      group by type / by project
+  z      fold / unfold the section
+  n      new topic note       d  today's daily note    b  board
+  r      refresh              q  close                 ?  help
+
+Highlights: `LogposeNotesHeading`, `LogposeNotesDate`, `LogposeNotesMeta`,
+`LogposeNotesTodos`, `LogposeNotesTasks`, `LogposeNotesHint`.
+
+------------------------------------------------------------------------------
 TODAY SCREEN                                                   *logpose-today*
 
 |:Logpose-today| shows your day on one screen: the day and where it sits in
@@ -287,7 +313,7 @@ The active project is marked with `●`.
   <CR>   switch to the project; on a detail line, open that task or note
   <Tab>  show / hide what's going on in the project
   b      its board                     n  its project page
-  t      its open tasks                f  its notes
+  t      its open tasks                f  its notes (|logpose-notes|)
   o      its open to-dos
   a      add a project (name, then repo folder)
   p      link another repo folder      R  rename it everywhere
@@ -609,6 +635,11 @@ Finding things ~
 
 Notes and projects ~
 
+                                                              *:Logpose-notes*
+:Logpose notes [{filters}...]
+    The notes screen (|logpose-notes|), starting with {filters}
+    (|logpose-filters|).
+
                                                                *:Logpose-note*
 :Logpose note [{title}]
     Create (from the `note` template) or open `notes/{slug}.md`. Prompts
@@ -762,9 +793,10 @@ you have mapped yourself are never replaced.
   <leader>jP  projects              <leader>je  edit details (frontmatter)
 
   Notes
-  <leader>jd  daily note            <leader>jm  meeting note
-  <leader>jn  topic note            <leader>jf  find notes
-  <leader>jb  backlinks             <leader>j/  grep the journal
+  <leader>jl  notes screen          <leader>jd  daily note
+  <leader>jm  meeting note          <leader>jn  topic note
+  <leader>jf  find notes            <leader>jb  backlinks
+  <leader>j/  grep the journal
 
   Tasks
   <leader>jk  board                 <leader>jc  new task
