@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -78,15 +78,24 @@ No keymaps are set by default; suggested ones go in the README.
 **Dates.** ISO `YYYY-MM-DD` strings everywhere; compare them lexicographically. All date
 arithmetic goes through `util/date.lua`, anchored at **12:00 local time** to avoid DST bugs.
 
+**Tasks, notes and to-dos** (0.38.0; the words every command, screen, search and doc uses).
+- A **task** is a task file in `tasks/` (B1): frontmatter with `status`, `project`, `tags`,
+  `due`, `blocked`…, shown on the board. Done tasks of past periods move to
+  `tasks/archive/<period>/`.
+- A **note** is what you write: daily notes, meeting notes, topic notes, project pages.
+- A **to-do** is a checkbox `- [ ] text` / `- [x] text` inside a note (or a task file's
+  checklist). Optional inline metadata, parsed from F5 on: `@owner`, `due:YYYY-MM-DD`. Meeting
+  to-dos are action items. `:Logpose promote` turns a to-do into a task.
+- In the index (`index.lua`) these are item kinds `note`, `task`, `todo` (plus `line`, tagged or
+  retrievable lines); `file_type` says where the file sits (daily, meeting, topic, project,
+  task, other) and `index.is_file(it)` is true for notes and tasks.
+
 **Journal files** (default layout, relative to the journal root; every path is configurable via
 `dirs`, so an existing journal keeps its own layout in config).
-- `INBOX.md` / `DONE.md`: a title, then sections headed `## YYYY-MM-DD`, each holding items.
 - Daily notes: `daily/daily-YYYY-MM-DD.md`.
-- Meeting notes: `meetings/YYYY-MM-DD - <slug>.md`.
-- Week archives: `journal-entries/week-<monday>.md`, `done-entries/done-week-<monday>.md`.
-
-**Tasks.** A task is a markdown list item `- [ ] text` (open) or `- [x] text` (done).
-Optional inline metadata, parsed from F5 on: `@owner`, `due:YYYY-MM-DD`.
+- Meeting notes: `meetings/<project>/YYYY-MM-DD - <slug>.md`.
+- Topic notes: `notes/<slug>.md`; project pages: `projects/<project>.md`.
+- Tasks: `tasks/<slug>.md`, archived ones in `tasks/archive/<period>/`.
 
 **Links.** `config.link_style = "wiki"` (default, `[[meetings/2026-10-14 - retro|Retro]]`) or
 `"markdown"` (`[Retro](<../meetings/2026-10-14 - retro.md>)` — angle brackets because of spaces).
@@ -499,6 +508,10 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 
 ## F2 — Archive (Core)
 
+> **Superseded in 0.38.0.** INBOX.md, DONE.md and their section archives are gone;
+> `:Logpose archive` now moves done task files of past periods to `tasks/archive/<period>/`
+> (see C1). The design below is history.
+
 **Goal.** Move `## YYYY-MM-DD` sections from past weeks out of `INBOX.md`/`DONE.md` into one
 archive file per week, with a preview + confirm step and safe writes.
 
@@ -584,6 +597,9 @@ archive file per week, with a preview + confirm step and safe writes.
 ---
 
 ## F3 — Kanban flow: capture & done (High)
+
+> **Superseded.** Capture makes task files since B1, and since 0.38.0 there is no INBOX mode:
+> `done` finishes the task file you're in, `check` toggles to-dos (see C1). History below.
 
 **Goal.** Get items into INBOX and move finished ones to DONE without leaving the current buffer.
 
@@ -778,6 +794,8 @@ headings, `[[links]]`, `@mentions`) and the index reads it; no hidden database.
 dashes for spaces (`section:open-questions`).
 
 ## O2 — Inbox triage (High)
+
+> **Removed** in 0.35.0 (triage) and 0.38.0 (INBOX). History below.
 
 **Goal.** Process INBOX item by item instead of letting it grow.
 
@@ -1028,6 +1046,34 @@ a real task has. Tasks become files and the board becomes the place you see and 
 
 ---
 
+## C1 — Tasks, notes and to-dos kept apart (0.38.0)
+
+**Goal.** "Task" meant three things (task files, checkboxes in notes, INBOX.md lines), so search,
+commands and screens mixed them. Keep one word per thing, everywhere.
+
+**Design**
+- Index kinds `note`, `task`, `todo`, `line` (was `note` for tasks, `task` for checkboxes);
+  `note_type` renamed `file_type`; `index.is_file`. Notes and tasks both carry `links`, `mtime`,
+  `fm_tags`; `links.all`, `[[` completion (tasks marked `task ·`) and `links.related` read both.
+- `todos.lua`: `parse` (was `tasks.parse_task`), `check` / `:Logpose check` (toggles the to-dos
+  on a line or range: checks them, or unchecks when all are checked; API edits, so `u` undoes),
+  `promote` (moved from the removed `migrate.lua`).
+- `:Logpose done` only moves the task file you're in to Done; elsewhere it errors and points at
+  `check`.
+- Search scopes: `notes` (notes only), `tasks` (live task files), `todos` (checkboxes);
+  `archives` removed. `open`/`done` apply to tasks (status) and to-dos (checked); `status:` and
+  `blocked` to tasks.
+- Today: a `## Tasks` part (in progress, blocked, due soon) and a `## Notes` part (meetings
+  today, to-dos left in today's note, overdue action items, recently edited).
+- Projects screen: `o` lists the project's open to-dos beside `t` (tasks) and `f` (notes).
+- Keymap preset grouped as notes, tasks and to-dos (`x` checks a to-do, `X` finishes a task,
+  `o` open to-dos); the edit form's title names what it edits (`Edit task · …`).
+- Removed: INBOX.md, DONE.md, `tasks.mode`, `:Logpose migrate`, section archives
+  (`dirs.inbox/done/journal_entries/done_entries`, `affixes.done_*`, `archive.*_title`,
+  `section_order`, `standup.include_done`) and the markdown section-document helpers.
+  `:Logpose archive` moves done tasks only. Reports list "Done tasks" and "Open to-dos older
+  than N days".
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1036,24 +1082,25 @@ a real task has. Tasks become files and the board becomes the place you see and 
 | `:Logpose project [name\|none]`           | F1.6 |
 | `:Logpose daily [date\|prev\|next\|today]` | F1 |
 | `:Logpose meeting [type] [date]`          | F1, F5 |
-| `:Logpose archive[!]`                     | F2, F2.1 |
-| `:Logpose capture [text]`                 | F3 |
-| `:Logpose done` (normal / visual)         | F3 |
-| `:Logpose find [notes\|daily\|meetings\|archives\|tasks\|tags\|projects] [filters]` | F4 |
+| `:Logpose archive[!]`                     | F2.1, C1 |
+| `:Logpose capture [text]`                 | B1 |
+| `:Logpose done`                           | C1 |
+| `:Logpose check` (normal / visual)        | C1 |
+| `:Logpose find [notes\|daily\|meetings\|topics\|tasks\|todos\|tags\|projects] [filters]` | F4, C1 |
 | `:Logpose grep [text]`                    | F4 |
 | `:Logpose actions [open\|mine\|overdue\|all] [filters]` | F5 |
 | `:Logpose standup [date]`                 | F6 |
 | `:Logpose report[!] [week\|sprint] [offset]` | F7 |
 | `:Logpose ticket [ID]`                    | F8 |
 | `:Logpose find decisions\|blockers\|people …` | O1, O3 |
-| `:Logpose triage [filters]`               | O2 |
 | `:Logpose note [title]` / `project-page [name]` | O4 |
 | `:Logpose backlinks` / `links`            | O4 |
 | `:Logpose view [name]`                    | O5 |
 | `:Logpose rename-tag` / `rename-project`  | O6 |
 | `:Logpose stats[!] [days]`                | T1 |
 | `:Logpose board [filters]`                | B1 |
-| `:Logpose migrate[!]` / `promote`          | B1 |
+| `:Logpose promote`                        | B1, C1 |
+| `:Logpose today`, `edit`, `projects`      | later minors |
 
 ## 6. Definition of done (every feature)
 
