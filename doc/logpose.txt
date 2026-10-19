@@ -141,11 +141,10 @@ Every task is a markdown file in `tasks/`, so it has room for context. The
 board (|:Logpose-board|) is how you move them through the columns
 Backlog, TODO, In progress, Follow-up and Done.
 
-Each card shows its title, and under it `◆ project · due Tue · #tags`. The
-project is in its own colour, picked from your colour scheme's palette (a
-project page's `color:` wins); tags are chips on a soft background; the
-rest is quiet. Colour is otherwise kept
-for what needs attention:
+Each card shows its title, and under it `◆ project · due Tue ✎ 2 #tags`.
+The project is in its own colour, picked from your colour scheme's palette
+(a project page's `color:` wins); tags are chips on a soft background; the
+rest is quiet. Colour is otherwise kept for what needs attention:
 due dates read as words (`due Tue`, `due 3 Nov`; `due today`/`due tomorrow`
 in yellow; `overdue 2d` in red); a blocked card has a red left edge and
 reason (`⊘ waiting on Ana`); cards untouched for `board.stale_days` fade and
@@ -154,6 +153,10 @@ The focused card has a heavy border and a background. On a one-project board
 the project is left off the cards. When a card is narrow, the date stays
 whole, the project name is shortened and tags are dropped. A column with a
 `limit` (In progress: 3) shows `(2/3)` in its header, in red above the limit.
+
+`✎ 2` counts the notes linked with the task: meeting, daily and other notes
+that link to it, and notes it links to (like the `From:` link of a promoted
+checkbox). `n` opens them.
 
 Columns scroll on their own, keeping the focused card in view. Narrow
 windows stack the columns vertically. The board shows the active project's
@@ -208,6 +211,7 @@ groups, and each card's border takes its column's colour (`board.border`:
 A column's `hl` picks another group, or override these:
 `LogposeBoardColumn1` … `LogposeBoardColumn5`, `LogposeBoardBorder`,
 `LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta`,
+`LogposeBoardNotes`,
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`,
 `LogposeBoardStale`, `LogposeBoardDone`, `LogposeBoardMarked`,
 `LogposeBoardProject`, `LogposeBoardTag`, `LogposeBoardTitle`,
@@ -220,8 +224,9 @@ TODAY SCREEN                                                   *logpose-today*
 
 |:Logpose-today| shows your day on one screen: the day and where it sits in
 the sprint, today's meetings, cards in progress and blocked, tasks due
-within three days (overdue first), overdue action items, and what's left
-under Today in the daily note.
+within three days (overdue first), overdue action items, what's left under
+Today in the daily note, and the notes edited lately (the last five from the
+past week, newest first; not tasks).
 
   <CR>  open the item at its line      d  daily note
   b     board                          r  refresh
@@ -371,8 +376,9 @@ As you type, a menu offers what fits the field: projects, board columns
 <C-x><C-o> also works.
 
 Every value is checked as you type: a problem shows beside the field, a
-valid value gets a note (what a date means, a project's name, "new project"),
-and an empty field shows what to type. Below the fields, a summary says what
+valid value gets a note (what a date means, a project's name, "new project",
+"new: Maria" for an attendee nobody has used yet), and an empty field shows
+what to type. Below the fields, a summary says what
 saving will do (set `started`, log a project change, move a meeting note and
 fix N links to it). Nothing is saved while a field shows a problem.
 
@@ -689,6 +695,8 @@ Sprints and maintenance ~
   D             delete the card (asks first)
   K             peek: the task file in a floating window; `q` saves and
                 closes it, and the board picks up the change
+  n             the notes linked with the task (`✎ 2` on the card): one
+                opens directly, several in the picker
   <CR>          open the task file
   z             fold / unfold the column
   gg  G         first / last card

@@ -76,7 +76,7 @@ insert_after("## Today", {
   "",
   "- [x] Review Ana's PR on the cache layer #acme",
   "- [x] Send thesis outline to advisor #thesis",
-  "- [ ] Reproduce flaky checkout test #acme",
+  "- [ ] Reproduce flaky checkout test #acme, see [[flaky-test]]",
   "",
 })
 vim.cmd("silent write")
@@ -87,6 +87,7 @@ insert_after("## Action items", {
   "- [ ] Add retries to the payment client @emmanuel due:2026-10-13",
   "- [ ] Share load-test results @ana due:2026-10-21",
 })
+insert_after("## To improve", { "", "- [[flaky-test]] fails on retries; [[vendor-sso]] waits on Ana's keys" })
 vim.cmd("silent write")
 at(15)
 vim.cmd("Logpose meeting planning")
@@ -94,3 +95,16 @@ vim.cmd("silent write")
 vim.cmd("Logpose project none")
 vim.cmd("Logpose daily")
 vim.cmd("silent write")
+
+-- When notes were last edited, for the today screen's "Recently edited".
+write(root .. "/notes/cache-design.md", "# Cache design\n\nSee [[search-index]].\n")
+local uv = vim.uv or vim.loop
+local now = os.time()
+for path, ago in pairs({
+  ["notes/cache-design.md"] = 2 * 3600,
+  ["daily/daily-2026-10-14.md"] = 20 * 3600,
+  ["meetings/acme/2026-10-14 - retro.md"] = 26 * 3600,
+  ["meetings/acme/2026-10-15 - sprint-planning.md"] = 40 * 60,
+}) do
+  uv.fs_utime(root .. "/" .. path, now - ago, now - ago)
+end
