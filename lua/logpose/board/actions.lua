@@ -429,7 +429,7 @@ function M.notes(b)
   end
   require("logpose.picker").pick(
     vim.tbl_map(function(r)
-      local kind = r.note_type == "topic" and "note" or r.note_type
+      local kind = r.file_type == "topic" and "note" or r.file_type
       local display = r.date and ("%s  · %s %s"):format(r.title, kind, r.date) or ("%s  · %s"):format(r.title, kind)
       return { display = display, file = r.file, lnum = r.lnum }
     end, related),

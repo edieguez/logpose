@@ -1,5 +1,9 @@
---- Journal index: scans every note into plain items (notes, tasks, tagged lines) that search,
---- action items and reports filter. Pickers only display these items.
+--- Journal index: scans every file into plain items that search, the board, action items and
+--- reports filter. Pickers only display these items. Four kinds, kept apart:
+---   note  a note (daily, meeting, topic note, project page): the whole file
+---   task  a task file under `dirs.tasks`: the whole file, with its status, due date…
+---   todo  a checkbox line (`- [ ] …`) in a note or a task file
+---   line  a tagged line, or any line under a retrievable section (Decisions, Blockers…)
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
@@ -8,35 +12,35 @@ local markdown = require("logpose.markdown")
 local M = {}
 
 ---@class logpose.Item
----@field kind "note"|"task"|"line"
+---@field kind "note"|"task"|"todo"|"line"
 ---@field file string
 ---@field lnum integer
 ---@field text string
 ---@field date? string
----@field note_type string  daily|meeting|inbox|done|archive|project|topic|task|other
----@field status? string   task files: board column
----@field blocked? string  task files: block reason
----@field due? string      task files: due date
----@field created? string  task files
----@field started? string  task files
----@field done_date? string task files: when it reached Done
----@field archived? boolean task files under tasks/archive
+---@field file_type string  where the file sits: daily|meeting|project|topic|task|other
+---@field status? string   tasks: board column
+---@field blocked? string  tasks: block reason
+---@field due? string      tasks: due date
+---@field created? string  tasks
+---@field started? string  tasks
+---@field done_date? string tasks: when it reached Done
+---@field archived? boolean tasks under tasks/archive
 ---@field type? string      meeting type (frontmatter)
 ---@field project? string
----@field tags string[]     lowercase, without '#'; a note's tags include all its inline tags
----@field fm_tags? string[] notes only: tags from frontmatter
----@field checked? boolean  tasks only
----@field title? string     note title (on every item of that note)
+---@field tags string[]     lowercase, without '#'; a file's tags include all its inline tags
+---@field fm_tags? string[] notes and tasks: tags from frontmatter
+---@field checked? boolean  to-dos only
+---@field title? string     the file's title (on every item of that file)
 ---@field series? string    meeting series (frontmatter; on every item of that note)
 ---@field section? string   lowercased `## ` heading the item sits under (not date headings)
 ---@field section_title? string  that heading as written
----@field people string[]   person slugs: @mentions (tasks/lines); attendees, `with:` and all
----                         mentions (notes)
----@field names? table<string, string>  person slug -> name as written (notes only)
+---@field people string[]   person slugs: @mentions (to-dos/lines); attendees, `with:` and all
+---                         mentions (notes and tasks)
+---@field names? table<string, string>  person slug -> name as written (notes and tasks)
 ---@field links? { target: string, style: "wiki"|"markdown", lnum: integer, text: string }[]
----                         raw outgoing links (notes only; resolved by links.lua)
----@field mtime? integer    notes only: when the file was last written (seconds)
----@field related? { file: string, title: string, note_type: string, date?: string, lnum: integer }[]
+---                         raw outgoing links (notes and tasks; resolved by links.lua)
+---@field mtime? integer    notes and tasks: when the file was last written (seconds)
+---@field related? { file: string, title: string, file_type: string, date?: string, lnum: integer }[]
 ---                         board cards: notes linked with the task (`links.related`)
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
@@ -170,20 +174,14 @@ end
 ---@param path string
 ---@param root string
 ---@return string
-function M.note_type(path, root)
+function M.file_type(path, root)
   local function p(key)
     return config.path(key, root)
   end
-  if path == p("inbox") then
-    return "inbox"
-  elseif path == p("done") then
-    return "done"
-  elseif under(path, p("daily")) then
+  if under(path, p("daily")) then
     return "daily"
   elseif under(path, p("meetings")) then
     return "meeting"
-  elseif under(path, p("journal_entries")) or under(path, p("done_entries")) then
-    return "archive"
   elseif under(path, p("tasks")) then
     return "task"
   elseif under(path, p("projects")) then
@@ -202,7 +200,7 @@ end
 function M.index_lines(path, lines, root)
   local items = {}
   local fm, body = M.frontmatter(lines)
-  local note_type = M.note_type(path, root)
+  local file_type = M.file_type(path, root)
   local name = vim.fn.fnamemodify(path, ":t:r")
 
   local title = type(fm.title) == "string" and fm.title ~= "" and fm.title or nil
@@ -252,13 +250,13 @@ function M.index_lines(path, lines, root)
   end
 
   local note = {
-    kind = "note",
+    kind = file_type == "task" and "task" or "note",
     file = path,
     lnum = 1,
     text = title,
     title = title,
     date = note_date,
-    note_type = note_type,
+    file_type = file_type,
     type = mtype,
     series = series,
     project = project,
@@ -268,7 +266,7 @@ function M.index_lines(path, lines, root)
     names = names,
     links = {},
   }
-  if note_type == "task" then
+  if file_type == "task" then
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
     note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
@@ -308,19 +306,19 @@ function M.index_lines(path, lines, root)
       names[m.slug] = names[m.slug] or m.name
       table.insert(note_people, m.slug)
     end
-    local task = require("logpose.tasks").parse_task(line)
-    if task and vim.trim(task.text) == "" then
-      task = nil -- empty placeholder from a template ("- [ ] ")
+    local todo = require("logpose.todos").parse(line)
+    if todo and vim.trim(todo.text) == "" then
+      todo = nil -- empty placeholder from a template ("- [ ] ")
     end
-    if task then
+    if todo then
       table.insert(items, {
-        kind = "task",
+        kind = "todo",
         file = path,
         lnum = i,
-        text = task.text,
-        checked = task.checked,
+        text = todo.text,
+        checked = todo.checked,
         date = section_date or note_date,
-        note_type = note_type,
+        file_type = file_type,
         type = mtype,
         series = series,
         project = project,
@@ -343,7 +341,7 @@ function M.index_lines(path, lines, root)
         lnum = i,
         text = text,
         date = section_date or note_date,
-        note_type = note_type,
+        file_type = file_type,
         type = mtype,
         series = series,
         project = project,
@@ -463,7 +461,7 @@ function M.build(root)
         end
         local file_items = M.index_lines(path, lines, root)
         for _, it in ipairs(file_items) do
-          if it.kind == "note" then
+          if M.is_file(it) then
             it.mtime = st and st.mtime.sec or nil
           end
         end
@@ -489,6 +487,13 @@ function M.build(root)
   return vim.list_extend({}, items)
 end
 
+--- Is this item a whole file (a note or a task), not a line in one?
+---@param it logpose.Item
+---@return boolean
+function M.is_file(it)
+  return it.kind == "note" or it.kind == "task"
+end
+
 --- Tags with the number of places they appear (tagged tasks/lines, plus notes tagging them in
 --- frontmatter), most used first.
 ---@param items logpose.Item[]
@@ -496,7 +501,7 @@ end
 function M.tag_counts(items)
   local counts = {}
   for _, item in ipairs(items) do
-    local tags = item.kind == "note" and (item.fm_tags or {}) or item.tags
+    local tags = M.is_file(item) and (item.fm_tags or {}) or item.tags
     for _, tag in ipairs(tags) do
       counts[tag] = (counts[tag] or 0) + 1
     end

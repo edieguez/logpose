@@ -63,36 +63,16 @@ function M.check()
   end
 
   h.start("logpose: tasks")
-  if config.get().tasks.mode == "inbox" then
-    h.info('INBOX/DONE mode (tasks.mode = "inbox")')
-  else
-    local taskfile = require("logpose.taskfile")
-    local counts = {}
-    for _, t in ipairs(taskfile.list(root)) do
-      counts[t.status] = (counts[t.status] or 0) + 1
-    end
-    local parts = {}
-    for _, c in ipairs(taskfile.columns()) do
-      table.insert(parts, ("%s %d"):format(c.label, counts[c.key] or 0))
-    end
-    h.ok("Task files: " .. table.concat(parts, " · "))
-    local inbox = require("logpose.util.fs").read_lines(config.path("inbox", root)) or {}
-    local open = 0
-    for _, l in ipairs(inbox) do
-      local t = require("logpose.tasks").parse_task(l)
-      if t and not t.checked then
-        open = open + 1
-      end
-    end
-    if open > 0 then
-      h.info(
-        ("INBOX.md still has %d open item%s; :Logpose migrate turns them into task files"):format(
-          open,
-          open == 1 and "" or "s"
-        )
-      )
-    end
+  local taskfile = require("logpose.taskfile")
+  local counts = {}
+  for _, t in ipairs(taskfile.list(root)) do
+    counts[t.status] = (counts[t.status] or 0) + 1
   end
+  local parts = {}
+  for _, c in ipairs(taskfile.columns()) do
+    table.insert(parts, ("%s %d"):format(c.label, counts[c.key] or 0))
+  end
+  h.ok("Tasks: " .. table.concat(parts, " · "))
 
   h.start("logpose: journal paths")
   local keys = vim.tbl_keys(config.get().dirs)

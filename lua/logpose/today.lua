@@ -1,6 +1,6 @@
---- `:Logpose today`: the day at a glance. Today's meetings, what's in progress and blocked,
---- what's due, overdue action items, what's left in today's daily note and the notes edited
---- lately. <CR> opens an item.
+--- `:Logpose today`: the day at a glance, in two parts. Tasks: what's in progress, blocked and
+--- due soon. Notes: today's meetings, the to-dos left in today's daily note, overdue action items
+--- and the notes edited lately. <CR> opens an item.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local ui = require("logpose.util.ui")
@@ -30,9 +30,13 @@ function M.build(root, today)
   local function add(text, extra)
     table.insert(lines, vim.tbl_extend("force", { text = text }, extra or {}))
   end
+  local function part(title)
+    add("")
+    add("## " .. title, { hl = "Title" })
+  end
   local function section(title, entries)
     add("")
-    add(("## %s (%d)"):format(title, #entries), { hl = "Title" })
+    add(("### %s (%d)"):format(title, #entries), { hl = "Title" })
     add("")
     if #entries == 0 then
       add("  nothing", { hl = "Comment" })
@@ -56,9 +60,9 @@ function M.build(root, today)
 
   local meetings, doing, blocked, due = {}, {}, {}, {}
   for _, it in ipairs(items) do
-    if it.kind == "note" and it.note_type == "meeting" and it.date == today then
+    if it.kind == "note" and it.file_type == "meeting" and it.date == today then
       table.insert(meetings, { text = "- " .. it.text .. proj(it), file = it.file, lnum = 1 })
-    elseif it.kind == "note" and it.note_type == "task" and not it.archived and it.status ~= cfg.board.done then
+    elseif it.kind == "task" and not it.archived and it.status ~= cfg.board.done then
       local entry = { file = it.file, lnum = 1 }
       if it.status == cfg.board.start then
         table.insert(doing, vim.tbl_extend("force", entry, { text = "- " .. it.text .. proj(it) }))
@@ -100,7 +104,7 @@ function M.build(root, today)
   if dlines then
     local first, last = require("logpose.standup").section_range(dlines, cfg.standup.sections.today)
     for lnum = first or 1, first and last or 0 do
-      local t = require("logpose.tasks").parse_task(dlines[lnum])
+      local t = require("logpose.todos").parse(dlines[lnum])
       if t and not t.checked and vim.trim(t.text) ~= "" then
         table.insert(left, { text = "- [ ] " .. t.text, file = daily, lnum = lnum })
       end
@@ -116,7 +120,7 @@ function M.build(root, today)
   for _, it in ipairs(items) do
     if
       it.kind == "note"
-      and kinds[it.note_type]
+      and kinds[it.file_type]
       and it.mtime
       and now - it.mtime < M.RECENT_DAYS * 86400
       and it.file ~= daily_n
@@ -140,12 +144,15 @@ function M.build(root, today)
     })
   end
 
-  section("Meetings", meetings)
+  -- Tasks (the board) and notes (with the to-dos in them) are kept apart.
+  part("Tasks")
   section(require("logpose.taskfile").label(cfg.board.start), doing)
   section("Blocked", blocked)
   section("Due soon", due)
+  part("Notes")
+  section("Meetings today", meetings)
+  section("To-dos left in today's note", left)
   section("Overdue action items", overdue)
-  section("Left in today's note", left)
   section("Recently edited", edited)
   add("")
   add("<CR> open · d daily note · b board · r refresh · q close", { hl = "Comment" })

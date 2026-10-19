@@ -38,43 +38,29 @@ end
 ---@param opts logpose.StatuslineOpts
 ---@return string
 local function compute(root, project, opts)
-  local config = require("logpose.config")
-  local cfg = config.get()
+  local cfg = require("logpose.config").get()
   local parts = {}
   if opts.project ~= false and project then
     table.insert(parts, project)
   end
   if opts.tasks ~= false then
-    if cfg.tasks.mode == "files" then
-      local doing, blocked = 0, 0
-      for _, t in ipairs(require("logpose.taskfile").list(root)) do
-        local mine = not project or t.project == project or vim.tbl_contains(t.tags, project)
-        if mine and t.status ~= cfg.board.done then
-          if t.status == cfg.board.start then
-            doing = doing + 1
-          end
-          if t.blocked then
-            blocked = blocked + 1
-          end
+    local doing, blocked = 0, 0
+    for _, t in ipairs(require("logpose.taskfile").list(root)) do
+      local mine = not project or t.project == project or vim.tbl_contains(t.tags, project)
+      if mine and t.status ~= cfg.board.done then
+        if t.status == cfg.board.start then
+          doing = doing + 1
+        end
+        if t.blocked then
+          blocked = blocked + 1
         end
       end
-      if doing > 0 then
-        table.insert(parts, ("%d %s"):format(doing, require("logpose.taskfile").label(cfg.board.start):lower()))
-      end
-      if blocked > 0 then
-        table.insert(parts, ("%d blocked"):format(blocked))
-      end
-    else
-      local open = 0
-      for _, l in ipairs(require("logpose.util.fs").read_lines(config.path("inbox", root)) or {}) do
-        local t = require("logpose.tasks").parse_task(l)
-        if t and not t.checked then
-          open = open + 1
-        end
-      end
-      if open > 0 then
-        table.insert(parts, ("%d in INBOX"):format(open))
-      end
+    end
+    if doing > 0 then
+      table.insert(parts, ("%d %s"):format(doing, require("logpose.taskfile").label(cfg.board.start):lower()))
+    end
+    if blocked > 0 then
+      table.insert(parts, ("%d blocked"):format(blocked))
     end
   end
   if opts.period ~= false then

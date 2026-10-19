@@ -111,12 +111,13 @@ function M.stats(root, today)
     end
     return mtimes[path]
   end
-  for _, it in ipairs(require("logpose.index").build(root)) do
-    local name = it.kind == "note" and it.project and project.normalize(it.project)
+  local index = require("logpose.index")
+  for _, it in ipairs(index.build(root)) do
+    local name = index.is_file(it) and it.project and project.normalize(it.project)
     if name then
       local e = entry(name)
       local ref = { file = it.file, lnum = it.lnum or 1, title = it.title or vim.fs.basename(it.file) }
-      if it.note_type == "task" then
+      if it.kind == "task" then
         if it.archived or it.status == cfg.board.done then
           e.done = e.done + 1
         else
@@ -141,12 +142,12 @@ function M.stats(root, today)
             end
           end
         end
-      elseif it.note_type == "meeting" then
+      elseif it.file_type == "meeting" then
         e.meetings = e.meetings + 1
         if not e.last_meeting or (it.date or "") > (e.last_meeting.date or "") then
           e.last_meeting = vim.tbl_extend("force", ref, { date = it.date })
         end
-      elseif it.note_type ~= "project" then
+      elseif it.file_type ~= "project" then
         e.notes = e.notes + 1
         table.insert(e.recent_notes, vim.tbl_extend("force", ref, { mtime = mtime(it.file) }))
       end

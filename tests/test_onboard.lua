@@ -55,21 +55,6 @@ T["an existing journal only gets the marker"] = function()
   H.contains(child.notifications()[1].msg, "using")
 end
 
-T["with tasks.mode = inbox, init creates INBOX/DONE"] = function()
-  child.lua("require('logpose').setup({ tasks = { mode = 'inbox' } })")
-  local dir = H.tmpdir() .. "/journal"
-  child.cmd("Logpose init " .. dir)
-  eq(ls(dir), { ".logpose", "DONE.md", "INBOX.md", "daily", "meetings" })
-  eq(H.read(dir .. "/INBOX.md"), "# INBOX\n")
-end
-
-T["existing INBOX/DONE are never overwritten"] = function()
-  local dir = H.tmpdir()
-  H.write(dir .. "/INBOX.md", "# mine\n")
-  child.cmd("Logpose init " .. dir)
-  eq(H.read(dir .. "/INBOX.md"), "# mine\n")
-end
-
 T["without an argument, prompts with ~/journal and dir completion"] = function()
   local dir = H.tmpdir() .. "/prompted"
   answer_input(dir)
