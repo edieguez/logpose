@@ -17,11 +17,11 @@ Requires Neovim 0.10 or later.
 ## Contents
 
 - **Start:** [Install](#install) · [Quick start](#quick-start) ·
-  [How it fits a sprint](#how-it-fits-a-sprint)
+  [Tasks, notes and to-dos](#tasks-notes-and-to-dos) · [How it fits a sprint](#how-it-fits-a-sprint)
 - **Guide:** [Daily notes and standup](#daily-notes-and-standup) · [Meetings](#meetings) ·
   [Tasks and the board](#tasks-and-the-board) · [Today screen](#the-today-screen) ·
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
-  [Editing a note's details](#editing-a-notes-details) · [Links](#topic-notes-and-links) ·
+  [Editing details](#editing-details) · [Links](#topic-notes-and-links) ·
   [Sprints and reports](#sprints-archives-and-reports) ·
   [Extras](#extras)
 - **Reference:** [Commands](#commands) · [Board keys](#board-keys) ·
@@ -73,17 +73,31 @@ Not sure what a command is called? Run `:Logpose` on its own for a menu of every
 what it does and the key you mapped to it. `:checkhealth logpose` shows which journal, project
 and sprint logpose sees.
 
+## Tasks, notes and to-dos
+
+logpose keeps three things apart, and every command, screen and search uses these words:
+
+| | What it is | Where it lives | You work with it |
+|---|---|---|---|
+| **Task** | Work to get done, with a status, project, tags and due date. | A file in `tasks/`. | `:Logpose board`, `capture`, `done`, `find tasks` |
+| **Note** | What you write down: daily notes, meeting notes, topic notes, project pages. | `daily/`, `meetings/`, `notes/`, `projects/` | `:Logpose daily`, `meeting`, `note`, `find notes` |
+| **To-do** | A checkbox (`- [ ]`) inside a note: a reminder, or a meeting's action item. | The note it's written in. | `:Logpose check`, `actions`, `find todos` |
+
+A to-do that grows into real work becomes a task with `:Logpose promote`: the task links back to
+the note, and the to-do becomes a link to the task. The board shows how many notes are linked
+with each task (`✎ 2`); `n` opens them.
+
 ## How it fits a sprint
 
 | When | Run | What you get |
 |---|---|---|
-| Start of the day | `:Logpose today` | Meetings, work in progress, blockers and what's due, on one screen. |
+| Start of the day | `:Logpose today` | Tasks in progress, blocked and due; today's meetings, to-dos and recent notes. |
 | | `:Logpose daily` | Today's note, with yesterday's finished and unfinished items already in place. |
 | Before the standup | `:Logpose standup` | Yesterday / Today / Blockers, grouped by project, ready to read out. |
 | Something comes up | `:Logpose capture Fix flaky test #ci` | A task in Backlog, without leaving what you're doing. |
 | During the day | `:Logpose board` | Move cards with `H`/`L`, finish them with `x`, block them with `b`. |
 | In a meeting | `:Logpose meeting retro` | A retro note with the last retro's open action items carried over. |
-| After a meeting | `:Logpose promote` | Turns the action item under the cursor into a task file. |
+| After a meeting | `:Logpose promote` | Turns the action item (a to-do) under the cursor into a task. |
 | Sprint review | `:Logpose report sprint` | What got done, decisions, and what needs attention. |
 | New sprint | `:Logpose archive` | Files away the last sprint's done tasks. |
 
@@ -102,9 +116,9 @@ and sprint logpose sees.
 When logpose creates today's note, it starts from your most recent note (Friday's on a
 Monday):
 
-- Items you checked off under `## Today` move to `## Yesterday`.
-- Unfinished items move to the new `## Today`. In the old note they're marked `- [>]`, so each
-  item lives in one place.
+- To-dos you checked off under `## Today` move to `## Yesterday`.
+- Unfinished to-dos move to the new `## Today`. In the old note they're marked `- [>]`, so each
+  to-do lives in one place.
 - Existing notes are never rewritten; only that marker changes.
 
 `:Logpose standup` combines the daily note with the board:
@@ -137,7 +151,6 @@ and blocked tasks (with the reason) under Blockers. Items are grouped by their p
 
 > **Configure:** rename the sections with
 > `standup = { sections = { yesterday = "Ayer", today = "Hoy", blockers = "Bloqueos" } }`.
-> `include_done = true` also lists that day's DONE entries, if you use INBOX mode.
 
 ## Meetings
 
@@ -163,7 +176,7 @@ the existing note instead of making a second one.
 
 **Series.** Meetings with the same type and title (or the same person, for 1:1s) form a series
 within a project. A new note in a series starts with a `Previous: [[…]]` link and a
-`## Carried over` section holding the previous note's open checkboxes. In the old note, those
+`## Carried over` section holding the previous note's open to-dos. In the old note, those
 are marked `- [>]`.
 
 > **Configure:** add your own types in `meeting_types`
@@ -181,7 +194,7 @@ are marked `- [>]`.
 ```
 
 **To set everything up front**, run `:Logpose capture` without text (or press `a` on the board).
-It opens the [edit form](#editing-a-notes-details) for a new task: you type the title, then set
+It opens the [edit form](#editing-details) for a new task: you type the title, then set
 its column, project, tags, due date, blocker and a line of context, with the same completion and
 checks. It starts from the active project (on the board: the column you're in, and the project
 row with `s`), and saving creates it.
@@ -199,7 +212,7 @@ picked from your colour scheme (or set with `color:` on its project page, `e` in
 background, so they stand out in any colour scheme. The rest is in a quiet colour.
 
 `✎ 2` counts the notes linked with the task: meeting notes, daily notes and other notes that
-link to it, and notes it links to (like the `From:` link a promoted checkbox gets). Press `n` on
+link to it, and notes it links to (like the `From:` link a promoted to-do gets). Press `n` on
 the card to open them: one opens directly, several in the picker, newest first.
 
 Colour is kept for what needs your attention:
@@ -283,14 +296,13 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 | From | Do | Result |
 |---|---|---|
 | Anywhere | `:Logpose capture text #tag +project due:DATE` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
-| A checkbox in a meeting or daily note | `:Logpose promote` | A TODO task with a `From:` link back, and the checkbox becomes a link to it. |
+| A to-do in a meeting or daily note | `:Logpose promote` | A TODO task with a `From:` link back, and the to-do becomes a link to it. |
 | A task file | `:Logpose done` | The task moves to Done. |
-| A checkbox in any note | `:Logpose done` | The checkbox is checked off (works on a visual selection too). |
-| An old `INBOX.md` | `:Logpose migrate` | Every open item becomes a task file (shows a preview first). |
+
+To-dos aren't tasks: `:Logpose check` checks one off (or a visual selection of them), and again
+unchecks it. `:Logpose done` only works in a task file.
 
 > **Configure:** columns, WIP limits, colours and glyphs are all in [`board`](#configuration).
-> Prefer a single checklist file? `tasks = { mode = "inbox" }` brings back the INBOX.md/DONE.md
-> flow.
 
 ## The today screen
 
@@ -298,10 +310,11 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 ![The today screen: meetings, work in progress, blocked tasks, what's due, overdue action items and recently edited notes](docs/images/today.png)
 
-`:Logpose today` lists today's meetings, cards in progress and blocked, tasks due within three
-days, overdue action items, what's left under Today in your daily note, and the notes you
-edited lately (the last five from the past week, newest first: meetings, daily and topic notes,
-not tasks). Press `<CR>` on an item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q` closes.
+`:Logpose today` has two parts. **Tasks**: what's in progress, blocked, and due within three days.
+**Notes**: today's meetings, the to-dos left under Today in your daily note, overdue action
+items, and the notes you edited lately (the last five from the past week, newest first). Press
+`<CR>` on an item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q`
+closes.
 
 ## Projects
 
@@ -348,7 +361,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `<Tab>` | Show or hide what's going on in the project. |
 | `b` | Open the project's board. |
 | `n` | Open its project page. |
-| `t` / `f` | Search its open tasks / its notes. |
+| `t` / `f` / `o` | Search its open tasks / its notes / its open to-dos. |
 | `a` | Add a project: its name, then its repo folder (suggested from where you came from). |
 | `p` | Link another repo folder to the project. |
 | `e` | Edit its name, description, repo folders and colour in a form. |
@@ -397,15 +410,17 @@ undoes it.
 **Find anything in the journal, by text and by structure.**
 
 ```vim
-:Logpose find                                  " all notes
+:Logpose find                                  " all notes (not tasks)
 :Logpose find tasks open #perf                 " open tasks tagged #perf
+:Logpose find todos open @ana                  " unchecked to-dos involving Ana
 :Logpose find decisions project:acme sprint:-1 " last sprint's decisions for acme
 :Logpose find people                           " everyone, then everything about one person
 :Logpose grep                                  " plain live grep in the journal
 ```
 
-The first word is the **scope**: `notes` (default), `daily`, `meetings`, `topics`, `archives`,
-`tasks`, `decisions`, `blockers`, `tags`, `projects` or `people`. Everything after it is a
+The first word is the **scope**: `notes` (default), `daily`, `meetings`, `topics`, `tasks`,
+`todos`, `decisions`, `blockers`, `tags`, `projects` or `people`. Notes, tasks and to-dos are
+separate scopes: `notes` never lists tasks. Everything after it is a
 **filter**, and every filter must match. The most useful ones:
 
 | Filter | Matches |
@@ -413,7 +428,7 @@ The first word is the **scope**: `notes` (default), `daily`, `meetings`, `topics
 | `#perf` | items tagged `perf` |
 | `project:acme` | items of a project |
 | `@ana` | items involving Ana |
-| `open` / `done` | tasks by state |
+| `open` / `done` | tasks (in Done or not), to-dos (checked or not) |
 | `blocked` | blocked tasks |
 | `sprint:current`, `sprint:-1`, `since:-7d` | a time range |
 | any other word | must appear in the text |
@@ -433,7 +448,7 @@ such as `project:` are ignored until they're complete. Every result has a previe
 
 ## Action items and people
 
-**Action items are checkboxes with an owner and a due date.**
+**Action items are to-dos in meeting notes, with an owner and a due date.**
 
 ```markdown
 - [ ] Share load-test results @ana due:2026-10-21
@@ -452,15 +467,16 @@ in `find`.
 **People** come from meeting `attendees:`, 1:1s and `@mentions`. `:Logpose find people` lists
 everyone with how much involves them; pick a person to see all of it.
 
-## Editing a note's details
+## Editing details
 
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
 
-It works on any note: tasks (title, status, project, tags, due, blocked), meetings (title, type,
-date, project, attendees), topic notes (title, project, tags) and project pages (title,
-description, paths, colour). Other keys are left as they are.
+It works on tasks (title, status, project, tags, due, blocked) and on notes: meetings (title,
+type, date, project, attendees), topic notes (title, project, tags) and project pages (title,
+description, paths, colour). The form's title says which it is (`Edit task · …`,
+`Edit meeting · …`). Other keys are left as they are.
 
-`:Logpose edit` opens the current note's frontmatter as a form. It also opens from `e` on a
+`:Logpose edit` opens the frontmatter of the current task or note as a form. It also opens from `e` on a
 board card, `e` on a project in `:Logpose projects`, and `:Logpose edit last` for the task you
 just captured:
 
@@ -535,7 +551,7 @@ Monday-to-Sunday weeks.
 
 **Reports.** `:Logpose report sprint` summarises the current sprint: tasks done, meetings,
 decisions and open action items. A review section lists what needs attention: overdue action
-items, blocked tasks, and tasks in progress for too long.
+items, old open to-dos, blocked tasks, and tasks in progress for too long.
 
 ```vim
 :Logpose report sprint -1               " the previous sprint
@@ -604,7 +620,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 
 | Command | Does |
 |---|---|
-| `today` | The day at a glance. |
+| `today` | The day at a glance: tasks, then notes. |
 | `daily [today\|prev\|next\|DATE]` | Open (and create) a daily note. `prev`/`next` step by workday. |
 | `standup [DATE]` | Yesterday / Today / Blockers in a scratch buffer. |
 | `meeting [TYPE] [DATE]` | New meeting note. |
@@ -615,10 +631,15 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 |---|---|
 | `board [FILTERS]` | The Kanban board. |
 | `capture[!] [TEXT]` | New task in Backlog. Without text, the new-task form; with text, `+name` picks the project. `!` opens it. |
-| `done` | In a task file: move it to Done. On checkboxes: check them off. |
-| `promote` | Turn the checkbox under the cursor into a task file. |
-| `migrate[!]` | Turn open INBOX.md items into task files. `!` skips the preview. |
-| `actions [open\|mine\|overdue\|all] [FILTERS]` | Meeting action items in the quickfix list. |
+| `done` | Move the task you're in (its task file) to Done. |
+
+### To-dos
+
+| Command | Does |
+|---|---|
+| `check` | Check off the to-do on this line (or the selected ones); again to uncheck. |
+| `promote` | Turn the to-do on this line into a task, linked both ways. |
+| `actions [open\|mine\|overdue\|all] [FILTERS]` | Meeting action items (to-dos in meeting notes) in the quickfix list. |
 
 ### Finding things
 
@@ -638,14 +659,14 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
-| `edit [last]` | Edit this note's frontmatter (or the last captured task's, or the tasks on selected quickfix lines) in a form. |
+| `edit [last]` | Edit the frontmatter of this note or task (or the last captured task's, or the tasks on selected quickfix lines) in a form. |
 
 ### Sprints and maintenance
 
 | Command | Does |
 |---|---|
 | `report[!] [week\|sprint] [OFFSET] [FILTERS]` | Week or sprint summary. `!` saves it. |
-| `archive[!]` | File away done work from past periods. `!` skips the preview. |
+| `archive[!]` | Move done tasks from past weeks or sprints to `tasks/archive/`. `!` skips the preview. |
 | `rename-tag[!] OLD NEW` | Rename a tag everywhere. |
 | `rename-project[!] OLD NEW` | Rename a project everywhere. |
 | `merge-project[!] OLD NEW` | Merge one project into another. |
@@ -682,9 +703,9 @@ With cards marked, `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` act on all of them 
 | `#perf`, `tag:perf` | tagged items |
 | `@ana`, `person:ana` | items involving the person: attendee, 1:1, or @mention |
 | `type:retro` | meetings of that type |
-| `open`, `done` | tasks by state (checkboxes and task files) |
-| `status:in-progress` | task files in that board column |
-| `blocked` | blocked task files |
+| `open`, `done` | tasks (in Done or not) and to-dos (checked or not) |
+| `status:in-progress` | tasks in that board column |
+| `blocked` | blocked tasks |
 | `since:DATE`, `until:DATE` | `2026-10-14`, `today`, `yesterday`, `tomorrow`, `-7d`, `+2w` |
 | `week:current`, `sprint:-1`, `sprint:42` | a whole week or sprint |
 | `section:decisions` | lines under a matching `##` heading |
@@ -699,18 +720,18 @@ logpose sets no keys unless you ask. `keymaps = true` installs this set under `<
 (choose another prefix with `keymaps = { prefix = "<leader>n" }`). It's labelled for which-key,
 and it never replaces a key you've mapped yourself.
 
-| Key | Action | Key | Action |
-|---|---|---|---|
-| `<leader>jj` | command menu | `<leader>jd` | daily note |
-| `<leader>jy` | today | `<leader>js` | standup |
-| `<leader>jk` | board | `<leader>jm` | meeting note |
-| `<leader>jP` | projects (switch, manage) | | |
-| `<leader>je` | edit frontmatter | | |
-| `<leader>jc` | capture a task | `<leader>jx` | mark done (normal and visual) |
-| `<leader>jp` | promote to task file | `<leader>jn` | topic note |
-| `<leader>jf` | find notes | `<leader>jt` | open tasks |
-| `<leader>ja` | action items | `<leader>jb` | backlinks |
-| `<leader>jr` | report | `<leader>j/` | grep the journal |
+| | Key | Action | Key | Action |
+|---|---|---|---|---|
+| | `<leader>jj` | command menu | `<leader>jy` | today |
+| | `<leader>js` | standup | `<leader>jr` | report |
+| | `<leader>jP` | projects (switch, manage) | `<leader>je` | edit details (frontmatter) |
+| **Notes** | `<leader>jd` | daily note | `<leader>jm` | meeting note |
+| | `<leader>jn` | topic note | `<leader>jf` | find notes |
+| | `<leader>jb` | backlinks | `<leader>j/` | grep the journal |
+| **Tasks** | `<leader>jk` | board | `<leader>jc` | new task |
+| | `<leader>jX` | task done | `<leader>jt` | open tasks |
+| **To-dos** | `<leader>jx` | check off (normal and visual) | `<leader>jp` | make it a task |
+| | `<leader>jo` | open to-dos | `<leader>ja` | meeting action items |
 
 To choose your own keys, map the `<Plug>` mappings instead:
 
@@ -774,7 +795,6 @@ board = {
   open = "window",         -- or "tab": open the board in its own tab page
 },
 tasks = {
-  mode = "files",          -- or "inbox" for the INBOX.md/DONE.md checkbox flow
   capture_status = "backlog",   -- column for :Logpose capture
   promote_status = "todo",      -- column for :Logpose promote
 },
@@ -808,10 +828,9 @@ meeting_types = {
 series = { carry_over = true, mark_carried = true },
 standup = {
   sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
-  carry_forward = true, mark_carried = true, include_done = false, group_by_project = true,
+  carry_forward = true, mark_carried = true, group_by_project = true,
 },
 timestamps = { created = true, modified = true },  -- created:/modified: in frontmatter
-section_order = "auto",                -- "newest_first" | "oldest_first"
 ```
 
 </details>
@@ -824,11 +843,11 @@ search = { live = true },              -- the picker prompt re-runs the query as
 retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
 views = {},                            -- saved searches: name = "find arguments"
 actions = {
-  include_daily = false,               -- also collect checkboxes from daily notes
+  include_daily = false,               -- also collect to-dos from daily notes
   unassigned_mine = true,              -- items without an owner count as yours
   output = "quickfix",                 -- or "picker"
 },
-review = { stale_days = 14 },          -- "in progress for too long" in reports
+review = { stale_days = 14 },          -- old open to-dos, and tasks in progress too long, in reports
 tickets = { pattern = "%u[%u%d]+%-%d+", url = nil },
 telemetry = { enabled = true, retention_days = 180 },  -- local only; false to turn off
 ```
@@ -842,13 +861,10 @@ telemetry = { enabled = true, retention_days = 180 },  -- local only; false to t
 root_markers = { ".logpose" },
 dirs = {                               -- relative to the journal root
   daily = "daily", meetings = "meetings", notes = "notes", projects = "projects", tasks = "tasks",
-  inbox = "INBOX.md", done = "DONE.md",
-  journal_entries = "journal-entries", done_entries = "done-entries",
   templates = "templates", reports = "reports",
 },
-affixes = { daily = "daily-", week = "week-", done_week = "done-week-", sprint = "", done_sprint = "done-" },
+affixes = { daily = "daily-", week = "week-", sprint = "" },  -- week-/sprint folders in tasks/archive/
 link_base = "",                        -- wiki-link targets are relative to this folder
-archive = { journal_title = "# Journal: {period_label}", done_title = "# Done: {period_label}" },
 ```
 
 For example, a journal kept in a subfolder of a repo:
@@ -896,20 +912,20 @@ headings, lists and code it inserts, and never rewraps your own text.
 ```text
 ~/journal/
 ├── .logpose                         marks the journal root
-├── daily/daily-2026-10-15.md
+├── daily/daily-2026-10-15.md        notes: daily, meetings, topics, project pages
 ├── meetings/
 │   ├── acme-api/2026-10-14 - retro.md
 │   └── 2026-10-13 - 1-1-ana.md      meetings outside any project
-├── tasks/
-│   ├── fix-flaky-test.md            one file per task
+├── tasks/                           tasks: one file each
+│   ├── fix-flaky-test.md
 │   └── archive/sprint-42/           done tasks from past sprints
-├── notes/queue-design.md
-├── projects/acme-api.md
+├── notes/queue-design.md            topic notes
+├── projects/acme-api.md             project pages
 ├── reports/sprint-42.md
 └── templates/                       your template overrides
 ```
 
-Checkboxes in notes: `- [ ]` open, `- [x]` done, `- [>]` carried to a newer note.
+To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]` carried to a newer note.
 
 ## Troubleshooting
 

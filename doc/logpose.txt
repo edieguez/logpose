@@ -10,6 +10,7 @@ Requires Neovim 0.10 or later.
 CONTENTS                                                    *logpose-contents*
 
   1. Introduction .......................... |logpose-introduction|
+       Tasks, notes and to-dos ............. |logpose-concepts|
   2. Quick start ........................... |logpose-quickstart|
   3. Guide ................................. |logpose-guide|
        Daily notes and standup ............. |logpose-standup|
@@ -21,7 +22,7 @@ CONTENTS                                                    *logpose-contents*
        Project pages ....................... |logpose-project-page|
        Search .............................. |logpose-search|
        Action items and people ............. |logpose-actions|
-       Editing a note's details ............ |logpose-edit|
+       Editing details ..................... |logpose-edit|
        Topic notes and links ............... |logpose-links|
        Sprints, archives and reports ....... |logpose-sprints|
        Statusline .......................... |logpose-statusline|
@@ -48,6 +49,21 @@ tasks and the board are kept apart per project.
 
 Every feature is a subcommand of |:Logpose|. Run `:Logpose` on its own for a
 menu of all of them.
+
+                                                            *logpose-concepts*
+Tasks, notes and to-dos ~
+logpose keeps three things apart, and every command, screen and search uses
+these words:
+
+  task    Work to get done: a file in `tasks/` with a status, project, tags
+          and due date. It lives on the board (|logpose-board|).
+  note    What you write down: daily notes, meeting notes, topic notes and
+          project pages.
+  to-do   A checkbox (`- [ ]`) inside a note: a reminder, or a meeting's
+          action item. |:Logpose-check| checks it off.
+
+A to-do that grows into real work becomes a task with |:Logpose-promote|.
+The board counts the notes linked with each task (`✎ 2`); `n` opens them.
 
 ==============================================================================
 2. QUICK START                                            *logpose-quickstart*
@@ -97,9 +113,9 @@ One note per workday, and a standup that writes itself.
 When logpose creates today's note (|:Logpose-daily|), it starts from your
 most recent earlier note (Friday's on a Monday):
 
-  - Items you checked off under `## Today` move to `## Yesterday`.
-  - Unfinished items move to the new `## Today`. In the old note they are
-    marked `- [>]`, so each item lives in one place.
+  - To-dos you checked off under `## Today` move to `## Yesterday`.
+  - Unfinished to-dos move to the new `## Today`. In the old note they are
+    marked `- [>]`, so each to-do lives in one place.
   - Existing notes are never rewritten; only that marker changes.
 
 |:Logpose-standup| shows Yesterday / Today / Blockers in a scratch buffer,
@@ -130,7 +146,7 @@ Series ~
 Meetings with the same type and title (or the same person, for 1:1s) form a
 series within a project. A new note in a series starts with
 `Previous: [[…]]` and a `## Carried over` section holding the previous note's
-open checkboxes. In the old note, those are marked `- [>]`.
+open to-dos. In the old note, those are marked `- [>]`.
 
 Options: `meeting_types`, `meeting_filename`, `meeting_subdir`, `series`.
 
@@ -156,7 +172,7 @@ whole, the project name is shortened and tags are dropped. A column with a
 
 `✎ 2` counts the notes linked with the task: meeting, daily and other notes
 that link to it, and notes it links to (like the `From:` link of a promoted
-checkbox). `n` opens them.
+to-do). `n` opens them.
 
 Columns scroll on their own, keeping the focused card in view. Narrow
 windows stack the columns vertically. The board shows the active project's
@@ -195,10 +211,11 @@ Getting tasks in and out ~
 
   |:Logpose-capture|  from anywhere: a Backlog task for the active project
   `a` on the board    a card in the focused column
-  |:Logpose-promote|  a checkbox in a note becomes a TODO task
-  |:Logpose-migrate|  open INBOX.md items become task files
+  |:Logpose-promote|  a to-do in a note becomes a TODO task
   |:Logpose-done|     in a task file: move it to Done
   `x` on the board    move the card to Done
+
+To-dos aren't tasks: |:Logpose-check| checks them off.
 
 Files with unsaved changes are never overwritten: logpose edits the buffer
 instead, or refuses.
@@ -223,10 +240,10 @@ Options: `board`, `tasks`.
 TODAY SCREEN                                                   *logpose-today*
 
 |:Logpose-today| shows your day on one screen: the day and where it sits in
-the sprint, today's meetings, cards in progress and blocked, tasks due
-within three days (overdue first), overdue action items, what's left under
-Today in the daily note, and the notes edited lately (the last five from the
-past week, newest first; not tasks).
+the sprint, then two parts. Tasks: in progress, blocked, and due within
+three days (overdue first). Notes: today's meetings, the to-dos left under
+Today in the daily note, overdue action items, and the notes edited lately
+(the last five from the past week, newest first).
 
   <CR>  open the item at its line      d  daily note
   b     board                          r  refresh
@@ -271,6 +288,7 @@ The active project is marked with `●`.
   <Tab>  show / hide what's going on in the project
   b      its board                     n  its project page
   t      its open tasks                f  its notes
+  o      its open to-dos
   a      add a project (name, then repo folder)
   p      link another repo folder      R  rename it everywhere
   e      edit its name, description, repo folders and colour
@@ -320,16 +338,18 @@ Options: `projects`, `meeting_subdir`.
 ------------------------------------------------------------------------------
 SEARCH                                                        *logpose-search*
 
-|:Logpose-find| searches an index of every note, task and tagged line, and
-opens the result at its line. The first word is the scope, the rest are
-filters (|logpose-filters|), and every filter must match. >vim
+|:Logpose-find| searches an index of every note, task, to-do and tagged
+line, and opens the result at its line. The first word is the scope, the
+rest are filters (|logpose-filters|), and every filter must match. >vim
   :Logpose find tasks open #perf
+  :Logpose find todos open @ana
   :Logpose find decisions project:acme sprint:-1
   :Logpose find people
 <
-Scopes: `notes` (default), `daily`, `meetings`, `topics`, `archives`, `tasks`,
-`decisions`, `blockers`, `tags` (pick a tag, then everything carrying it),
-`projects` (pick one, then its notes and tasks), `people`.
+Scopes: `notes` (default; never lists tasks), `daily`, `meetings`, `topics`,
+`tasks` (task files), `todos` (checkboxes in notes), `decisions`,
+`blockers`, `tags` (pick a tag, then everything carrying it), `projects`
+(pick one, then its notes, tasks and to-dos), `people`.
 
 Live search: with snacks.nvim, fzf-lua or Telescope, the picker prompt holds
 the query. It starts with the filters you typed and the results update as
@@ -347,7 +367,7 @@ Options: `search`, `retrieval`, `views`, `picker`.
 ------------------------------------------------------------------------------
 ACTION ITEMS AND PEOPLE                                      *logpose-actions*
 
-Action items are checkboxes in meeting notes, optionally with an owner and a
+Action items are to-dos in meeting notes, optionally with an owner and a
 due date: >markdown
   - [ ] Share load-test results @ana due:2026-10-21
 <
@@ -361,11 +381,12 @@ search.
 Options: `me`, `actions`.
 
 ------------------------------------------------------------------------------
-EDITING A NOTE'S DETAILS                                        *logpose-edit*
+EDITING DETAILS                                                 *logpose-edit*
 
 |:Logpose-edit| (or `e` on a board card, `e` on a project in
 |:Logpose-projects|, or `:Logpose edit last` for the task captured last)
-opens the note's frontmatter as a form in a floating window. Each line holds
+opens the frontmatter of a task or a note as a form in a floating window;
+its title says which (`Edit task · …`, `Edit meeting · …`). Each line holds
 one value; the field's name is drawn beside it and can't be edited. Lists
 (`tags`, `attendees`, `paths`) are written `a, b`. Fields logpose keeps
 itself (`created`, `modified`, `started`, `done`, `series`) are shown below.
@@ -525,37 +546,32 @@ Tasks ~
     `last` fixes a wrong one. [!] opens the new file. Without {text}: the
     new-task form (|logpose-edit|), to set the title, column, project, tags,
     due date, blocker and a line of context before the task exists.
-    With `tasks.mode = "inbox"`: add `- [ ] {text}` under today's section of
-    INBOX.md instead.
 
                                                                *:Logpose-done*
-:[range]Logpose done
-    In a task file (not on one of its checkboxes): move the task to Done.
-    Otherwise check off the checkbox on the current line, or every one in
-    [range]. `<Plug>(logpose-done)` works in visual mode too. The buffer is
-    edited, so |u| undoes it.
-    With `tasks.mode = "inbox"`: an INBOX.md item moves to DONE.md under
-    today; a checkbox elsewhere is checked off and logged in DONE.md with a
-    link back.
+:Logpose done
+    Move the task you're in (its task file) to Done. Anywhere else it says
+    so: a to-do is checked off with |:Logpose-check|.
+
+To-dos ~
+
+                                                              *:Logpose-check*
+:[range]Logpose check
+    Check off the to-do (`- [ ]`) on the current line, or every one in
+    [range]; when they're all checked already, uncheck them. Other lines
+    are skipped. `<Plug>(logpose-check)` works in visual mode too. The buffer
+    is edited, so |u| undoes it.
 
                                                             *:Logpose-promote*
 :Logpose promote
-    Turn the checkbox under the cursor into a task in
-    `tasks.promote_status` (TODO), with the note's project and a `From:`
-    link back, and replace the checkbox text with a link to the task.
-
-                                                            *:Logpose-migrate*
-:Logpose migrate[!]
-    Turn open INBOX.md items into task files in Backlog and remove them
-    from INBOX.md. `due:` and `#tags` go into the frontmatter (a tag naming
-    a known project becomes `project`), the section date becomes `created`,
-    indented lines become the body, and `## Someday` items get `#someday`.
-    DONE.md stays as history. Shows a preview first; [!] skips it.
+    Turn the to-do under the cursor into a task in `tasks.promote_status`
+    (TODO), with the note's project and a `From:` link back, and replace the
+    to-do's text with a link to the task. A checked to-do becomes a task in
+    Done.
 
                                                             *:Logpose-actions*
 :Logpose actions [{mode}] [{filters}...]
-    Action items from meeting notes (|logpose-actions|) in the quickfix list,
-    or the picker with `actions.output = "picker"`. {mode}:
+    Action items: to-dos in meeting notes (|logpose-actions|), in the
+    quickfix list, or the picker with `actions.output = "picker"`. {mode}:
       `open`     open items (default)
       `mine`     yours (`me`), plus unassigned ones with
                  `actions.unassigned_mine`
@@ -601,10 +617,10 @@ Notes and projects ~
                                                                *:Logpose-edit*
 :Logpose edit [last]
 :[range]Logpose edit
-    Edit the current note's frontmatter in a form. With `last`, or when the
-    current buffer isn't a journal note, the task captured last in this
-    session. In a quickfix window, the tasks on the [range] of lines,
-    together. See |logpose-edit|.
+    Edit the frontmatter of the current task or note in a form. With
+    `last`, or when the current buffer isn't in the journal, the task
+    captured last in this session. In a quickfix window, the tasks on the
+    [range] of lines, together. See |logpose-edit|.
 
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
@@ -629,20 +645,16 @@ Sprints and maintenance ~
     Summary of a period in a scratch buffer. Default: the current period of
     `period.kind`; `-1` the previous one; a date the period containing it.
     Lists tasks done, meetings, decisions and open action items, then a
-    review section: overdue actions per project, blocked tasks, tasks in
-    progress for longer than `review.stale_days`, stale open checkboxes, and
-    old or unassigned INBOX items if you use INBOX.md.
+    review section: overdue actions per project, open to-dos older than
+    `review.stale_days`, blocked tasks, and tasks in progress for longer.
     [!] saves it to `reports/{period}.md`.
 
                                                             *:Logpose-archive*
 :Logpose archive[!]
-    File away everything from before the current period. Done task files
-    move to `tasks/archive/{period}/`, where reports and search still find
-    them. If you have INBOX.md and DONE.md, their `## YYYY-MM-DD` sections
-    move into one file per period in `journal-entries/` and `done-entries/`,
-    merging into files that already exist. Running it again is safe. Shows
-    a preview first; [!] skips it. Nothing is written if an affected file
-    has unsaved changes.
+    Move done tasks from before the current period off the board, to
+    `tasks/archive/{period}/`, where reports and search still find them.
+    Running it again is safe. Shows a preview first; [!] skips it. Nothing
+    is moved if one of the tasks has unsaved changes.
 
                                                       *:Logpose-merge-project*
 :Logpose merge-project[!] {old} {new}
@@ -667,8 +679,7 @@ Sprints and maintenance ~
 :Logpose init [{dir}]
     Choose or create the journal folder (prompts with `~/journal` when
     {dir} is omitted) and remember it. A new or empty folder gets `daily/`,
-    `meetings/`, `tasks/` and the `.logpose` marker (INBOX.md and DONE.md
-    instead of `tasks/` with `tasks.mode = "inbox"`). An existing one only
+    `meetings/`, `tasks/` and the `.logpose` marker. An existing one only
     gets the marker. Run it again to switch journals.
 
                                                               *:Logpose-stats*
@@ -726,9 +737,9 @@ Used by |:Logpose-find|, |:Logpose-board|, |:Logpose-actions| and
   #{tag}  tag:{tag}       tagged items
   @{name}  person:{name}  involves the person (attendee, 1:1, @mention)
   type:{type}             meetings of that type
-  open  done              tasks by state (checkboxes and task files)
-  status:{key}            task files in that board column
-  blocked                 blocked task files
+  open  done              tasks (in Done or not), to-dos (checked or not)
+  status:{key}            tasks in that board column
+  blocked                 blocked tasks
   since:{date}            on or after; YYYY-MM-DD, today, yesterday,
   until:{date}            tomorrow, -7d, +2w
   week:{spec}             a whole week or sprint: current, -N, +N, a date,
@@ -746,16 +757,23 @@ None are set by default. `setup({ keymaps = true })` installs this set under
 `<leader>j` (`keymaps = { prefix = "<leader>n" }` for another prefix). Keys
 you have mapped yourself are never replaced.
 
-  <leader>jj  command menu          <leader>jd  daily note
-  <leader>jy  today                 <leader>js  standup
-  <leader>jk  board                 <leader>jm  meeting note
-  <leader>jP  projects (switch, manage)
-  <leader>je  edit frontmatter
-  <leader>jc  capture a task        <leader>jx  mark done (normal, visual)
-  <leader>jp  promote to task file  <leader>jn  topic note
-  <leader>jf  find notes            <leader>jt  open tasks
-  <leader>ja  action items          <leader>jb  backlinks
-  <leader>jr  report                <leader>j/  grep the journal
+  <leader>jj  command menu          <leader>jy  today
+  <leader>js  standup               <leader>jr  report
+  <leader>jP  projects              <leader>je  edit details (frontmatter)
+
+  Notes
+  <leader>jd  daily note            <leader>jm  meeting note
+  <leader>jn  topic note            <leader>jf  find notes
+  <leader>jb  backlinks             <leader>j/  grep the journal
+
+  Tasks
+  <leader>jk  board                 <leader>jc  new task
+  <leader>jX  task done             <leader>jt  open tasks
+
+  To-dos
+  <leader>jx  check off (normal, visual)
+  <leader>jp  make it a task        <leader>jo  open to-dos
+  <leader>ja  meeting action items
 
 To choose your own keys, map the `<Plug>` mappings: >lua
   vim.keymap.set("n", "<leader>jd", "<Plug>(logpose-daily)")
@@ -802,7 +820,8 @@ Sprints and periods ~
                  `sprint.length_days` (14). `sprint.first_number` (number
                  of the anchor sprint, 1). `sprint.name` ("sprint-{n}").
   review         (table)       `stale_days` (14): in |:Logpose-report|,
-                 tasks in progress longer than this are flagged.
+                 open to-dos older than this, and tasks in progress longer,
+                 are flagged.
 
 Board and tasks ~
 
@@ -825,8 +844,6 @@ Board and tasks ~
       `lanes`             start with one row per project (false)
       `open`              "window" (default) or "tab"
   tasks          (table)
-      `mode`              "files" (default) or "inbox" (INBOX.md and
-                          DONE.md checkboxes instead of task files)
       `capture_status`    column for |:Logpose-capture| ("backlog")
       `promote_status`    column for |:Logpose-promote| ("todo")
 
@@ -845,20 +862,17 @@ Notes and meetings ~
                  active project. "" keeps all notes in one folder.
                  Default "{project}".
   series         (table)       `carry_over` (true): carry the previous
-                 meeting's open checkboxes. `mark_carried` (true): mark
+                 meeting's open to-dos. `mark_carried` (true): mark
                  them `- [>]` in the previous note.
   standup        (table)       `sections`: names of the yesterday, today
-                 and blockers headings. `carry_forward` (true),
-                 `mark_carried` (true), `include_done` (false: also list
-                 DONE.md entries), `group_by_project` (true).
+                 and blockers headings. `carry_forward` (true): carry open
+                 to-dos into the new note, `mark_carried` (true),
+                 `group_by_project` (true).
   timestamps     (table)       `created` (true), `modified` (true): add
                  `created:` and `modified:` (local time, 2026-10-15T18:57)
                  to new notes. `modified:` is bumped when logpose changes a
                  note and when you save a changed one; only notes that have
                  the key are touched.
-  section_order  (string)      Where logpose inserts a `## YYYY-MM-DD`
-                 section: "auto" (follow the file), "newest_first" or
-                 "oldest_first".
 
 Search and action items ~
 
@@ -871,7 +885,7 @@ Search and action items ~
   views          (table)       Saved searches: name -> `find` arguments,
                  e.g. `{ acme = "tasks open project:acme" }`.
   actions        (table)       `include_daily` (false): also collect daily
-                 note checkboxes. `unassigned_mine` (true): items without
+                 note to-dos. `unassigned_mine` (true): items without
                  an owner count for `mine`. `output`: "quickfix" (default)
                  or "picker".
   tickets        (table)       `pattern`: Lua pattern of ticket IDs
@@ -885,16 +899,13 @@ Folders and file names ~
   root_markers   (string[])    Files that mark a journal root.
                  Default `{ ".logpose" }`.
   dirs           (table)       Paths relative to the root: `daily`,
-                 `meetings`, `notes`, `projects`, `tasks`, `inbox`, `done`,
-                 `journal_entries`, `done_entries`, `templates`, `reports`.
-  affixes        (table)       Filename prefixes: `daily` ("daily-"),
-                 `week` ("week-"), `done_week` ("done-week-"), `sprint`
-                 (""), `done_sprint` ("done-").
+                 `meetings`, `notes`, `projects`, `tasks`, `templates`,
+                 `reports`.
+  affixes        (table)       Prefixes: `daily` ("daily-") for daily
+                 notes; `week` ("week-") and `sprint` ("") for the folders
+                 in `tasks/archive/`.
   link_base      (string)      Folder (relative to the root) that wiki-link
                  targets are relative to. Default "" (the root).
-  archive        (table)       `journal_title`, `done_title`: title of a
-                 new archive file. {period} is the period key,
-                 {period_label} e.g. "week of 2026-10-05".
 
 ==============================================================================
 9. TEMPLATES                                               *logpose-templates*
@@ -936,16 +947,17 @@ Layout ~
 >
   ~/journal/
   ├── .logpose                       marks the journal root
-  ├── daily/daily-2026-10-15.md
-  ├── meetings/acme/2026-10-14 - retro.md
-  ├── tasks/fix-flaky-test.md        one file per task
+  ├── daily/daily-2026-10-15.md      notes: daily,
+  ├── meetings/acme/2026-10-14 - retro.md       meetings,
+  ├── notes/queue-design.md                     topic notes,
+  ├── projects/acme.md                          project pages
+  ├── tasks/fix-flaky-test.md        tasks: one file each
   ├── tasks/archive/sprint-42/       done tasks from past sprints
-  ├── notes/queue-design.md
-  ├── projects/acme.md
   ├── reports/sprint-42.md
   └── templates/                     your template overrides
 <
-Checkboxes: `- [ ]` open, `- [x]` done, `- [>]` carried to a newer note.
+To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]`
+carried to a newer note.
 
 ==============================================================================
 11. HEALTH AND TROUBLESHOOTING                                *logpose-health*
