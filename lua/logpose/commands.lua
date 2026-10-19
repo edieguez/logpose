@@ -135,6 +135,7 @@ M.builtin = {
     desc = "logpose: Yesterday / Today / Blockers for the standup",
   },
   note = { module = "logpose.notes.topic", fn = "note_command", complete = false, desc = "logpose: topic note" },
+  notes = { module = "logpose.notes.browse", desc = "logpose: browse notes, by type or project" },
   ["project-page"] = {
     module = "logpose.notes.topic",
     fn = "project_page_command",
