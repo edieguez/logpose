@@ -73,6 +73,7 @@ M.HL = {
   LogposeBoardDoneBorder = "NonText",
   LogposeBoardDone = "Comment",
   LogposeBoardMeta = "Comment",
+  LogposeBoardNotes = "Directory",
   LogposeBoardDueSoon = "DiagnosticWarn",
   LogposeBoardFocusBg = "CursorLine",
 }
@@ -118,6 +119,7 @@ local UNICODE_BOX = {
 M.ICONS = {
   unicode = {
     project = "◆",
+    notes = "✎",
     due = "◷",
     blocked = "⊘",
     column = "●",
@@ -135,6 +137,7 @@ M.ICONS = {
   },
   nerd = {
     project = "",
+    notes = "",
     due = "",
     blocked = "",
     column = "",
@@ -152,6 +155,7 @@ M.ICONS = {
   },
   ascii = {
     project = "+",
+    notes = "notes",
     due = "due",
     blocked = "!",
     column = "*",
@@ -216,8 +220,9 @@ function M.state(it, today)
 end
 
 --- The details under the title, quietly: project (with its colour mark), when it's due, how long
---- it has sat untouched (only once that's worth noticing), tags. They're fitted by importance,
---- not cut at the end: dates always, then the project (shortened if need be), then whole tags.
+--- it has sat untouched (only once that's worth noticing), how many notes are linked with it,
+--- tags. They're fitted by importance, not cut at the end: dates always, then the notes count,
+--- then the project (shortened if need be), then whole tags.
 ---@param it logpose.Item
 ---@param today string
 ---@param show_project boolean
@@ -240,6 +245,18 @@ function M.details(it, today, show_project, width)
   local used = 0
   for i, d in ipairs(dates) do
     used = used + w(d[1]) + (i > 1 and sep_w or 0)
+  end
+  -- how many notes are linked with the task (`n` opens them): small, so it
+  -- comes before the project, which is shortened to make room
+  local notes
+  local n = it.related and #it.related or 0
+  if n > 0 then
+    local chunk = ("%s %d"):format(ic.notes, n)
+    local nw = w(chunk) + (used > 0 and 1 or 0) -- set apart by a space, like a chip
+    if used + nw <= room then
+      notes = { chunk, "LogposeBoardNotes" }
+      used = used + nw
+    end
   end
   -- the project, before the dates, in whatever room they leave
   local project
@@ -287,6 +304,9 @@ function M.details(it, today, show_project, width)
   end
   for _, d in ipairs(dates) do
     add({ d })
+  end
+  if notes then
+    add({ notes }, true)
   end
   for _, t in ipairs(tags) do
     add({ t }, true)

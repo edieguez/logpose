@@ -89,6 +89,74 @@ function M.all(root, items)
   return out
 end
 
+--- The notes linked with each task file, both ways: notes (meetings, daily and topic notes,
+--- project pages) linking to the task, and notes the task links to (like the `From:` link a
+--- promoted checkbox gets). Links between tasks don't count. Only links that could reach a task
+--- are resolved, so this stays cheap on a big journal. Newest first.
+---@param root string
+---@param items? logpose.Item[]
+---@return table<string, { file: string, title: string, note_type: string, date?: string, lnum: integer }[]>  by task file
+function M.related(root, items)
+  items = items or index.build(root)
+  -- plain string work here: this runs on every board refresh, over every link in the journal
+  local function stem(path)
+    -- `^.*/` finds the last slash in one pass (`[^/]+$` retries from every position)
+    return (path:match("^.*/(.*)$") or path):gsub("%.md$", ""):lower()
+  end
+  local notes, tasks, stems = {}, {}, {}
+  for _, it in ipairs(items) do
+    if it.kind == "note" then
+      notes[it.file] = it
+      if it.note_type == "task" then
+        tasks[it.file] = true
+        stems[stem(it.file)] = true
+      end
+    end
+  end
+  local by_name -- built only when a link might reach a task
+  local out, seen = {}, {}
+  local function add(task, note, lnum)
+    local key = task .. "\0" .. note.file
+    if seen[key] then
+      return
+    end
+    seen[key] = true
+    out[task] = out[task] or {}
+    table.insert(out[task], {
+      file = note.file,
+      title = note.title or stem(note.file),
+      note_type = note.note_type,
+      date = note.date,
+      lnum = lnum,
+    })
+  end
+  for file, it in pairs(notes) do
+    local from_task = tasks[file]
+    for _, l in ipairs(it.links or {}) do
+      if from_task or stems[stem(l.target)] then
+        by_name = by_name or names(items)
+        local target = M.resolve(root, file, l, by_name)
+        if target and target ~= file then
+          if from_task and notes[target] and not tasks[target] then
+            add(file, notes[target], 1)
+          elseif not from_task and tasks[target] then
+            add(target, it, l.lnum)
+          end
+        end
+      end
+    end
+  end
+  for _, list in pairs(out) do
+    table.sort(list, function(a, b)
+      if (a.date or "") ~= (b.date or "") then
+        return (a.date or "") > (b.date or "")
+      end
+      return a.title < b.title
+    end)
+  end
+  return out
+end
+
 --- Links pointing at `file`.
 ---@param root string
 ---@param file string

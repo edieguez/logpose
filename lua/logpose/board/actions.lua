@@ -408,6 +408,35 @@ function M.open(b)
   vim.cmd.edit(vim.fn.fnameescape(it.file))
 end
 
+--- The notes linked with the focused task (meetings, daily notes … that link to it, and notes it
+--- links to): one opens directly, several in the picker.
+---@param b logpose.Board
+function M.notes(b)
+  local it = view.focused(b)
+  if not it then
+    return
+  end
+  local related = it.related or {}
+  if #related == 0 then
+    require("logpose.util.ui").notify("logpose: no notes link to this task", vim.log.levels.INFO)
+    return
+  end
+  M.count(b, "notes")
+  if #related == 1 then
+    vim.cmd.edit(vim.fn.fnameescape(related[1].file))
+    pcall(vim.api.nvim_win_set_cursor, 0, { related[1].lnum, 0 })
+    return
+  end
+  require("logpose.picker").pick(
+    vim.tbl_map(function(r)
+      local kind = r.note_type == "topic" and "note" or r.note_type
+      local display = r.date and ("%s  · %s %s"):format(r.title, kind, r.date) or ("%s  · %s"):format(r.title, kind)
+      return { display = display, file = r.file, lnum = r.lnum }
+    end, related),
+    { prompt = "Notes · " .. it.text, cwd = b.root }
+  )
+end
+
 --- Fold the focused column to a narrow strip, or unfold it.
 ---@param b logpose.Board
 function M.toggle_fold(b)

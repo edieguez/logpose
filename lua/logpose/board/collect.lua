@@ -56,7 +56,9 @@ function M.collect(root, opts)
     by_key[c.key] = col
   end
   local since = done_since(today)
-  for _, it in ipairs(index.build(root)) do
+  local items = index.build(root)
+  local related = require("logpose.links").related(root, items)
+  for _, it in ipairs(items) do
     if it.kind == "note" and it.note_type == "task" and not it.archived then
       local in_scope
       if opts.project then
@@ -68,6 +70,7 @@ function M.collect(root, opts)
       if in_scope and recent and query.match(it, q) then
         it.order = orders[it.file]
         it.since = since_of[it.file]
+        it.related = related[it.file]
         local col = by_key[it.status] or by_key[cfg.tasks.capture_status]
         table.insert(col.cards, it)
       end

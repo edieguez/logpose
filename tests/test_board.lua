@@ -537,6 +537,38 @@ T["tags are chips: their own background, readable in any colour scheme"] = funct
   eq(hl.italic, nil)
 end
 
+T["cards count the notes linked with the task; n opens them"] = function()
+  H.write(
+    root .. "/meetings/2026-10-14 - advisor.md",
+    '---\ntype: 1on1\ndate: 2026-10-14\ntitle: "Advisor"\n---\n## Notes\n\n- went over [[read-paper]]\n'
+  )
+  H.write(root .. "/notes/reading-list.md", "# Reading list\n")
+  task("read-paper", { title = "Read paper", status = "backlog", project = "thesis" }, "From: [[reading-list]]")
+  task("other", { title = "Other", status = "done", done = "2026-10-14" }, "see [[read-paper]]") -- tasks don't count
+  H.write(root .. "/daily/daily-2026-10-15.md", "# d\n\n- [ ] look at [[fix-flaky]]\n")
+  child.cmd("Logpose board")
+  local s = screen()
+  H.contains(s, "✎ 2")
+  H.contains(s, "✎ 1")
+  child.lua([[vim.ui.select = function(items, opts, cb)
+    _G.labels = vim.tbl_map(opts.format_item, items); _G.prompt = opts.prompt; cb(items[1])
+  end]])
+  child.type_keys("n") -- Read paper: two notes, newest first
+  eq(child.lua_get("_G.prompt"), "Notes · Read paper")
+  eq(child.lua_get("_G.labels"), { "Advisor  · meeting 2026-10-14", "Reading list  · note" })
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "2026-10-14 - advisor.md")
+  eq(child.api.nvim_win_get_cursor(0)[1], 8)
+  -- one note opens directly
+  child.cmd("Logpose board")
+  child.type_keys("l", "n") -- Fix flaky test
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "daily-2026-10-15.md")
+  eq(child.api.nvim_win_get_cursor(0)[1], 3)
+  -- none: says so
+  child.cmd("Logpose board")
+  child.type_keys("l", "l", "n") -- Queue design
+  H.contains(child.notifications()[#child.notifications()].msg, "no notes link to this task")
+end
+
 T["compact cards follow the same rules"] = function()
   child.cmd("Logpose board")
   child.type_keys("c")
