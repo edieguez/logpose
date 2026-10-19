@@ -193,10 +193,14 @@ after it says where the task went (`→ acme (this repo)`); if that's wrong, `:L
 fixes it.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
-shows its title and, under it, `◆ project · due Tue · #tags`. The project is in its own colour,
+shows its title and, under it, `◆ project · due Tue ✎ 2 #tags`. The project is in its own colour,
 picked from your colour scheme (or set with `color:` on its project page, `e` in
 `:Logpose projects`), so you can tell projects apart at a glance. Tags are chips, on a soft
 background, so they stand out in any colour scheme. The rest is in a quiet colour.
+
+`✎ 2` counts the notes linked with the task: meeting notes, daily notes and other notes that
+link to it, and notes it links to (like the `From:` link a promoted checkbox gets). Press `n` on
+the card to open them: one opens directly, several in the picker, newest first.
 
 Colour is kept for what needs your attention:
 
@@ -230,6 +234,7 @@ board):
 | `b` | Block (asks for the reason) or unblock. |
 | `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
 | `K` | Peek: open the task in a floating window to read or edit it. |
+| `n` | Open the notes linked with the task (the `✎ 2` on the card). |
 | `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
 | `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` then act on every marked card at once. |
 | `<CR>` | Open the task file. |
@@ -291,11 +296,12 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 **Your day on one screen.**
 
-![The today screen: meetings, work in progress, blocked tasks, what's due and overdue action items](docs/images/today.png)
+![The today screen: meetings, work in progress, blocked tasks, what's due, overdue action items and recently edited notes](docs/images/today.png)
 
 `:Logpose today` lists today's meetings, cards in progress and blocked, tasks due within three
-days, overdue action items, and what's left under Today in your daily note. Press `<CR>` on an
-item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q` closes.
+days, overdue action items, what's left under Today in your daily note, and the notes you
+edited lately (the last five from the past week, newest first: meetings, daily and topic notes,
+not tasks). Press `<CR>` on an item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q` closes.
 
 ## Projects
 
@@ -450,6 +456,10 @@ everyone with how much involves them; pick a person to see all of it.
 
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
 
+It works on any note: tasks (title, status, project, tags, due, blocked), meetings (title, type,
+date, project, attendees), topic notes (title, project, tags) and project pages (title,
+description, paths, colour). Other keys are left as they are.
+
 `:Logpose edit` opens the current note's frontmatter as a form. It also opens from `e` on a
 board card, `e` on a project in `:Logpose projects`, and `:Logpose edit last` for the task you
 just captured:
@@ -463,7 +473,8 @@ Each line holds one value, with the field's name beside it, so you only ever edi
   In `tags` and `attendees` (written `a, b`) it offers the next item.
 - **Every value is checked as you type.** A problem shows beside the field
   (`✗ not a date: try today, fri, +3d`). A valid value gets a note: what a date means
-  (`Fri 16 Oct · tomorrow`), a project's name, or `new project`. An empty field shows what to type.
+  (`Fri 16 Oct · tomorrow`), a project's name, `new project`, or `new: Maria` for an attendee
+  nobody has used yet (a new person, or a typo). An empty field shows what to type.
 - **Below the fields**, a summary says what saving will do: move the task to In progress and
   set `started`, change the project (logged), or move a meeting note and fix the links to it.
 
@@ -650,6 +661,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `x` | done | `b` | block (asks why) / unblock |
 | `<C-j>` `<C-k>` | move the card down / up | `a` | add a card to this column |
 | `K` | peek in a floating window | `D` | delete the card (asks first) |
+| `n` | notes linked with the task | | |
 | `z` | fold / unfold the column | `gg` `G` | first / last card |
 | `u` | undo | `<C-r>` | redo |
 | `c` | compact one-line cards | `s` | one row per project |
@@ -771,6 +783,7 @@ tasks = {
 Colours come from highlight groups linked to your colour scheme. Override
 `LogposeBoardColumn1` to `LogposeBoardColumn5` (column headers), `LogposeBoardBorder`,
 `LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta` (card details),
+`LogposeBoardNotes` (the linked-notes count),
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`, `LogposeBoardStale`,
 `LogposeBoardDone`, `LogposeBoardMarked`, `LogposeBoardProject`, `LogposeBoardTag`,
 `LogposeBoardTitle` or `LogposeBoardHint` to change them.
