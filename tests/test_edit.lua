@@ -210,6 +210,55 @@ T["saving keeps the form open; q warns about unsaved changes; :wq saves and clos
   H.contains(H.read(root .. "/tasks/fix.md"), "blocked: waiting on Ana")
 end
 
+T["a new task: set everything first; saving creates it, then the form edits it"] = function()
+  child.lua(("require('logpose.edit').open_new(%q, { status = 'todo', project = 'acme' })"):format(root))
+  eq(child.api.nvim_win_get_config(0).title[1][1], " New task ")
+  eq(values(), { "", "todo", "acme", "", "", "", "" })
+  local d = drawn()
+  eq(d.rows[1].eol, "a short title") -- a hint, not an error, before you've typed
+  eq(d.rows[7].label, "context")
+  eq(d.below[2], "• create it in TODO, for acme")
+  -- no title: saving says so and stays on it
+  child.type_keys("<Esc>")
+  set("due", "fri")
+  child.cmd("write")
+  H.contains(last_msg(), "give the task a title")
+  eq(child.api.nvim_win_get_cursor(0)[1], 1)
+  eq(vim.fn.glob(root .. "/tasks/*.md"), "")
+  set("title", "Plan the migration")
+  set("tags", "db, ops")
+  eq(drawn().below, { "saving will:", "• create it in TODO, for acme", "• tagged db, ops", "• due tomorrow" })
+  child.cmd("write")
+  local path = root .. "/tasks/plan-the-migration.md"
+  local text = H.read(path)
+  H.contains(text, 'title: "Plan the migration"')
+  H.contains(text, "status: todo")
+  H.contains(text, "tags: [db, ops]")
+  H.contains(text, "due: 2026-10-16")
+  -- now it edits that task
+  eq(child.api.nvim_win_get_config(0).title[1][1], " Edit · Plan the migration ")
+  eq(drawn().below[1], "no changes yet")
+  set("blocked", "waiting on the DBA")
+  child.cmd("write")
+  H.contains(H.read(path), "blocked: waiting on the DBA")
+  eq(child.lua_get("require('logpose.tasks').last"), path)
+end
+
+T["on the board, creating and then changing a new card are separate undo steps"] = function()
+  child.cmd("Logpose board")
+  child.type_keys("a", "Spike", "<Esc>")
+  child.cmd("write") -- created
+  set("project", "acme")
+  child.cmd("write") -- changed
+  child.type_keys("q")
+  local path = root .. "/tasks/spike.md"
+  H.contains(H.read(path), "project: acme")
+  child.type_keys("u")
+  eq(H.read(path):find("project: acme", 1, true), nil)
+  child.type_keys("u")
+  eq(H.read(path), nil)
+end
+
 T["dd clears a field, extra lines join the field above, u undoes both"] = function()
   H.write(root .. "/tasks/fix.md", TASK:gsub("due:\n", "due: 2026-10-20\n"))
   edit(root .. "/tasks/fix.md")

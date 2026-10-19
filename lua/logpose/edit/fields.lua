@@ -16,6 +16,9 @@ M.FIELDS = {
   other = { "title", "project", "tags" },
 }
 
+--- Fields of a new task (`context` is a line under `## Context`, not frontmatter).
+M.NEW_FIELDS = { "title", "status", "project", "tags", "due", "blocked", "context" }
+
 --- Fields a bulk edit of tasks offers (a title is per task).
 M.BULK_FIELDS = { "status", "project", "tags", "due", "blocked" }
 
@@ -54,6 +57,7 @@ M.HINTS = {
   description = "one line about the project",
   paths = "repo folders, comma-separated",
   color = "#rrggbb or a highlight group",
+  context = "a line of context (optional)",
 }
 
 --- In a bulk edit: an empty field leaves each task as it is.
@@ -164,6 +168,34 @@ function M.load(path, root)
   end
   local title = type(old.title) == "string" and old.title ~= "" and old.title or vim.fs.basename(path)
   return { root = root, kind = kind, keys = keys, old = old, info = info, path = path, title = title, initial = initial }
+end
+
+--- The model for a task that doesn't exist yet: the form starts from `defaults` (the column,
+--- the detected project…) and saving creates the file.
+---@param root string
+---@param defaults? { title?: string, status?: string, project?: string, tags?: string[], due?: string }
+---@return logpose.EditModel
+function M.load_new(root, defaults)
+  defaults = defaults or {}
+  local initial = {
+    title = defaults.title or "",
+    status = defaults.status or config.get().tasks.capture_status,
+    project = defaults.project or "",
+    tags = table.concat(defaults.tags or {}, ", "),
+    due = defaults.due or "",
+    blocked = "",
+    context = "",
+  }
+  return {
+    root = root,
+    kind = "task",
+    keys = vim.deepcopy(M.NEW_FIELDS),
+    old = {},
+    info = {},
+    title = "New task",
+    new = true,
+    initial = initial,
+  }
 end
 
 --- The model for several task files: a field all of them share starts with that value, a
@@ -360,6 +392,9 @@ function M.collect(model, texts, ctx)
       end
     else
       value, err, note = M.check(model.kind, key, text, ctx)
+      if model.new and key == "title" and vim.trim(text) == "" then
+        err = nil -- a new task's title: asked for on save, not shouted at while you start typing
+      end
       if not err and model.kind == "project" and key == "project" and not M.same(model.old[key], value) then
         err = "rename a project with R in :Logpose projects (it updates every note)"
       end
@@ -380,12 +415,43 @@ function M.collect(model, texts, ctx)
   return r
 end
 
+--- What saving a new task will do.
+---@param r logpose.EditResult
+---@return string[]
+function M.new_effects(r)
+  local v = r.values
+  local taskfile = require("logpose.taskfile")
+  local status = (v.status ~= nil and v.status ~= "" and not r.errors.status) and v.status
+    or config.get().tasks.capture_status
+  local line = ("create it in %s"):format(taskfile.label(status) or status)
+  if type(v.project) == "string" and v.project ~= "" and not r.errors.project then
+    line = line .. ", for " .. v.project
+  end
+  if status == config.get().board.start then
+    line = line .. ", setting started"
+  end
+  local out = { line }
+  if type(v.tags) == "table" and #v.tags > 0 then
+    table.insert(out, "tagged " .. table.concat(v.tags, ", "))
+  end
+  if type(v.due) == "string" and v.due ~= "" and not r.errors.due then
+    table.insert(out, (date.due(v.due)))
+  end
+  if type(v.blocked) == "string" and v.blocked ~= "" then
+    table.insert(out, "blocked: " .. v.blocked)
+  end
+  return out
+end
+
 --- What saving will do, one short line each.
 ---@param model logpose.EditModel
 ---@param r logpose.EditResult
 ---@param links_to? fun(): integer  how many links point at the note (for a meeting move)
 ---@return string[]
 function M.effects(model, r, links_to)
+  if model.new then
+    return M.new_effects(r)
+  end
   local out = {}
   local changed = r.changed
   local board = config.get().board

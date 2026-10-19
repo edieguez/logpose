@@ -24,6 +24,17 @@ function M.open(path, opts)
   return form.show(fields.load(fs.normalize(path), root), { on_save = opts.on_save })
 end
 
+--- Open the form for a new task, starting from `defaults` (column, project, …). Saving creates
+--- it; then the form edits it. `opts.on_save(path, keys)` runs after each save.
+---@param root string
+---@param defaults? { title?: string, status?: string, project?: string, tags?: string[], due?: string }
+---@param opts? { on_save?: fun(path: string, keys: string[]) }
+---@return integer win
+function M.open_new(root, defaults, opts)
+  opts = opts or {}
+  return form.show(fields.load_new(root, defaults), { on_save = opts.on_save })
+end
+
 --- Open the editor for several task files at once. `opts.on_save(paths, keys)` runs after.
 ---@param paths string[]
 ---@param opts? { root?: string, on_save?: fun(paths: string[], keys: string[]) }

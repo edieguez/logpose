@@ -86,6 +86,35 @@ function M.move_meeting(root, path, from, to)
   return dest
 end
 
+--- Create a task from a new-task form's values. Returns its path.
+---@param root string
+---@param v table<string, any>  checked values (`context` goes under `## Context`)
+---@return string path
+function M.create(root, v)
+  local taskfile = require("logpose.taskfile")
+  local function str(x)
+    return type(x) == "string" and x ~= "" and x or nil
+  end
+  local new_project = str(v.project) and not vim.tbl_contains(require("logpose.project").known(root), v.project)
+  local path = taskfile.create(root, {
+    title = v.title,
+    status = str(v.status),
+    project = str(v.project),
+    tags = type(v.tags) == "table" and v.tags or {},
+    due = str(v.due),
+    body = str(v.context) and { v.context } or nil,
+  })
+  if str(v.blocked) then
+    taskfile.set_blocked(path, v.blocked)
+  end
+  require("logpose.tasks").last = path
+  require("logpose.index").clear_cache()
+  if new_project then
+    require("logpose.project").changed() -- completion and the projects screen learn it
+  end
+  return path
+end
+
 --- Write `changed` to one note. Returns its path (a meeting may have moved) and the keys.
 ---@param root string
 ---@param path string
