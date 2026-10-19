@@ -180,11 +180,17 @@ are marked `- [>]`.
 :Logpose board                                " the Kanban board
 ```
 
-A capture goes to the active project unless the text names one with `+name` (`+none` for no
-project). `due:` takes a date, `today`, `tomorrow`, a weekday (`fri`) or `+3d`. `<Tab>`
-completes `+projects`, `#tags` and `due:`, on the command line and in the prompt. The prompt says
-where the task will go (`Capture → acme (this repo)`), and so does the message after it. If
-that's wrong, `:Logpose edit last` fixes it.
+**To set everything up front**, run `:Logpose capture` without text (or press `a` on the board).
+It opens the [edit form](#editing-a-notes-details) for a new task: you type the title, then set
+its column, project, tags, due date, blocker and a line of context, with the same completion and
+checks. It starts from the active project (on the board: the column you're in, and the project
+row with `s`), and saving creates it.
+
+**One line, for speed:** `:Logpose capture <text>` goes to the active project unless the text
+names one with `+name` (`+none` for no project). `due:` takes a date, `today`, `tomorrow`, a
+weekday (`fri`) or `+3d`, and `<Tab>` completes `+projects`, `#tags` and `due:`. The message
+after it says where the task went (`→ acme (this repo)`); if that's wrong, `:Logpose edit last`
+fixes it.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
 shows its title and, under it, `◆ project · due Tue · #tags`. The project is in its own colour,
@@ -222,7 +228,7 @@ board):
 | `H` `L` | Move the card to the previous / next column. `1`–`9` jump to column N. |
 | `x` | Done. |
 | `b` | Block (asks for the reason) or unblock. |
-| `a` | Add a card to this column. |
+| `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
 | `K` | Peek: open the task in a floating window to read or edit it. |
 | `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
 | `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` then act on every marked card at once. |
@@ -597,7 +603,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `board [FILTERS]` | The Kanban board. |
-| `capture[!] [TEXT]` | New task in Backlog. `+name` picks the project. `!` opens it. |
+| `capture[!] [TEXT]` | New task in Backlog. Without text, the new-task form; with text, `+name` picks the project. `!` opens it. |
 | `done` | In a task file: move it to Done. On checkboxes: check them off. |
 | `promote` | Turn the checkbox under the cursor into a task file. |
 | `migrate[!]` | Turn open INBOX.md items into task files. `!` skips the preview. |

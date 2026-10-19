@@ -399,6 +399,14 @@ Saving applies the changes the way logpose would:
   - a project page's `project` can't change here: rename with `R` in
     |:Logpose-projects|.
 
+A new task ~
+`:Logpose capture` without text, or `a` on the board, opens the same form
+for a task that doesn't exist yet: title (typed first), column, project,
+tags, due date, blocker and `context` (a line under `## Context`). It starts
+from the active project (on the board: the column, and the row with `s`).
+Saving creates the task; the form then edits it, and on the board each save
+is its own undo step.
+
 Several tasks at once ~
 Mark cards on the board with `v` and press `e`, or run `:'<,'>Logpose edit`
 on lines of a quickfix list of tasks. Fields the tasks share start filled
@@ -506,10 +514,11 @@ Tasks ~
     Create a task in `tasks.capture_status` (Backlog) for the active
     project, or the one named with `+name` in {text} (`+none`: no project).
     `#tags` and `due:` (a date, `today`, `tomorrow`, `fri`, `+3d`) go into
-    the frontmatter. <Tab> completes `+projects`, `#tags` and `due:`, also in
-    the prompt. The message after it names the project and how it was chosen;
-    |:Logpose-edit| `last` fixes a wrong one. [!] opens the new file. Without
-    {text}, prompts.
+    the frontmatter. <Tab> completes `+projects`, `#tags` and `due:`. The
+    message after it names the project and how it was chosen; |:Logpose-edit|
+    `last` fixes a wrong one. [!] opens the new file. Without {text}: the
+    new-task form (|logpose-edit|), to set the title, column, project, tags,
+    due date, blocker and a line of context before the task exists.
     With `tasks.mode = "inbox"`: add `- [ ] {text}` under today's section of
     INBOX.md instead.
 
@@ -676,8 +685,7 @@ Sprints and maintenance ~
   x             done
   b             block (asks for the reason) / unblock
   a             add a card to this column (with rows per project: to the
-                row you're in); `+name`, `#tags` and `due:` work as in
-                |:Logpose-capture|
+                row you're in), in the new-task form (|logpose-edit|)
   D             delete the card (asks first)
   K             peek: the task file in a floating window; `q` saves and
                 closes it, and the board picks up the change
