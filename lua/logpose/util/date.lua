@@ -134,6 +134,24 @@ function M.short(iso, today)
   return y == today:sub(1, 4) and out or (out .. " " .. y)
 end
 
+--- How long ago a moment was, in words: "just now", "5 min ago", "3h ago", "yesterday",
+--- "4 days ago".
+---@param t integer  seconds (os.time)
+---@param now? integer
+---@return string
+function M.ago(t, now)
+  local d = math.max(0, (now or os.time()) - t)
+  if d < 60 then
+    return "just now"
+  elseif d < 3600 then
+    return ("%d min ago"):format(math.floor(d / 60))
+  elseif d < 86400 then
+    return ("%dh ago"):format(math.floor(d / 3600))
+  end
+  local days = math.floor(d / 86400)
+  return days == 1 and "yesterday" or ("%d days ago"):format(days)
+end
+
 --- How far a date is from today: "today", "tomorrow", "yesterday", "in 5 days", "3 days ago".
 ---@param iso string
 ---@param today? string

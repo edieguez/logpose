@@ -35,6 +35,9 @@ local M = {}
 ---@field names? table<string, string>  person slug -> name as written (notes only)
 ---@field links? { target: string, style: "wiki"|"markdown", lnum: integer, text: string }[]
 ---                         raw outgoing links (notes only; resolved by links.lua)
+---@field mtime? integer    notes only: when the file was last written (seconds)
+---@field related? { file: string, title: string, note_type: string, date?: string, lnum: integer }[]
+---                         board cards: notes linked with the task (`links.related`)
 
 --- Inline tags in a line: `#word` at the start of a word; not pure numbers.
 ---@param line string
@@ -459,6 +462,11 @@ function M.build(root)
           table.remove(lines)
         end
         local file_items = M.index_lines(path, lines, root)
+        for _, it in ipairs(file_items) do
+          if it.kind == "note" then
+            it.mtime = st and st.mtime.sec or nil
+          end
+        end
         if st then
           cache[path] = { sec = st.mtime.sec, nsec = st.mtime.nsec, size = st.size, at = os.time(), items = file_items }
         end
