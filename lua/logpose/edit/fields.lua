@@ -250,6 +250,7 @@ end
 ---@class logpose.EditCtx
 ---@field root string
 ---@field known table<string, boolean>  known projects
+---@field people? table<string, boolean>  known person slugs (filled on first use)
 
 ---@param root string
 ---@return logpose.EditCtx
@@ -271,7 +272,26 @@ end
 function M.check(kind, key, text, ctx)
   text = vim.trim(text)
   if M.LISTS[key] then
-    return M.split(key, text), nil, nil
+    local list = M.split(key, text)
+    if key == "attendees" or key == "with" then
+      -- a name nobody has used yet: a new person, or a typo
+      local slugify = require("logpose.util.text").slugify
+      ctx.people = ctx.people
+        or (function()
+          local set = {}
+          for _, p in ipairs(require("logpose.people").known(ctx.root)) do
+            set[p.slug] = true
+          end
+          return set
+        end)()
+      local new = vim.tbl_filter(function(n)
+        return not ctx.people[slugify(n)]
+      end, type(list) == "table" and list or { list })
+      if #new > 0 then
+        return list, nil, "new: " .. table.concat(new, ", ")
+      end
+    end
+    return list, nil, nil
   end
   if text == "" then
     if key == "title" and (kind == "task" or kind == "meeting" or kind == "project") then

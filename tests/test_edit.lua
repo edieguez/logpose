@@ -426,6 +426,7 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
   local d = drawn()
   eq(d.below[2], "• move the note to meetings/web/, fixing 1 link to it")
   eq(d.below[3], "• update attendees")
+  eq(d.rows[5].eol, "new: Maria") -- nobody by that name yet: a new person, or a typo
   -- shown, not edited
   assert(table.concat(d.below, "\n"):find("series%s+acme/retro"), "series shown below")
   child.cmd("write")
