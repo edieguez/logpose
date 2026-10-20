@@ -24,13 +24,13 @@ end
 ---@param fm string[][]
 ---@param root string
 ---@param no_open? boolean only create it
----@return string path
+---@return string path, integer[]? cursor, boolean? existed
 local function create(path, tpl, vars, fm, root, no_open)
   if fs.exists(path) then
     if not no_open then
       open(path)
     end
-    return path
+    return path, nil, true
   end
   local rendered = template.render(template.load(tpl, root), template.vars(date.today(), vars))
   local lines = { "---" }
@@ -51,30 +51,42 @@ local function create(path, tpl, vars, fm, root, no_open)
   if not no_open then
     open(path, cursor)
   end
-  return path
+  return path, cursor, false
 end
 
---- Topic note `notes/<slug>.md`.
+--- Where the topic note titled `title` lives (nil when the title makes no filename).
 ---@param root string
 ---@param title string
-function M.note(root, title)
+---@return string?
+function M.note_path(root, title)
   local slug = text.slugify(title)
-  if slug == "" then
+  return slug ~= "" and fs.join(config.path("notes", root), slug .. ".md") or nil
+end
+
+--- Topic note `notes/<slug>.md`: created (or, if it exists, just opened). `opts.project` (default:
+--- the active one; false for none) and `opts.tags` go in its frontmatter; `opts.open = false`
+--- only creates it.
+---@param root string
+---@param title string
+---@param opts? { project?: string|false, tags?: string[], open?: boolean }
+---@return string path, integer[]? cursor, boolean? existed
+function M.note(root, title, opts)
+  opts = opts or {}
+  local path = M.note_path(root, title)
+  if not path then
     error(("logpose: can't make a filename from %q"):format(title), 0)
   end
-  local project = require("logpose.project").resolve(root)
-  local fm = { { "title", require("logpose.frontmatter").quote(title) } }
+  local project = opts.project
+  if project == nil then
+    project = require("logpose.project").resolve(root)
+  end
+  local fmt = require("logpose.frontmatter")
+  local fm = { { "title", fmt.quote(title) } }
   if project then
     table.insert(fm, { "project", project })
   end
-  table.insert(fm, { "tags", "[]" })
-  create(
-    fs.join(config.path("notes", root), slug .. ".md"),
-    "note",
-    { title = title, project = project or "" },
-    fm,
-    root
-  )
+  table.insert(fm, { "tags", fmt.render("tags", opts.tags or {}) })
+  return create(path, "note", { title = title, project = project or "" }, fm, root, opts.open == false)
 end
 
 --- Project page `projects/<slug>.md`, created if needed and opened (unless `opts.open == false`).
@@ -108,19 +120,11 @@ function M.note_command(opts)
   local title = vim.trim(table.concat(opts.args, " "))
   config.with_root(ui.safely(function(root)
     if title ~= "" then
-      return M.note(root, title)
+      M.note(root, title)
+      return
     end
-    vim.ui.input(
-      { prompt = "Note title: " },
-      ui.safely(function(input)
-        input = input and vim.trim(input) or ""
-        if input == "" then
-          require("logpose.util.ui").notify("logpose: cancelled (empty input)", vim.log.levels.INFO)
-          return
-        end
-        M.note(root, input)
-      end)
-    )
+    -- no title: the new-note form, to set the project and tags up front
+    require("logpose.edit").open_new_note(root, "topic", { project = require("logpose.project").resolve(root) })
   end))
 end
 

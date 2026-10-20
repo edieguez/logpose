@@ -41,7 +41,9 @@ M.HELP = {
   "  /      filter (find filters: #tag, @person, type:retro, since:-7d…)",
   "  p      this project / all projects",
   "  g      group by type / by project",
-  "  n      new topic note           d  today's daily note",
+  "  a      new note of this section (a meeting, or a topic note)",
+  "  n      new topic note           m  new meeting",
+  "  d      today's daily note",
   "  b      board (tasks)            r  refresh",
   "  q      close                    ?  this help",
 }
@@ -248,7 +250,9 @@ function M.build(s, entries, width)
     add({ { s.filter ~= "" and "  no notes match the filter" or "  no notes yet", "LogposeNotesHint" } })
   end
   add({})
-  add({ { "<CR> open · e edit · / filter · p project/all · g group · ? help · q close", "LogposeNotesHint" } })
+  add({
+    { "<CR> open · e edit · a new · / filter · p project/all · g group · ? help · q close", "LogposeNotesHint" },
+  })
   return lines, rows
 end
 
@@ -441,9 +445,20 @@ function M.open(root, opts)
   map("r", function()
     render(s, current_file())
   end, "Refresh")
+  -- new notes: the form, starting from this screen's project
+  local function new_note(kind)
+    require("logpose.edit").open_new_note(root, kind, { project = s.project })
+  end
   map("n", function()
-    vim.cmd("Logpose note")
+    new_note("topic")
   end, "New topic note")
+  map("a", function()
+    -- a meeting in the Meetings section, else a topic note (by project: a topic note too)
+    new_note(section_at(s) == "meeting" and "meeting" or "topic")
+  end, "New note here")
+  map("m", function()
+    new_note("meeting")
+  end, "New meeting")
   map("d", function()
     vim.cmd("Logpose daily")
   end, "Daily note")

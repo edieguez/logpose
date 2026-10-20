@@ -61,8 +61,9 @@ M.HELP = {
 ---@param kind string
 ---@param key string
 ---@param partial string
+---@param others? table<string, string>  the other fields' text (a new meeting's title follows its type)
 ---@return table[]
-function M.candidates(root, kind, key, partial)
+function M.candidates(root, kind, key, partial, others)
   local items = {}
   local function add(word, menu)
     table.insert(items, { word = word, menu = menu })
@@ -86,15 +87,26 @@ function M.candidates(root, kind, key, partial)
     for _, p in ipairs(require("logpose.people").known(root)) do
       add(p.name, ("%d notes"):format(p.count))
     end
-  elseif key == "type" and kind == "meeting" then
-    for name, spec in pairs(config.get().meeting_types) do
-      if spec then
-        add(name, spec.label)
+  elseif key == "title" and kind == "meeting" and others and others.type then
+    -- a new meeting: the people for a 1:1, past titles for the rest
+    local spec = config.get().meeting_types[vim.trim(others.type)]
+    if spec and spec.person then
+      for _, p in ipairs(require("logpose.people").known(root)) do
+        add(p.name, ("%d notes"):format(p.count))
+      end
+    elseif spec then
+      local seen = {}
+      for _, it in ipairs(require("logpose.index").build(root)) do
+        if it.kind == "note" and it.type == vim.trim(others.type) and it.title and not seen[it.title] then
+          seen[it.title] = true
+          add(it.title, it.date)
+        end
       end
     end
-    table.sort(items, function(a, b)
-      return a.word < b.word
-    end)
+  elseif key == "type" and kind == "meeting" then
+    for _, t in ipairs(require("logpose.notes.meeting").types()) do -- in their `order`
+      add(t.key, t.spec.label)
+    end
   elseif fields.DATES[key] then
     local today = date.today()
     for d = 0, 13 do
@@ -136,6 +148,18 @@ local function key_at(f, row)
   return f.model.keys[row]
 end
 
+--- The form's text per field.
+---@param f logpose.EditForm
+---@return table<string, string>
+local function texts(f)
+  local lines = vim.api.nvim_buf_get_lines(f.buf, 0, -1, false)
+  local out = {}
+  for i, key in ipairs(f.model.keys) do
+    out[key] = lines[i] or ""
+  end
+  return out
+end
+
 --- What to complete at the cursor: the 0-based column where the word starts, and the items.
 ---@param f logpose.EditForm
 ---@return integer?, table[]?
@@ -167,7 +191,7 @@ local function at_cursor(f)
     partial = vim.trim(before)
     start = #before - #partial
   end
-  local items = M.candidates(f.model.root, f.model.kind, key, partial)
+  local items = M.candidates(f.model.root, f.model.kind, key, partial, f.model.new and texts(f) or nil)
   if fields.LISTS[key] then
     -- don't offer what's already in the list
     local have = {}
@@ -286,18 +310,6 @@ function M.repair(f)
   return true
 end
 
---- The form's text per field.
----@param f logpose.EditForm
----@return table<string, string>
-local function texts(f)
-  local lines = vim.api.nvim_buf_get_lines(f.buf, 0, -1, false)
-  local out = {}
-  for i, key in ipairs(f.model.keys) do
-    out[key] = lines[i] or ""
-  end
-  return out
-end
-
 --- Check every field and redraw the labels, hints, messages and the summary.
 ---@param f logpose.EditForm
 function M.render(f)
@@ -323,7 +335,7 @@ function M.render(f)
     if r.errors[key] then
       eol = { "✗ " .. r.errors[key], "LogposeEditError" }
     elseif vim.trim(t[key]) == "" then
-      local hint = (model.bulk and fields.BULK_HINTS[key]) or fields.HINTS[key]
+      local hint = (r.hints and r.hints[key]) or (model.bulk and fields.BULK_HINTS[key]) or fields.HINTS[key]
       eol, pad = hint and { hint, "LogposeEditHint" }, "" -- where the value goes, like a placeholder
     elseif r.notes[key] then
       eol = { r.notes[key], "LogposeEditNote" }
@@ -345,7 +357,7 @@ function M.render(f)
       f.links = save.links_to(model.root, model.path)
     end
     return f.links or 0
-  end)
+  end, f.ctx)
   if r.nerrors > 0 then
     table.insert(below, {
       indent,
@@ -603,7 +615,7 @@ end
 ---@return string
 local function window_title(model, width)
   if model.new then
-    return " New task "
+    return " " .. model.title .. " "
   end
   if model.bulk then
     return " Edit " .. model.title .. " "
@@ -659,6 +671,35 @@ function M.save(f)
   end
   -- the form stays open for more changes: q (or :wq) closes it
   local model = f.model
+  if model.new and model.kind ~= "task" then
+    -- a new note: create it, close the form and open the note to write in it
+    if model.kind == "meeting" and r.meeting and r.meeting.missing and r.meeting.result == "" then
+      goto_field(f, 2)
+      error(("logpose: this meeting needs %s in the title field"):format(r.meeting.missing), 0)
+    elseif model.kind ~= "meeting" and vim.trim(r.values.title or "") == "" then
+      goto_field(f, 1)
+      error("logpose: give the note a title", 0)
+    end
+    local path, cursor, existed = save.create_note(model.root, model.kind, r, f.ctx)
+    if not path then
+      error("logpose: pick a meeting type and a valid date first", 0)
+    end
+    vim.cmd("stopinsert")
+    close(f)
+    vim.cmd.edit(vim.fn.fnameescape(path))
+    if cursor then
+      pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+    end
+    ui.notify(
+      existed and ("logpose: %s already exists; opened it"):format(require("logpose.link").relpath(model.root, path))
+        or ("logpose: created %s"):format(require("logpose.link").relpath(model.root, path)),
+      vim.log.levels.INFO
+    )
+    if f.on_save then
+      f.on_save(path, { "created" })
+    end
+    return
+  end
   if model.new then
     if vim.trim(r.values.title or "") == "" then
       goto_field(f, 1)
@@ -925,8 +966,8 @@ function M.show(model, opts)
     return next_field
   end, "Accept or next field", true)
 
-  -- start on the first value; a new task starts with typing its title
-  goto_field(f, 1)
+  -- start on the first value; something new starts with typing its title
+  goto_field(f, model.new and math.max(1, vim.fn.index(model.keys, "title") + 1) or 1)
   if model.new then
     vim.cmd("startinsert!")
   end
