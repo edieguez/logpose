@@ -159,11 +159,32 @@ and blocked tasks (with the reason) under Blockers. Items are grouped by their p
 carried over.**
 
 ```vim
-:Logpose meeting              " pick a type
-:Logpose meeting retro        " or name it
+:Logpose meeting              " the new-meeting form: type, title, date, people, tags
+:Logpose meeting retro        " or straight away, by type
 :Logpose meeting 1on1         " asks who the 1:1 is with
 :Logpose meeting adhoc 2026-10-14   " a date backfills a note
 ```
+
+**The new-meeting form.** `:Logpose meeting` without a type opens a form with every field
+filled in as far as it can be: the first type, today's date, the active project. Pick the type
+(`<CR>`), and the title follows it (`Retro`); type another title to replace it. For a 1:1 the
+title field is the person (completing people you've met), for an ad-hoc meeting its title.
+`attendees` and `tags` complete names and tags you've used. Below the fields, a summary says what
+saving will do before anything exists:
+
+```text
+saving will:
+• create meetings/acme/2026-10-22 - retro.md
+• link it from the daily note of Thu 22 Oct
+• carry over 2 open to-dos from Retro (Thu 8 Oct)
+• then open it to write
+```
+
+`<C-s>` creates the note, closes the form and puts you in the note where the template's cursor
+goes. `q` closes the form without creating anything. `:Logpose meeting 2026-10-14` opens the
+form for that day.
+
+With a type on the command line, it skips the form:
 
 | Type | Asks for | Title |
 |---|---|---|
@@ -171,7 +192,7 @@ carried over.**
 | `1on1` | the person, with completion | `1:1 Ana` |
 | `adhoc` | a title, with completion of past titles | what you type |
 
-Each note gets frontmatter (type, date, title, attendees, project) and a link under
+Each note gets frontmatter (type, date, title, attendees, project, tags) and a link under
 `## Meetings` in that day's daily note. Running the same command again on the same day opens
 the existing note instead of making a second one.
 
@@ -328,7 +349,9 @@ daily note mentioning `#acme` counts), or all of them when there's none. `f` on 
 | `p` | This project / all projects. |
 | `g` | Group by type / by project. |
 | `z` | Fold or unfold the section. |
-| `n` / `d` / `b` | New topic note / today's daily note / the board. |
+| `a` | A new note for the section you're in: a meeting under Meetings, else a topic note (in the form, with this screen's project). |
+| `n` / `m` | A new topic note / meeting, in the form. |
+| `d` / `b` | Today's daily note / the board. |
 | `r` / `q` / `?` | Refresh / close / help. |
 
 `:Logpose notes #perf` starts with a filter.
@@ -502,7 +525,7 @@ everyone with how much involves them; pick a person to see all of it.
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
 
 It works on tasks (title, status, project, tags, due, blocked) and on notes: meetings (title,
-type, date, project, attendees), topic notes (title, project, tags) and project pages (title,
+type, date, project, attendees, tags), topic notes (title, project, tags) and project pages (title,
 description, paths, colour). The form's title says which it is (`Edit task · …`,
 `Edit meeting · …`). Other keys are left as they are.
 
@@ -550,6 +573,7 @@ tasks and run `:'<,'>Logpose edit` (see [Working on the board](#working-on-the-b
 | Command | Does |
 |---|---|
 | `:Logpose note Queue design` | Creates or opens `notes/queue-design.md`, for how-tos, decision records and references. |
+| `:Logpose note` | The new-note form: title, project and tags, then the note opens. |
 | `:Logpose project-page` | Creates or opens `projects/<project>.md`, the hub for a project. |
 | `:Logpose backlinks` | Notes linking to the current one. |
 | `:Logpose links` | Links going out of it, with missing targets flagged. |
@@ -653,7 +677,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `today` | The day at a glance: tasks, then notes. |
 | `daily [today\|prev\|next\|DATE]` | Open (and create) a daily note. `prev`/`next` step by workday. |
 | `standup [DATE]` | Yesterday / Today / Blockers in a scratch buffer. |
-| `meeting [TYPE] [DATE]` | New meeting note. |
+| `meeting [TYPE] [DATE]` | New meeting note. Without a type, the new-meeting form. |
 
 ### Tasks
 
@@ -686,7 +710,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `notes [FILTERS]` | The notes screen: notes by type or project, with their to-dos and linked tasks. |
-| `note [TITLE]` | Create or open a topic note. |
+| `note [TITLE]` | Create or open a topic note. Without a title, the new-note form. |
 | `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |

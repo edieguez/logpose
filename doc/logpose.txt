@@ -138,9 +138,22 @@ Meeting notes from a template, linked from your daily note.
   1on1                    asks for the person; titled "1:1 {person}"
   adhoc                   asks for a title
 
-The note gets frontmatter (type, date, title, attendees, series, project)
-and a link under `## Meetings` in that day's daily note. Running the same
-command again on the same day opens the existing note.
+The note gets frontmatter (type, date, title, attendees, tags, series,
+project) and a link under `## Meetings` in that day's daily note. Running the
+same command again on the same day opens the existing note.
+
+                                                         *logpose-new-meeting*
+New-meeting form ~
+`:Logpose meeting` without a type opens a form (the one of |logpose-edit|)
+filled in as far as it can be: the first type, today's date (or the date
+given), the active project. Fields: `type`, `title`, `date`, `project`,
+`attendees`, `tags`. The title follows the type: empty gives the type's own
+("Retro"), anything else replaces it; for a type that asks something, it's
+the answer (a 1:1's person, completed from people; an ad-hoc title,
+completed from past ones). Below the fields, what saving will do: the file
+it creates, the daily-note link, what a series carries over. <C-s> creates
+the note, closes the form and opens the note at the template's cursor; `q`
+closes without creating anything. An existing note is opened, untouched.
 
                                                     *logpose-meeting-series*
 Series ~
@@ -256,7 +269,10 @@ opens it for that project.
   p      this project / all projects
   g      group by type / by project
   z      fold / unfold the section
-  n      new topic note       d  today's daily note    b  board
+  a      a new note for this section: a meeting under Meetings, else a
+         topic note (in the form, with this screen's project)
+  n      new topic note       m  new meeting           d  daily note
+  b      board
   r      refresh              q  close                 ?  help
 
 Highlights: `LogposeNotesHeading`, `LogposeNotesDate`, `LogposeNotesMeta`,
@@ -549,8 +565,9 @@ Daily work ~
 
                                                             *:Logpose-meeting*
 :Logpose meeting [{type}] [{YYYY-MM-DD}]
-    Create a meeting note (|logpose-meetings|). Without {type}, choose from
-    a list. A date backfills a note for that day. If the daily note has
+    Create a meeting note (|logpose-meetings|). Without {type}, the
+    new-meeting form (|logpose-new-meeting|). A date backfills a note for
+    that day. If the daily note has
     unsaved changes, the link is added to its buffer and left unsaved.
     With {time} in `meeting_filename`, you're asked whether to open the
     existing note or create a new one.
@@ -642,8 +659,9 @@ Notes and projects ~
 
                                                                *:Logpose-note*
 :Logpose note [{title}]
-    Create (from the `note` template) or open `notes/{slug}.md`. Prompts
-    without {title}.
+    Create (from the `note` template) or open `notes/{slug}.md`. Without
+    {title}, a form (|logpose-edit|) for its title, project and tags; <C-s>
+    creates the note and opens it.
 
                                                                *:Logpose-edit*
 :Logpose edit [last]

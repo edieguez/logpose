@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1094,6 +1094,34 @@ commands and screens mixed them. Keep one word per thing, everywhere.
   `q`, `?`. Re-renders on `BufEnter`, keeping the cursor on the same note.
 - Default scope is the active project (`project.resolve`); the projects screen's `f` opens it
   for that project. Keymap preset: `<leader>jl`. Highlights `LogposeNotes*`.
+
+## C3 — New-note forms (0.40.0)
+
+**Goal.** Set a note's frontmatter (tags above all) while creating it, as the new-task form does
+for tasks.
+
+**Design**
+- `fields.load_new_note(root, kind, defaults)`: `meeting` (`type`, `title`, `date`, `project`,
+  `attendees`, `tags`; first type, today, the active project) or `topic` (`title`, `project`,
+  `tags`). `model.new` with a non-task kind.
+- A new meeting's `title` follows its type (`meeting.title_for(key, field)`): empty → the type's
+  title; another text → replaces it (series unchanged); for a type with a `prompt` it's the
+  answer (`input`: a 1:1's person, an ad-hoc title) and can't be empty. `fields.meeting_title`
+  sets the hint (`r.hints.title`, which the form prefers over `HINTS`), the note (`→ 1:1 Ana`)
+  and `r.meeting`. Title candidates: people for person types, past titles of the type otherwise.
+  Type candidates follow `meeting.types()` order.
+- Preview (`new_effects(model, r, ctx)`): for a meeting, `fields.build_meeting` runs
+  `meeting.build` (cached in the form's ctx by its inputs) to say the path, the daily-note link,
+  and what the series carries over (`carry over N open to-dos from <title> (<date>)`, or `link
+  the previous …`); an existing file → `open the existing …`. Topic: the path, project, tags.
+- `meeting.build(..., extra)`: `extra.title` overrides the title (and slug), `extra.tags` adds
+  `tags:`. `meeting.write(root, note, no_open)` (was the local `write_and_open`). `topic.note`
+  takes `{ project, tags, open }` and returns `path, cursor, existed`; `topic.note_path`.
+- Saving (`save.create_note`) creates the note without opening it; the form then closes itself
+  and opens the note at the template's cursor. A note that exists is opened untouched.
+- Entry points: `:Logpose meeting` without a type (a date-only argument prefills `date`),
+  `:Logpose note` without a title, the notes screen's `a` (by section), `n`, `m`
+  (`edit.open_new_note`). The edit form for existing meetings gains `tags`.
 
 ## 5. Command reference (final state)
 
