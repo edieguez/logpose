@@ -62,10 +62,9 @@ T[":Logpose note creates a topic note"] = function()
   eq(H.read(path), "# mine\n")
 end
 
-T[":Logpose note prompts without a title"] = function()
-  child.lua("vim.ui.input = function(_, cb) cb('From prompt') end")
+T[":Logpose note without a title opens the new-note form"] = function()
   child.cmd("Logpose note")
-  eq(vim.fn.filereadable(root .. "/notes/from-prompt.md"), 1)
+  eq(child.bo.filetype, "logpose-edit")
 end
 
 T[":Logpose project-page"] = function()

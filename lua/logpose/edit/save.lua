@@ -115,6 +115,46 @@ function M.create(root, v)
   return path
 end
 
+--- Create a note from a new-note form (a meeting or a topic note), without opening it.
+--- Returns its path, where the cursor goes, and whether it existed already (then it's untouched).
+---@param root string
+---@param kind "meeting"|"topic"
+---@param r logpose.EditResult
+---@param ctx? table  the form's cache (a meeting already built for the preview)
+---@return string? path, integer[]? cursor, boolean? existed
+function M.create_note(root, kind, r, ctx)
+  local v = r.values
+  local function str(x)
+    return type(x) == "string" and x ~= "" and x or nil
+  end
+  local tags = type(v.tags) == "table" and v.tags or {}
+  local project = str(v.project)
+  local new_project = project and not vim.tbl_contains(require("logpose.project").known(root), project)
+  local path, cursor, existed
+  if kind == "meeting" then
+    local note = require("logpose.edit.fields").build_meeting({ root = root }, r, ctx)
+    if not note then
+      return nil
+    end
+    if fs.exists(note.path) then
+      return note.path, nil, true
+    end
+    require("logpose.notes.meeting").write(root, note, true)
+    path, cursor, existed = note.path, note.cursor, false
+  else
+    path, cursor, existed = require("logpose.notes.topic").note(
+      root,
+      vim.trim(v.title),
+      { project = project or false, tags = tags, open = false }
+    )
+  end
+  require("logpose.index").clear_cache()
+  if new_project then
+    require("logpose.project").changed()
+  end
+  return path, cursor, existed
+end
+
 --- Write `changed` to one note. Returns its path (a meeting may have moved) and the keys.
 ---@param root string
 ---@param path string

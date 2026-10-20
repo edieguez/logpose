@@ -1,4 +1,4 @@
---- Meeting notes: `:Logpose meeting [type] [YYYY-MM-DD]`.
+--- Meeting notes: `:Logpose meeting [type] [YYYY-MM-DD]` (without a type: the new-meeting form).
 local config = require("logpose.config")
 local daily = require("logpose.notes.daily")
 local date = require("logpose.util.date")
@@ -70,16 +70,12 @@ end
 ---@field previous? logpose.Item  previous note in the series
 ---@field carried logpose.Item[]   open to-dos carried over from it
 
---- Build (but don't write) a meeting note.
----@param root string
----@param key string meeting type
----@param input? string answer to the type's prompt
----@param iso string
----@param project? string active project
----@param attendees? string[]
----@return logpose.MeetingNote
-function M.build(root, key, input, iso, project, attendees)
-  local spec = get_type(key)
+--- The title a type gives a note, from the answer to its prompt (if it has one).
+---@param spec table
+---@param key string
+---@param input? string
+---@return string
+local function type_title(spec, key, input)
   local title
   if spec.title then
     title = text.trim(template.substitute(spec.title, { input = input or "" }))
@@ -87,6 +83,53 @@ function M.build(root, key, input, iso, project, attendees)
   if not title or title == "" then
     title = input or spec.label or key
   end
+  return title
+end
+
+---@class logpose.MeetingTitle
+---@field input? string   the answer to the type's prompt (a 1:1's person, an ad-hoc title)
+---@field title? string   a title replacing the type's own
+---@field result string   the note's title
+---@field default string  what an empty field gives ("" when it needs one)
+---@field missing? string why it can't be empty (types that ask something)
+
+--- How the new-meeting form's `title` field maps onto a type: for a type that asks (a 1:1's
+--- person, an ad-hoc title) the field is the answer; for the others it's the title, empty for the
+--- type's own ("Retro").
+---@param key string
+---@param field string
+---@return logpose.MeetingTitle
+function M.title_for(key, field)
+  local spec = get_type(key)
+  field = text.trim(field or "")
+  if spec.prompt then
+    local missing = spec.person and "who it's with" or "a title"
+    if field == "" then
+      return { result = "", default = "", missing = missing }
+    end
+    return { input = field, result = type_title(spec, key, field), default = "", missing = missing }
+  end
+  local default = type_title(spec, key, nil)
+  if field == "" or field == default then
+    return { result = default, default = default }
+  end
+  return { title = field, result = field, default = default }
+end
+
+--- Build (but don't write) a meeting note. `extra.title` replaces the type's title; `extra.tags`
+--- go in the frontmatter.
+---@param root string
+---@param key string meeting type
+---@param input? string answer to the type's prompt
+---@param iso string
+---@param project? string active project
+---@param attendees? string[]
+---@param extra? { title?: string, tags?: string[] }
+---@return logpose.MeetingNote
+function M.build(root, key, input, iso, project, attendees, extra)
+  extra = extra or {}
+  local spec = get_type(key)
+  local title = extra.title or type_title(spec, key, input)
 
   local slug = text.slugify(title)
   if slug == "" then
@@ -141,6 +184,9 @@ function M.build(root, key, input, iso, project, attendees)
     table.insert(frontmatter, "with: " .. fmt.quote(with))
   end
   table.insert(frontmatter, "attendees: " .. fmt.render("attendees", attendees))
+  if extra.tags and #extra.tags > 0 then
+    table.insert(frontmatter, "tags: " .. fmt.render("tags", extra.tags))
+  end
   table.insert(frontmatter, "series: " .. series)
   vim.list_extend(frontmatter, require("logpose.timestamps").lines())
   table.insert(frontmatter, "---")
@@ -400,9 +446,12 @@ end
 
 local safely = ui.safely
 
+--- Write a built note: mark what it carried over in the previous one, link it from that day's
+--- daily note, and open it (unless `no_open`).
 ---@param root string
 ---@param note logpose.MeetingNote
-local function write_and_open(root, note)
+---@param no_open? boolean
+function M.write(root, note, no_open)
   local ok, err = fs.write_file(note.path, note.content, { tidy = true })
   if not ok then
     error(err, 0)
@@ -426,8 +475,13 @@ local function write_and_open(root, note)
       vim.log.levels.INFO
     )
   end
-  open(note.path, note.cursor)
+  require("logpose.index").clear_cache()
+  if not no_open then
+    open(note.path, note.cursor)
+  end
 end
+
+local write_and_open = M.write
 
 --- Create (or open) a meeting note of type `key`.
 ---@param root string
@@ -570,20 +624,8 @@ function M.command(opts)
       M.start(root, key, iso, project)
       return
     end
-    vim.ui.select(
-      M.types(),
-      {
-        prompt = "Meeting type",
-        format_item = function(t)
-          return t.spec.label or t.key
-        end,
-      },
-      safely(function(choice)
-        if choice then
-          M.start(root, choice.key, iso, project)
-        end
-      end)
-    )
+    -- no type: the new-meeting form, to set the type, title, people and tags up front
+    require("logpose.edit").open_new_note(root, "meeting", { date = iso, project = project })
   end))
 end
 
