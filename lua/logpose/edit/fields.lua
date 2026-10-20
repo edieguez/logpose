@@ -10,7 +10,7 @@ local M = {}
 --- Fields offered per note type, in order (keys a note already has are shown too).
 M.FIELDS = {
   task = { "title", "status", "project", "tags", "due", "blocked" },
-  meeting = { "title", "type", "date", "project", "attendees" },
+  meeting = { "title", "type", "date", "project", "attendees", "tags" },
   project = { "title", "description", "paths", "color" },
   topic = { "title", "project", "tags" },
   other = { "title", "project", "tags" },
@@ -18,6 +18,13 @@ M.FIELDS = {
 
 --- Fields of a new task (`context` is a line under `## Context`, not frontmatter).
 M.NEW_FIELDS = { "title", "status", "project", "tags", "due", "blocked", "context" }
+
+--- Fields of a new note, per kind. A new meeting's `title` follows its type: empty for the
+--- type's own ("Retro"), or the answer to what the type asks (a 1:1's person).
+M.NEW_NOTE_FIELDS = {
+  meeting = { "type", "title", "date", "project", "attendees", "tags" },
+  topic = { "title", "project", "tags" },
+}
 
 --- Fields a bulk edit of tasks offers (a title is per task).
 M.BULK_FIELDS = { "status", "project", "tags", "due", "blocked" }
@@ -193,6 +200,37 @@ function M.load_new(root, defaults)
     old = {},
     info = {},
     title = "New task",
+    new = true,
+    initial = initial,
+  }
+end
+
+--- The model for a note that doesn't exist yet (a meeting or a topic note): the form starts from
+--- `defaults` and saving creates the note.
+---@param root string
+---@param kind "meeting"|"topic"
+---@param defaults? { type?: string, title?: string, date?: string, project?: string, attendees?: string[], tags?: string[] }
+---@return logpose.EditModel
+function M.load_new_note(root, kind, defaults)
+  defaults = defaults or {}
+  local initial = {
+    title = defaults.title or "",
+    project = defaults.project or "",
+    tags = table.concat(defaults.tags or {}, ", "),
+  }
+  if kind == "meeting" then
+    local types = require("logpose.notes.meeting").types()
+    initial.type = defaults.type or (types[1] and types[1].key) or ""
+    initial.date = defaults.date or date.today()
+    initial.attendees = table.concat(defaults.attendees or {}, ", ")
+  end
+  return {
+    root = root,
+    kind = kind,
+    keys = vim.deepcopy(M.NEW_NOTE_FIELDS[kind]),
+    old = {},
+    info = {},
+    title = kind == "meeting" and "New meeting" or "New topic note",
     new = true,
     initial = initial,
   }
@@ -413,7 +451,7 @@ function M.collect(model, texts, ctx)
     else
       value, err, note = M.check(model.kind, key, text, ctx)
       if model.new and key == "title" and vim.trim(text) == "" then
-        err = nil -- a new task's title: asked for on save, not shouted at while you start typing
+        err = nil -- a new title: asked for on save, not shouted at while you start typing
       end
       if not err and model.kind == "project" and key == "project" and not M.same(model.old[key], value) then
         err = "rename a project with R in :Logpose projects (it updates every note)"
@@ -432,13 +470,145 @@ function M.collect(model, texts, ctx)
     end
     r.notes[key] = note
   end
+  if model.new and model.kind == "meeting" then
+    M.meeting_title(r, texts.title or "")
+  end
   return r
 end
 
---- What saving a new task will do.
+--- A new meeting: what its `title` field means for the type picked, as a hint (empty field), a
+--- note (the title it makes) or, on save, what's missing. Sets `r.meeting`, `r.hints.title`.
 ---@param r logpose.EditResult
+---@param field string
+function M.meeting_title(r, field)
+  r.hints = r.hints or {}
+  local key = r.values.type
+  if r.errors.type or type(key) ~= "string" or key == "" then
+    r.hints.title = "pick a type first"
+    return
+  end
+  local t = require("logpose.notes.meeting").title_for(key, field)
+  r.meeting = t
+  local spec = config.get().meeting_types[key] or {}
+  if t.missing then
+    r.hints.title = spec.person
+        and ("who it's with · <Tab> completes people → %s"):format(
+          require("logpose.util.text").trim(
+            require("logpose.template").substitute(spec.title or "{input}", { input = "…" })
+          )
+        )
+      or "a title · <Tab> completes past ones"
+  else
+    r.hints.title = ("empty: “%s” · or type another title"):format(t.default)
+  end
+  if t.result ~= "" and t.result ~= vim.trim(field) then
+    r.notes.title = "→ " .. t.result
+  end
+end
+
+--- The meeting note a new-meeting form would create (cached while the values stay the same).
+---@param model logpose.EditModel
+---@param r logpose.EditResult
+---@param ctx? table  a cache
+---@return logpose.MeetingNote?
+function M.build_meeting(model, r, ctx)
+  local v, t = r.values, r.meeting
+  if not t or t.result == "" or r.errors.type or r.errors.date or r.errors.project then
+    return nil
+  end
+  local project = type(v.project) == "string" and v.project ~= "" and v.project or nil
+  local attendees = type(v.attendees) == "table" and v.attendees or {}
+  local tags = type(v.tags) == "table" and v.tags or {}
+  local cache_key = table.concat({
+    v.type,
+    t.input or "",
+    t.title or "",
+    v.date or "",
+    project or "",
+    table.concat(attendees, ","),
+    table.concat(tags, ","),
+  }, "\0")
+  ctx = ctx or {}
+  if ctx.meeting_key ~= cache_key then
+    local ok, note = pcall(
+      require("logpose.notes.meeting").build,
+      model.root,
+      v.type,
+      t.input,
+      v.date,
+      project,
+      attendees,
+      { title = t.title, tags = tags }
+    )
+    ctx.meeting_key, ctx.meeting = cache_key, ok and note or nil
+  end
+  return ctx.meeting
+end
+
+--- What saving a new meeting or topic note will do.
+---@param model logpose.EditModel
+---@param r logpose.EditResult
+---@param ctx? table
 ---@return string[]
-function M.new_effects(r)
+local function new_note_effects(model, r, ctx)
+  local v = r.values
+  local rel = function(path)
+    return require("logpose.link").relpath(model.root, path)
+  end
+  local out = {}
+  if model.kind == "meeting" then
+    local note = M.build_meeting(model, r, ctx)
+    if not note then
+      return out
+    end
+    if fs.exists(note.path) then
+      return { "open the existing " .. rel(note.path) }
+    end
+    table.insert(out, "create " .. rel(note.path))
+    table.insert(out, "link it from the daily note of " .. date.short(note.date))
+    if note.previous then
+      local n = #note.carried
+      local when = note.previous.date and (" (" .. date.short(note.previous.date) .. ")") or ""
+      if n > 0 then
+        table.insert(
+          out,
+          ("carry over %d open to-do%s from %s%s"):format(n, n == 1 and "" or "s", note.previous.title, when)
+        )
+      else
+        table.insert(out, ("link the previous %s%s"):format(note.previous.title, when))
+      end
+    end
+  else
+    local title = vim.trim(type(v.title) == "string" and v.title or "")
+    local path = title ~= "" and require("logpose.notes.topic").note_path(model.root, title)
+    if not path then
+      return out
+    end
+    if fs.exists(path) then
+      return { "open the existing " .. rel(path) }
+    end
+    local line = "create " .. rel(path)
+    if type(v.project) == "string" and v.project ~= "" and not r.errors.project then
+      line = line .. ", for " .. v.project
+    end
+    table.insert(out, line)
+  end
+  if type(v.tags) == "table" and #v.tags > 0 then
+    table.insert(out, "tagged " .. table.concat(v.tags, ", "))
+  end
+  table.insert(out, "then open it to write")
+  return out
+end
+
+--- What saving a new task (or note) will do.
+---@param model logpose.EditModel
+---@param r logpose.EditResult
+---@param ctx? table
+---@return string[]
+function M.new_effects(model, r, ctx)
+  if model.kind ~= "task" then
+    return new_note_effects(model, r, ctx)
+  end
   local v = r.values
   local taskfile = require("logpose.taskfile")
   local status = (v.status ~= nil and v.status ~= "" and not r.errors.status) and v.status
@@ -467,10 +637,11 @@ end
 ---@param model logpose.EditModel
 ---@param r logpose.EditResult
 ---@param links_to? fun(): integer  how many links point at the note (for a meeting move)
+---@param ctx? table  a cache for previews
 ---@return string[]
-function M.effects(model, r, links_to)
+function M.effects(model, r, links_to, ctx)
   if model.new then
-    return M.new_effects(r)
+    return M.new_effects(model, r, ctx)
   end
   local out = {}
   local changed = r.changed

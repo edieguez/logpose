@@ -35,6 +35,19 @@ function M.open_new(root, defaults, opts)
   return form.show(fields.load_new(root, defaults), { on_save = opts.on_save })
 end
 
+--- Open the form for a new note: a meeting (type, title, date, project, attendees, tags) or a
+--- topic note (title, project, tags), starting from `defaults`. Saving creates the note, closes
+--- the form and opens the note. `opts.on_save(path, keys)` runs after.
+---@param root string
+---@param kind "meeting"|"topic"
+---@param defaults? table
+---@param opts? { on_save?: fun(path: string, keys: string[]) }
+---@return integer win
+function M.open_new_note(root, kind, defaults, opts)
+  opts = opts or {}
+  return form.show(fields.load_new_note(root, kind, defaults), { on_save = opts.on_save })
+end
+
 --- Open the editor for several task files at once. `opts.on_save(paths, keys)` runs after.
 ---@param paths string[]
 ---@param opts? { root?: string, on_save?: fun(paths: string[], keys: string[]) }

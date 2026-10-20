@@ -124,14 +124,10 @@ T["titles with quotes produce valid YAML"] = function()
   H.contains(H.read(meeting("2026-10-14 - say-hi-bye.md")), [[title: "Say \"hi\" \\ bye"]])
 end
 
-T["without a type, picks from a list in order"] = function()
-  answer_select("Retrospective")
+T["without a type, opens the new-meeting form, starting on the first type"] = function()
   child.cmd("Logpose meeting")
-  eq(
-    child.lua_get("_G.select_items"),
-    { "Sprint planning", "Refinement", "Sprint review", "Retrospective", "1:1", "Ad-hoc" }
-  )
-  eq(child.api.nvim_buf_get_name(0), meeting("2026-10-14 - retro.md"))
+  eq(child.bo.filetype, "logpose-edit")
+  eq(child.api.nvim_buf_get_lines(0, 0, 1, false)[1], "planning") -- the first type
 end
 
 T["same type and title on the same day opens the existing note"] = function()
