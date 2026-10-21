@@ -157,6 +157,47 @@ function M.related(root, items)
   return out
 end
 
+--- The link at byte column `col` (0-based) of `line`: a wiki link (`[[target|label]]`, the
+--- target relative to `link_base`, spaces and all) or a markdown link to a file (`[label](path)`
+--- or `[label](<path with spaces>)`, relative to the note). URLs aren't links here (nil).
+---@param line string
+---@param col integer
+---@return { target: string, style: "wiki"|"markdown" }?
+function M.at(line, col)
+  local c = col + 1
+  for s, inner, e in line:gmatch("()%[%[(.-)%]%]()") do
+    if c >= s and c < e then
+      local target = vim.trim(inner:match("^([^|#]*)") or "")
+      return target ~= "" and { target = target, style = "wiki" } or nil
+    end
+  end
+  for s, dest, e in line:gmatch("()%[[^%]]*%]%((.-)%)()") do
+    if c >= s and c < e then
+      dest = vim.trim(dest)
+      dest = dest:match("^<(.*)>$") or dest:match("^(%S+)") or ""
+      if dest == "" or dest:match("^%a[%w+.-]*:") or dest:match("^#") then
+        return nil -- a URL, or a heading in this note
+      end
+      return { target = (dest:gsub("#.*$", "")), style = "markdown" }
+    end
+  end
+  return nil
+end
+
+--- The note the link at `col` of `line` (in `file`) points to, if it exists.
+---@param root string
+---@param file string
+---@param line string
+---@param col integer
+---@return string? path, { target: string, style: string }? link
+function M.follow(root, file, line, col)
+  local l = M.at(line, col)
+  if not l then
+    return nil
+  end
+  return M.resolve(root, file, l, names(index.build(root))), l
+end
+
 --- Links pointing at `file`.
 ---@param root string
 ---@param file string

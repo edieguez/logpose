@@ -47,7 +47,7 @@ T["gx opens the ticket, or falls back"] = function()
   eq(child.lua_get("_G.opened[2]"), "https://example.com/x")
 end
 
-T["gx is not mapped outside the journal or without a url"] = function()
+T["gx is only mapped in the journal"] = function()
   local outside = H.tmpdir() .. "/x.md"
   H.write(outside, "PROJ-1\n")
   child.cmd("edit " .. outside)
@@ -56,7 +56,34 @@ T["gx is not mapped outside the journal or without a url"] = function()
   child.lua(("require('logpose').setup({ root = %q })"):format(root))
   child.cmd("edit " .. root .. "/INBOX.md")
   child.bo.filetype = "markdown"
-  eq(child.lua_get("vim.fn.maparg('gx', 'n', false, true).buffer == 1"), false)
+  eq(child.lua_get("vim.fn.maparg('gx', 'n', false, true).buffer == 1"), true) -- for note links
+end
+
+T["gx follows note links, spaces and all, and hands the rest to your gx"] = function()
+  child.lua("vim.keymap.set('n', 'gx', function() _G.mine = vim.fn.expand('<cfile>') end)") -- e.g. a markdown plugin's
+  H.write(root .. "/meetings/acme/2026-10-15 - retro.md", "# Retro\n")
+  local task = root .. "/tasks/fix-ci.md"
+  H.write(task, table.concat({
+    "From: [[meetings/acme/2026-10-15 - retro|Retro]]",
+    "Also [the retro](<../meetings/acme/2026-10-15 - retro.md>) and [[2026-10-15 - retro]]",
+    "Missing: [[meetings/nope]] and https://example.com/x",
+  }, "\n") .. "\n")
+  local function gx(row, col)
+    child.cmd("edit " .. task)
+    child.bo.filetype = "markdown"
+    child.api.nvim_win_set_cursor(0, { row, col })
+    child.type_keys("gx")
+    return child.api.nvim_buf_get_name(0)
+  end
+  local retro = root .. "/meetings/acme/2026-10-15 - retro.md"
+  eq(gx(1, 30), retro) -- on the path, past the space
+  eq(gx(1, 47), retro) -- on the label
+  eq(gx(2, 8), retro) -- markdown link with <spaces>
+  eq(gx(2, 70), retro) -- a short wiki link
+  eq(gx(3, 14), task)
+  H.contains(child.notifications()[#child.notifications()].msg, "no note at [[meetings/nope]]")
+  eq(gx(3, 40), task)
+  eq(child.lua_get("_G.mine"), "https://example.com/x") -- yours, untouched
 end
 
 T[":Logpose ticket lists whole-word mentions"] = function()
