@@ -405,13 +405,24 @@ date instead.
 | `<CR>` | Open it. On a heading, fold the group; on `… N more`, show the rest. |
 | `<Tab>` | Details: the attendees, action items, linked tasks; for a person, their meetings, to-dos and mentions. `<CR>` opens any of them. |
 | `K` | Peek: the note in a floating window, to read and edit. |
-| `/` | Filter, with the [find filters](#search-filters): `type:retro or type:review`, `attendees:ana date>=-30d`, `-#draft`… |
+| `/` | The filter bar (below): the list follows as you type. `<BS>` clears the filter. |
 | `g` / `s` | Change the grouping / the order (newest, oldest, by title; people: recently met, by name, most involved). |
 | `m`, `<`, `>` | Move to another group (asks, with `new…` for a new project, tag or role) / the previous / the next. |
 | `e` / `a` | Edit in the form / add a new one in the group you're in. |
 | `p` | This project / all projects. |
 | `z`, `]]`, `[[` | Fold the group; jump to the next / previous group. |
-| `r` / `q` / `?` | Refresh / close / help. |
+| `r` / `q` / `?` | Refresh / close / the keys and the filter cheat sheet. |
+
+### The filter bar
+
+`/` on a list or the board opens a one-line filter over it. What's behind it updates as you
+type, and a menu shows what you can type next, each with a word on what it does: first the
+filters (`type:`, `attendees:`, `date>=`, `or`, `not`, and the fields your notes use, like
+`room:`), then their values from your journal (meeting types, projects, tags, people, dates
+like `today` or `-7d`). `<Tab>` completes, `<CR>` keeps the filter, `<Esc>` puts the old one
+back and `<F1>` shows the cheat sheet. The bar's lower edge counts what matches and names any
+word it ignored (a half-typed `since:2026-1`, say). `?` on a list shows its keys and the same
+cheat sheet; `:Logpose find` completes filter values on the command line too.
 
 The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `1` (start a 1:1)
 and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
@@ -557,7 +568,9 @@ separate scopes: `notes` never lists tasks. Everything after it is a
 | `a or b`, `not a`, `-a`, `( … )` | either, neither, grouping |
 | any other word | must appear in the text |
 
-All filters are in the [reference](#search-filters).
+All filters are in the [reference](#search-filters). On the board and the lists, `/` opens the
+[filter bar](#the-filter-bar), which suggests filters and their values as you type, and `?`
+shows a cheat sheet.
 
 **Live search.** With snacks, fzf-lua or Telescope, the picker prompt holds the query: it starts
 with what you typed on the command line, and results update as you edit it. Half-typed filters
@@ -891,12 +904,12 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `z` | fold / unfold the column | `gg` `G` | first / last card |
 | `u` | undo | `<C-r>` | redo |
 | `c` | compact one-line cards | `s` | one row per project |
-| `<CR>` | open the task file | `/` | filter (same filters as `find`) |
+| `<CR>` | open the task file | `/` | the [filter bar](#the-filter-bar); `<BS>` clears the filter |
 | `p` | this project / all projects | `P` | projects screen (switch there) |
 | `m` | move the card to another project | `e` | edit the card's fields |
 | `v` | mark / unmark the card | `V` `<Esc>` | unmark all |
 | `r` | refresh | `q` | close |
-| `?` | help | | |
+| `?` | the keys and the filter cheat sheet | | |
 
 With cards marked, `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` act on all of them as one undo step.
 

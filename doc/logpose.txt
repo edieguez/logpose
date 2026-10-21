@@ -301,14 +301,23 @@ note itself (week, month, last met) can't be moved to.
   <Tab>   details: attendees, action items, linked tasks; for a person,
           their meetings, to-dos and mentions
   K       peek: the note in a floating window, to read and edit
-  /       filter, with |logpose-filters| (`or`, `not`, any field…)
+  /       the filter bar (|logpose-filter-bar|)  <BS>  clear the filter
   g       change the grouping          s   change the order
   m       move to another group (asks; `new…` for a new project, tag or
           role)                        < >  to the previous / next group
   e       edit (|logpose-edit|)        a   add one, in the group you're in
   p       this project / all           z   fold the group
   ]] [[   next / previous group        r   refresh
-  q       close                        ?   help
+  q       close                        ?   keys and filter cheat sheet
+
+                                                          *logpose-filter-bar*
+`/` on a list or the board opens a one-line filter over it; what's behind it
+follows as you type. A menu shows what can come next, each with a word on
+what it does: the filters (`type:`, `attendees:`, `date>=`, `or`, `not`, and
+the fields your notes use), then their values from the journal (meeting
+types, projects, tags, people, dates such as `today` or `-7d`). <Tab>
+completes, <CR> keeps the filter, <Esc> restores the old one, <F1> shows the
+cheat sheet. The lower edge counts the matches and names ignored words.
 
 The notes list adds `d` (today's daily note) and `b` (the board); the people
 list `y`, `o`, `1` and `R` (|logpose-people-screen|). `f` on a project in
@@ -914,7 +923,8 @@ Sprints and maintenance ~
                 (undo refuses if the task was edited since)
   c             compact one-line cards
   s             one row per project
-  /             filter, with |logpose-filters|
+  /             the filter bar (|logpose-filter-bar|)
+  <BS>          clear the filter
   p             this project / all projects
   P             the projects screen: switch there (|logpose-projects|)
   m             move the card to another project
@@ -924,7 +934,7 @@ Sprints and maintenance ~
   V  <Esc>      unmark all
   r             refresh
   q             close
-  ?             help
+  ?             the keys and the filter cheat sheet
 
 ==============================================================================
 6. SEARCH FILTERS                                            *logpose-filters*
