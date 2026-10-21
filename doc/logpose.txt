@@ -234,6 +234,24 @@ Getting tasks in and out ~
 
 To-dos aren't tasks: |:Logpose-check| checks them off.
 
+                                                           *logpose-todo-sync*
+A to-do made into a task and its task stay in step, both ways:
+
+- The task done (`x` on the board, |:Logpose-done|, the form, or
+  `status: done` saved by hand) checks its to-do, wherever it is (a to-do
+  carried to a newer note keeps its `→` line).
+- The to-do checked (|:Logpose-check|, or `[x]` saved by hand) moves the
+  task to Done. When the task hasn't started (a column before
+  `board.start`), you're asked first; say no and you aren't asked again
+  for that task.
+- Reopening: the task out of Done unchecks the to-do; the to-do unchecked
+  moves the task back to the column it was in before Done.
+
+Notes changed this way keep their `modified:` date; one with unsaved
+changes is edited in its buffer. Board undo puts the to-do back too. A task
+marked done outside Neovim still counts its to-do as done (in actions,
+`find todos` and today).
+
 Files with unsaved changes are never overwritten: logpose edits the buffer
 instead, or refuses.
 
@@ -671,7 +689,8 @@ To-dos ~
     Check off the to-do (`- [ ]`) on the current line, or every one in
     [range]; when they're all checked already, uncheck them. Other lines
     are skipped. `<Plug>(logpose-check)` works in visual mode too. The buffer
-    is edited, so |u| undoes it.
+    is edited, so |u| undoes it. A to-do made into a task brings its task
+    along (|logpose-todo-sync|).
 
                                                             *:Logpose-promote*
 :[range]Logpose promote
@@ -680,7 +699,8 @@ To-dos ~
     On a to-do: a task in `tasks.promote_status` (Backlog; Done if it was
     checked), with the note's project and a `From:` link back. The to-do
     keeps its text (an action item its owner and due date) and gains a
-    `→ [[task]]` line under it.
+    `→ [[task]]` line under it. The two then stay in step
+    (|logpose-todo-sync|).
 
     In a task file (not on one of its to-dos), or on [range] there: the
     new-note form, filled in from the task (title, project, tags) with a
