@@ -225,7 +225,7 @@ Getting tasks in and out ~
 
   |:Logpose-capture|  from anywhere: a Backlog task for the active project
   `a` on the board    a card in the focused column
-  |:Logpose-promote|  a to-do in a note becomes a TODO task
+  |:Logpose-promote|  a to-do in a note becomes a Backlog task
   |:Logpose-done|     in a task file: move it to Done
   `x` on the board    move the card to Done
 
@@ -613,9 +613,9 @@ To-dos ~
                                                             *:Logpose-promote*
 :Logpose promote
     Turn the to-do under the cursor into a task in `tasks.promote_status`
-    (TODO), with the note's project and a `From:` link back, and replace the
-    to-do's text with a link to the task. A checked to-do becomes a task in
-    Done.
+    (Backlog), with the note's project and a `From:` link back, and replace
+    the to-do's text with a link to the task. A checked to-do becomes a task
+    in Done.
 
                                                             *:Logpose-actions*
 :Logpose actions [{mode}] [{filters}...]
@@ -901,7 +901,7 @@ Board and tasks ~
       `open`              "window" (default) or "tab"
   tasks          (table)
       `capture_status`    column for |:Logpose-capture| ("backlog")
-      `promote_status`    column for |:Logpose-promote| ("todo")
+      `promote_status`    column for |:Logpose-promote| ("backlog")
 
 Notes and meetings ~
 

@@ -318,7 +318,7 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 | From | Do | Result |
 |---|---|---|
 | Anywhere | `:Logpose capture text #tag +project due:DATE` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
-| A to-do in a meeting or daily note | `:Logpose promote` | A TODO task with a `From:` link back, and the to-do becomes a link to it. |
+| A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back, and the to-do becomes a link to it. |
 | A task file | `:Logpose done` | The task moves to Done. |
 
 To-dos aren't tasks: `:Logpose check` checks one off (or a visual selection of them), and again
@@ -858,7 +858,7 @@ board = {
 },
 tasks = {
   capture_status = "backlog",   -- column for :Logpose capture
-  promote_status = "todo",      -- column for :Logpose promote
+  promote_status = "backlog",   -- column for :Logpose promote
 },
 ```
 

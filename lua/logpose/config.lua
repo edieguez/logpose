@@ -126,7 +126,7 @@ M.defaults = {
   tasks = {
     --- Column a captured task starts in, and one promoted from a to-do.
     capture_status = "backlog",
-    promote_status = "todo",
+    promote_status = "backlog",
   },
   board = {
     --- Columns, left to right. `key` is the task's `status:`; `label` is shown; optional `limit`
