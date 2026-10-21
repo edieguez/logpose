@@ -121,12 +121,15 @@ end
 function M.note_command(opts)
   local title = vim.trim(table.concat(opts.args, " "))
   config.with_root(ui.safely(function(root)
-    if title ~= "" then
+    local project, source = require("logpose.project").resolve(root)
+    local path = title ~= "" and M.note_path(root, title)
+    -- with a title, the note right away; without one, or with no project chosen (you pick it),
+    -- the new-note form
+    if title ~= "" and (source ~= "none" or (path and fs.exists(path))) then
       M.note(root, title)
       return
     end
-    -- no title: the new-note form, to set the project and tags up front
-    require("logpose.edit").open_new_note(root, "topic", { project = require("logpose.project").resolve(root) })
+    require("logpose.edit").open_new_note(root, "topic", { title = title ~= "" and title or nil, project = project })
   end))
 end
 
