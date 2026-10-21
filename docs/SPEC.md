@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1162,8 +1162,7 @@ task, a task's write-up becomes a note.
 
 **Design** (`people.lua`, `completion/init.lua`)
 - `people.known(root)`: the index's people (count, and involvement per project) merged with the
-  list file (`people.file`, `people.md`): `- Name (email) #project …` per list item (checkbox items
-  skipped); the list's spelling wins, its `#tags` count as projects. `people.from_list`.
+  list file `people.md` (replaced by people pages in C6).
 - `people.match(people, query, project)`: `plain()` (lowercase, Latin accents stripped) on both
   sides; rank 1 the name or handle starts with it, 2 a word of the name does, 3 it's inside;
   then the project's people (by involvement there), then overall involvement. Used by the edit
@@ -1176,6 +1175,59 @@ task, a task's write-up becomes a note.
   space or punctuation → `@slug`. The note's `project:` ranks. `filterText` adds the plain
   spelling so the plugins' own fuzzy filters match without accents. Triggers `[`, `@`, `,`; the
   cmp keyword pattern also takes `@handle` and words.
+
+## C6 — People pages (0.43.0)
+
+**Goal.** A compendium of the people you work with: a page per person (name, role, how to reach
+them, your notes about them) that the rest of logpose knows about, so completion, filters and
+`gx` treat "Ana", `@ana` and "Ana López" as one person.
+
+**Design** (`people/init.lua`, `people/screen.lua`, `people/rename.lua`)
+- Storage: `people/<slug>.md` (`dirs.people`). Frontmatter `name`, `aliases` (list), `role`,
+  `projects` (list) and one key per way to reach them; the body is free notes (no heading: the page's title is `name`). The
+  index gives these files `file_type = "person"`, `kind = "person"`, the title from `name` and the
+  raw frontmatter as `fields`. `people.md` (`people.file`) is gone.
+- Ways to reach people are configured, not hard-coded: `people.contacts = { key = { label, show,
+  open, order } }`. `show` and `open` are templates over `{value}` (`@{value}`,
+  `mailto:{value}`, `slack://user?team=T0&id={value}`). The default is `email` only; Slack,
+  Teams, Matrix, a phone… are a config entry, so moving to another chat app is a config change.
+  Keys may not clash with the page's own keys. A page's keys not in the config still show (by
+  key) and are kept.
+- `people.known(root)`: pages first (each with `slugs`: file stem, name and alias slugs), then the
+  index's people merged into a page when any slug matches; counts and per-project involvement
+  from the index (a page's `projects` count too). `people.find` resolves any name, alias or
+  handle; `people.expand(slug)` gives every slug of that person, so `person:`/`@` filters match
+  all of them. `people.match` (C5) also ranks aliases.
+- Forms: `edit` on a person page shows name, aliases, role, projects and every configured
+  contact; the new-person form (`kind = "person"`) creates the page (`people.create`) and opens it
+  below the frontmatter. Email is checked for an `@`.
+- `:Logpose people [filter]` (`<leader>ju`): people with a page (role, contacts as shown, `met`
+  latest meeting, open to-dos owned, projects), most recently met first; then "In your notes, no
+  page yet". `<Tab>` expands meetings, open to-dos, tasks and notes involving them (`<CR>` opens
+  one); `<CR>` opens the page (or the form to add one), `e` edit, `a` add, `m` 1:1 (the first
+  person-type meeting type), `y` copy / `o` open a contact (`vim.ui.select` when several), `R`
+  rename, `/` filter (name, alias, role, project), `p` this project / everyone.
+- `:Logpose person [handle]`: their page, or the form to add one. Completion offers handles.
+- `gx` on an `@mention` or a name on an `attendees:`/`with:` line opens the person's page when
+  there is one; otherwise the usual `gx`.
+- `:Logpose find people` shows display names with role, first contact and how much involves them
+  (with filters, only people involved in the matches); a page-only person opens their page.
+- `:Logpose rename-person[!] handle New Name` (or `R`; without a new name it asks): the page moves
+  to the new slug (links follow, via `maintenance.rewrite_links`), its `name` changes and the old
+  name joins `aliases`; attendees/`with:` entries and `@mentions` that used the old name or
+  handle are rewritten (other aliases are left alone: they still resolve). Same preview/confirm as
+  `rename-tag` (`maintenance.confirm_and_apply`).
+
+**Possible future work** (not planned yet)
+- Carry a person's open "## Next 1:1" items into the next 1:1's agenda.
+- Merge two people (`M` on the screen): fold one page into another, combining aliases, contacts
+  and notes, and rewrite references like a rename.
+
+**Tests** (`test_people.lua`, `test_people_screen.lua`)
+- Pages and aliases merge with mentions; filters expand aliases; the form creates a page with
+  contacts; the screen's sections, details, filter, project toggle, copy/open contacts, 1:1;
+  `:Logpose person`; `gx` on a mention and an attendee; rename moves the page and rewrites
+  attendees, `with:`, mentions and links.
 
 ## 5. Command reference (final state)
 
@@ -1205,6 +1257,7 @@ task, a task's write-up becomes a note.
 | `:Logpose promote`                        | B1, C1 |
 | `:Logpose today`, `edit`, `projects`      | later minors |
 | `:Logpose notes [filters]`                | C2 |
+| `:Logpose people [filter]`, `person [handle]`, `rename-person` | C6 |
 
 ## 6. Definition of done (every feature)
 
@@ -1241,6 +1294,8 @@ years).
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.43.0: `people.md` and `people.file` are gone: people live in `people/<slug>.md` pages;
+  `people = { contacts = … }` configures how to reach them.
 - 0.26.0: local usage stats are on by default; `telemetry = { enabled = false }` turns them off.
 - 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
 - 0.25.0: the board's title line moved into the window's top bar (winbar).

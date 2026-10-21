@@ -23,6 +23,7 @@ CONTENTS                                                    *logpose-contents*
        Project pages ....................... |logpose-project-page|
        Search .............................. |logpose-search|
        Action items and people ............. |logpose-actions|
+       People pages ........................ |logpose-people|
        Editing details ..................... |logpose-edit|
        Topic notes and links ............... |logpose-links|
        Sprints, archives and reports ....... |logpose-sprints|
@@ -418,23 +419,66 @@ due date: >markdown
 |:Logpose-actions| lists them in the quickfix list, soonest due first, with
 overdue items flagged. `mine` uses your `me` handle.
 
-People come from meeting `attendees:`, the person of a 1:1 and `@mentions`.
-`:Logpose find people` lists everyone; `@ana` or `person:ana` filters any
-search.
-
-                                                         *logpose-people-list*
-To have people suggested before your first meeting with them, list them in
-`people.md` (`people.file`) at the journal root, one per list item:
-`- Ana López (ana@acme.com) #acme`. The email and #projects are optional; a
-#project puts the person first in that project's meetings. The list's
-spelling of a name wins.
-
-Wherever a person is asked for (the forms' `attendees`, a 1:1's person, the
-attendees prompt, and in notes, |logpose-completion|), any part of the name
-matches and accents are ignored: `lop` finds Ana López. The note's
-project's people come first, then the people you meet most.
+People come from meeting `attendees:`, the person of a 1:1, `@mentions`
+and people pages (|logpose-people|). `:Logpose find people` lists everyone;
+`@ana` or `person:ana` filters any search.
 
 Options: `me`, `actions`.
+
+------------------------------------------------------------------------------
+PEOPLE PAGES                                                  *logpose-people*
+
+A page per person you work with, `people/{slug}.md`: >markdown
+  ---
+  name: Ana López
+  aliases: [Ana]
+  role: Backend lead
+  projects: [acme]
+  email: ana@acme.com
+  slack: ana.lopez
+  ---
+  Prefers async reviews. Back from leave on the 21st.
+<
+`aliases` make "Ana", `@ana` and "Ana López" one person: in completion,
+in filters (`person:ana` also finds notes naming Ana López) and on the
+people screen. `projects` puts the person first in that project's meetings.
+Add a person with `a` on the people screen, |:Logpose-person|, or edit a
+page with |:Logpose-edit|: the form has a field for each way to reach
+people.
+
+                                                       *logpose-people-screen*
+|:Logpose-people| lists people with a page (role, how to reach them, when
+you last met, the open to-dos they own), most recently met first, then the
+people your notes mention who have no page yet. Keys:
+
+  <CR>    open their page (no page yet: the form to add one); on a
+          detail line, open that note
+  <Tab>   show / hide their meetings, open to-dos, tasks and notes
+  e       edit their details          a   add a person
+  m       start a 1:1 with them (the first meeting type with `person`)
+  y       copy a way to reach them    o   open it (mail, chat…)
+  R       rename them everywhere (|:Logpose-rename-person|)
+  /       filter by name, alias, role or project
+  p       this project / everyone     r   refresh
+  q       close                       ?   help
+
+`gx` on an `@mention`, or on a name in an `attendees:` or `with:` line,
+opens that person's page when there is one.
+
+                                                     *logpose-people-contacts*
+Ways to reach people are configured (`people.contacts`), so another chat app
+is a config change. Each key is a frontmatter key on the page: >lua
+  people = {
+    contacts = {
+      email = { label = "Email", open = "mailto:{value}", order = 1 },
+      slack = { label = "Slack", show = "@{value}", order = 2,
+                open = "slack://user?team=T012345&id={value}" },
+    },
+  }
+<
+`label` names the field, `show` is how the value is shown, `open` is what
+`o` opens (both with `{value}`), `order` sorts them. Email is the default.
+Keys a page has that aren't configured still show, under their own name.
 
 ------------------------------------------------------------------------------
 EDITING DETAILS                                                 *logpose-edit*
@@ -707,6 +751,16 @@ Notes and projects ~
     captured last in this session. In a quickfix window, the tasks on the
     [range] of lines, together. See |logpose-edit|.
 
+                                                             *:Logpose-people*
+:Logpose people [{filter}]
+    The people screen (|logpose-people-screen|), filtered by {filter}.
+
+                                                             *:Logpose-person*
+:Logpose person [{handle}]
+    Open the page of the person {handle} names (a name, alias or handle;
+    completion offers handles). Without a page, or without {handle}, the
+    form to add one.
+
                                                             *:Logpose-project*
 :Logpose project [{name}|none]
     Switch to project {name} ({name} is slugified), or `none` to go back to
@@ -759,6 +813,14 @@ Sprints and maintenance ~
     Rename a project: `project:` frontmatter, `#old` tags, series names,
     `meetings/{old}/` and `projects/{old}.md` (moved), and links into them.
     Preview and [!] as for |:Logpose-rename-tag|.
+
+                                                      *:Logpose-rename-person*
+:Logpose rename-person[!] {handle} [{new name}]
+    Rename a person everywhere: their page moves to `people/{new-slug}.md`
+    (links follow) and keeps the old name in `aliases`; `attendees:` and
+    `with:` entries and `@mentions` using the old name are rewritten.
+    Without {new name}, asks for it. Preview and [!] as for
+    |:Logpose-rename-tag|.
 
                                                                *:Logpose-init*
 :Logpose init [{dir}]
@@ -846,6 +908,7 @@ you have mapped yourself are never replaced.
   <leader>jj  command menu          <leader>jy  today
   <leader>js  standup               <leader>jr  report
   <leader>jP  projects              <leader>je  edit details (frontmatter)
+  <leader>ju  people
 
   Notes
   <leader>jl  notes screen          <leader>jd  daily note
@@ -971,8 +1034,9 @@ Search and action items ~
                  questions.
   views          (table)       Saved searches: name -> `find` arguments,
                  e.g. `{ acme = "tasks open project:acme" }`.
-  people         (table)       `file` ("people.md"): your people list,
-                 relative to the root (|logpose-people-list|).
+  people         (table)       `contacts`: ways to reach people, key ->
+                 `{ label, show, open, order }` (|logpose-people-contacts|).
+                 Default: `email` only.
   actions        (table)       `include_daily` (false): also collect daily
                  note to-dos. `unassigned_mine` (true): items without
                  an owner count for `mine`. `output`: "quickfix" (default)
@@ -988,8 +1052,8 @@ Folders and file names ~
   root_markers   (string[])    Files that mark a journal root.
                  Default `{ ".logpose" }`.
   dirs           (table)       Paths relative to the root: `daily`,
-                 `meetings`, `notes`, `projects`, `tasks`, `templates`,
-                 `reports`.
+                 `meetings`, `notes`, `projects`, `tasks`, `people`,
+                 `templates`, `reports`.
   affixes        (table)       Prefixes: `daily` ("daily-") for daily
                  notes; `week` ("week-") and `sprint` ("") for the folders
                  in `tasks/archive/`.
@@ -1040,6 +1104,7 @@ Layout ~
   ├── meetings/acme/2026-10-14 - retro.md       meetings,
   ├── notes/queue-design.md                     topic notes,
   ├── projects/acme.md                          project pages
+  ├── people/ana-lopez.md            people pages
   ├── tasks/fix-flaky-test.md        tasks: one file each
   ├── tasks/archive/sprint-42/       done tasks from past sprints
   ├── reports/sprint-42.md
