@@ -81,6 +81,23 @@ local function apply(b, step, side)
     end
   end
   require("logpose.index").clear_cache()
+  -- a task put back in or out of Done: the to-dos it was made from follow
+  local done = require("logpose.config").get().board.done
+  local function is_done(content)
+    if not content then
+      return nil
+    end
+    return require("logpose.index").frontmatter(vim.split(content, "\n", { plain = true })).status == done
+  end
+  for _, c in ipairs(step.changes) do
+    local now, was = is_done(c[side]), is_done(c[other])
+    if now ~= nil and was ~= nil and now ~= was then
+      local ok, err = pcall(require("logpose.sync").set_todos, b.root, c.path, now)
+      if not ok then
+        require("logpose.util.ui").notify(require("logpose.util.ui").message(err), vim.log.levels.WARN)
+      end
+    end
+  end
   return true, focus
 end
 

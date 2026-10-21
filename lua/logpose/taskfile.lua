@@ -256,7 +256,8 @@ local function update(path, fn)
   require("logpose.index").clear_cache()
 end
 
---- Move a task to `status`, keeping `started`/`done` and the log in step.
+--- Move a task to `status`, keeping `started`/`done` and the log in step. Moving it in or out of
+--- Done checks or unchecks the to-dos it was made from (`sync.set_todos`).
 ---@param path string
 ---@param status string
 ---@return boolean changed
@@ -264,7 +265,7 @@ function M.set_status(path, status)
   if not M.column_index(status) then
     error(("logpose: unknown board column %q"):format(status), 0)
   end
-  local changed = false
+  local changed, was_done = false, false
   update(path, function(lines)
     local fm = require("logpose.index").frontmatter(lines)
     local from = str(fm.status) or config.get().tasks.capture_status
@@ -286,8 +287,20 @@ function M.set_status(path, status)
       lines = M.set_field(lines, "done", nil)
     end
     lines = M.set_field(lines, "order", nil)
+    was_done = from == board.done
     return M.append_log(lines, ("%s → %s"):format(M.label(from), M.label(status)))
   end)
+  -- in or out of Done: the to-dos it was made from follow
+  local is_done = status == config.get().board.done
+  if changed and was_done ~= is_done then
+    local root = config.resolve_root()
+    if root then
+      local ok, err = pcall(require("logpose.sync").set_todos, root, fs.normalize(path), is_done)
+      if not ok then
+        require("logpose.util.ui").notify(require("logpose.util.ui").message(err), vim.log.levels.WARN)
+      end
+    end
+  end
   return changed
 end
 
