@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1155,6 +1155,27 @@ task, a task's write-up becomes a note.
   via `topic.note(..., { body })`, an existing one at its end); the task gets `- [[note]]` under
   `## Notes` (created before `## Log`), and with `move` loses the write-up rows (recomputed from
   its current lines). The board's `✎` count picks the note up through `links.related`.
+
+## C5 — People suggestions (0.42.0)
+
+**Goal.** Suggest the right person while typing attendees, wherever that happens.
+
+**Design** (`people.lua`, `completion/init.lua`)
+- `people.known(root)`: the index's people (count, and involvement per project) merged with the
+  list file (`people.file`, `people.md`): `- Name (email) #project …` per list item (checkbox items
+  skipped); the list's spelling wins, its `#tags` count as projects. `people.from_list`.
+- `people.match(people, query, project)`: `plain()` (lowercase, Latin accents stripped) on both
+  sides; rank 1 the name or handle starts with it, 2 a word of the name does, 3 it's inside;
+  then the project's people (by involvement there), then overall involvement. Used by the edit
+  form (attendees, `with`, a person-type meeting's title; items carry `equal = 1` and the menu is
+  re-asked on `TextChangedP`, so Vim doesn't narrow it by prefix), the `customlist` prompts
+  (`LogposeCompletePeople`, without names already typed) and the note sources.
+- `completion.items(line, col, row, bufnr)` for blink.cmp / nvim-cmp: `[[` → link items (now
+  notes and tasks); in the frontmatter, an `attendees:` line (after `[` or a comma, names already
+  there left out, quoted for YAML when needed) or a `with:` line → people; `@partial` after a
+  space or punctuation → `@slug`. The note's `project:` ranks. `filterText` adds the plain
+  spelling so the plugins' own fuzzy filters match without accents. Triggers `[`, `@`, `,`; the
+  cmp keyword pattern also takes `@handle` and words.
 
 ## 5. Command reference (final state)
 
