@@ -268,7 +268,7 @@ function M.open(root)
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "logpose-projects"
-  vim.api.nvim_win_set_buf(0, buf)
+  require("logpose.util.ui").show(buf)
   vim.wo[0][0].wrap = false
   vim.wo[0][0].cursorline = true
   vim.b[buf].logpose_expanded = {}
