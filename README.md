@@ -84,9 +84,14 @@ logpose keeps three things apart, and every command, screen and search uses thes
 | **Note** | What you write down: daily notes, meeting notes, topic notes, project pages. | `daily/`, `meetings/`, `notes/`, `projects/` | `:Logpose notes`, `daily`, `meeting`, `note`, `find notes` |
 | **To-do** | A checkbox (`- [ ]`) inside a note: a reminder, or a meeting's action item. | The note it's written in. | `:Logpose check`, `actions`, `find todos` |
 
-A to-do that grows into real work becomes a task with `:Logpose promote`: the task links back to
-the note, and the to-do becomes a link to the task. The board shows how many notes are linked
-with each task (`✎ 2`); `n` opens them.
+`:Logpose promote` moves things up a level, and links both ends to each other:
+
+- **A to-do becomes a task.** The task gets `From: [[the note]]`; the to-do keeps its text (so an
+  action item keeps its owner and due date) and gains a `→ [[task]]` line under it.
+- **A task's write-up becomes a note.** The note starts with `From: [[the task]]`; the task lists
+  the note under `## Notes`.
+
+The board shows how many notes are linked with each task (`✎ 2`); `n` opens them.
 
 ## How it fits a sprint
 
@@ -270,6 +275,7 @@ board):
 | `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
 | `K` | Peek: open the task in a floating window to read or edit it. |
 | `n` | Open the notes linked with the task (the `✎ 2` on the card). |
+| `N` | Make a note from the task's write-up ([copy or move it](#from-a-task-to-a-note)). |
 | `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
 | `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` then act on every marked card at once. |
 | `<CR>` | Open the task file. |
@@ -318,11 +324,28 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 | From | Do | Result |
 |---|---|---|
 | Anywhere | `:Logpose capture text #tag +project due:DATE` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
-| A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back, and the to-do becomes a link to it. |
+| A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back; the to-do keeps its text and gains a `→ [[task]]` line under it. |
 | A task file | `:Logpose done` | The task moves to Done. |
+| A task file (or a selection in it), or `N` on the board | `:Logpose promote` | A topic note from the task's write-up, linked both ways (see below). |
 
 To-dos aren't tasks: `:Logpose check` checks one off (or a visual selection of them), and again
 unchecks it. `:Logpose done` only works in a task file.
+
+### From a task to a note
+
+Sometimes what you wrote while working on a task is worth keeping as a note. In a task file,
+`:Logpose promote` (or `N` on its card) opens the new-note form filled in from the task: title,
+project and tags, plus `content`:
+
+- `copy` (the default) puts the write-up in the note and keeps it in the task;
+- `move` puts it in the note and leaves only the link in the task.
+
+The write-up is the task's body without `## Log` (its history), its `## Notes` and its own
+`From:` line; select lines first (`:'<,'>Logpose promote`) to take just those. The note starts
+with `From: [[tasks/queue-design|Queue design]]`, and the task gets
+`- [[notes/queue-design|Queue design]]` under `## Notes`, so its card counts it (`✎`). If a note
+with that title exists, the write-up is added to its end. On a to-do inside a task,
+`:Logpose promote` still makes a task of the to-do.
 
 > **Configure:** columns, WIP limits, colours and glyphs are all in [`board`](#configuration).
 
@@ -701,7 +724,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `check` | Check off the to-do on this line (or the selected ones); again to uncheck. |
-| `promote` | Turn the to-do on this line into a task, linked both ways. |
+| `promote` | On a to-do: a task, linked both ways. In a task file (or a selection): a note from its write-up, linked both ways. |
 | `actions [open\|mine\|overdue\|all] [FILTERS]` | Meeting action items (to-dos in meeting notes) in the quickfix list. |
 
 ### Finding things
@@ -746,7 +769,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `x` | done | `b` | block (asks why) / unblock |
 | `<C-j>` `<C-k>` | move the card down / up | `a` | add a card to this column |
 | `K` | peek in a floating window | `D` | delete the card (asks first) |
-| `n` | notes linked with the task | | |
+| `n` | notes linked with the task | `N` | a note from the task's write-up |
 | `z` | fold / unfold the column | `gg` `G` | first / last card |
 | `u` | undo | `<C-r>` | redo |
 | `c` | compact one-line cards | `s` | one row per project |
