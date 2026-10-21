@@ -216,24 +216,21 @@ T["topic"][":Logpose note opens the form; saving creates the note with its proje
   eq(child.api.nvim_buf_get_name(0), root .. "/notes/other-idea.md")
 end
 
-T["the notes screen's a, n and m open the forms with its project"] = function()
+T["a on the lists opens the forms with their project"] = function()
   H.write(
     root .. "/meetings/acme/2026-10-14 - retro.md",
     '---\ntype: retro\ndate: 2026-10-14\ntitle: "Retro"\nproject: acme\n---\n'
   )
-  child.lua("require('logpose.notes.browse').open(..., { project = 'acme' })", { root })
-  child.type_keys("a") -- the cursor starts on the retro, in Meetings
+  child.lua("require('logpose.lists').open(..., require('logpose.lists.meetings'), { project = 'acme' })", { root })
+  child.type_keys("a")
   eq(child.api.nvim_win_get_config(0).title[1][1], " New meeting ")
   eq(values()[4], "acme")
   child.cmd("stopinsert")
   child.type_keys("q")
-  child.type_keys("n")
+  child.lua("require('logpose.lists').open(..., require('logpose.lists.notes'), { project = 'acme' })", { root })
+  child.type_keys("a")
   eq(child.api.nvim_win_get_config(0).title[1][1], " New topic note ")
   eq(values()[2], "acme")
-  child.cmd("stopinsert")
-  child.type_keys("q")
-  child.type_keys("m")
-  eq(child.api.nvim_win_get_config(0).title[1][1], " New meeting ")
 end
 
 return T
