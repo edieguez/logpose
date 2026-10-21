@@ -254,7 +254,14 @@ T["promote turns a to-do into a linked task"] = function()
   local t = fm(path)
   eq({ t.title, t.status, t.project, t.tags, t.due }, { "fix CI @ana", "backlog", "acme", { "perf" }, "2026-10-20" })
   H.contains(H.read(path), "From: [[meetings/acme/2026-10-15 - retro|Retro]]")
-  eq(child.api.nvim_buf_get_lines(0, 7, 8, false)[1], "- [ ] [[tasks/fix-ci-ana|fix CI @ana]]")
+  -- both ways: the action item keeps its owner and due date and links to the task
+  eq(
+    child.api.nvim_buf_get_lines(0, 7, 9, false),
+    { "- [ ] fix CI #perf @ana due:2026-10-20", "  → [[tasks/fix-ci-ana|task]]" }
+  )
+  child.cmd("Logpose actions")
+  H.contains(child.fn.getqflist()[1].text, "fix CI #perf @ana due:2026-10-20")
+  child.cmd("cclose")
   eq(child.bo.modified, false) -- saved
   child.api.nvim_win_set_cursor(0, { 6, 0 })
   child.cmd("Logpose promote")
