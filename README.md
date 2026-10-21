@@ -22,6 +22,7 @@ Requires Neovim 0.10 or later.
   [Tasks and the board](#tasks-and-the-board) · [Notes screen](#the-notes-screen) ·
   [Today screen](#the-today-screen) ·
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
+  [People](#people) ·
   [Editing details](#editing-details) · [Links](#topic-notes-and-links) ·
   [Sprints and reports](#sprints-archives-and-reports) ·
   [Extras](#extras)
@@ -540,35 +541,81 @@ such as `project:` are ignored until they're complete. Every result has a previe
 They open in the quickfix list, soonest due first, with overdue items flagged. Filters work as
 in `find`.
 
-**People** come from meeting `attendees:`, 1:1s and `@mentions`. `:Logpose find people` lists
-everyone with how much involves them; pick a person to see all of it.
+**People** come from meeting `attendees:`, 1:1s and `@mentions`, and from [people pages](#people).
+`@ana` or `person:ana` filters any search.
 
-**The people list.** To have people suggested before your first meeting with them, list them in
-`people.md` at the journal's root, one per item:
+## People
 
-```markdown
-- Ana López (ana@acme.com) #acme
-- Luis Pérez #acme #web
-- José Ruiz
+**A page per person you work with: who they are, how to reach them, and your notes about them.**
+
+```vim
+:Logpose people        " everyone: role, how to reach them, when you last met, their open to-dos
+:Logpose person ana    " Ana's page (or the form to add her)
 ```
 
-The email and `#projects` are optional; a `#project` puts that person first in that project's
-meetings. The list's spelling of a name wins.
+A person's page is `people/<name>.md`:
+
+```markdown
+---
+name: Ana López
+aliases: [Ana]
+role: Backend lead
+projects: [acme]
+email: ana@acme.com
+slack: ana.lopez
+---
+
+Prefers async reviews. Back from leave on the 21st.
+```
+
+`aliases` make "Ana", `@ana` and "Ana López" the same person everywhere: completion, filters
+(`person:ana` finds the notes that say Ana López too), the people screen. `projects` puts her
+first in that project's meetings before you've met her there. Add a person from the people screen
+(`a`), with `:Logpose person`, or with `:Logpose edit` on their page; the form has a field for
+each way to reach people.
+
+**The people screen** lists people with a page (most recently met first), then the people your
+notes mention who have no page yet. `<Tab>` shows what involves someone (their meetings, the open
+to-dos they own, tasks and notes mentioning them). `<CR>` opens their page, or the form to add one.
+`e` edits it, `m` starts a 1:1, `y` copies a way to reach them and `o` opens it (a mail, a chat).
+`R` renames them everywhere, `/` filters by name, role or project, `p` switches between this
+project and everyone, `?` lists the keys.
+
+`gx` on an `@mention` or an attendee opens their page. `:Logpose rename-person ana Ana García`
+renames someone everywhere: the page (the old name stays as an alias), attendees and `@mentions`.
+
+**Ways to reach people are yours to define**, so moving to a company on another chat app is a
+config change. Email is there by default; add what you use:
+
+```lua
+people = {
+  contacts = {
+    email = { label = "Email", open = "mailto:{value}", order = 1 },
+    slack = { label = "Slack", show = "@{value}", order = 2,
+              open = "slack://user?team=T012345&id={value}" },  -- optional: opens the chat
+    phone = { label = "Phone", open = "tel:{value}", order = 3 },
+  },
+},
+```
+
+`show` is how the value is displayed and `open` what `o` opens; `{value}` is the page's value.
+A key on a page that isn't configured still shows, under its own name.
 
 **Suggesting people.** Wherever logpose asks for a person (the forms' `attendees`, a 1:1's
 person, the attendees prompt, and in a note itself; see [completion in notes](#topic-notes-and-links)),
-any part of the name matches and accents don't matter: `lop` finds Ana López, `jose` finds José
-Ruiz. The note's project's people come first, then the people you meet most. Names already in
-the list aren't offered again.
+any part of the name or an alias matches and accents don't matter: `lop` finds Ana López, `jose`
+finds José Ruiz. The note's project's people come first, then the people you meet most. Names
+already in the list aren't offered again.
 
 ## Editing details
 
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
 
 It works on tasks (title, status, project, tags, due, blocked) and on notes: meetings (title,
-type, date, project, attendees, tags), topic notes (title, project, tags) and project pages (title,
-description, paths, colour). The form's title says which it is (`Edit task · …`,
-`Edit meeting · …`). Other keys are left as they are.
+type, date, project, attendees, tags), topic notes (title, project, tags), project pages (title,
+description, paths, colour) and people pages (name, aliases, role, projects, ways to reach them).
+The form's title says which it is (`Edit task · …`, `Edit meeting · …`). Other keys are left as
+they are.
 
 `:Logpose edit` opens the frontmatter of the current task or note as a form. It also opens from `e` on a
 board card, `e` on a project in `:Logpose projects`, and `:Logpose edit last` for the task you
@@ -766,6 +813,8 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
+| `people [FILTER]` | The people screen: everyone you work with, how to reach them, what involves them. |
+| `person [NAME]` | Open someone's page, or add one. |
 | `edit [last]` | Edit the frontmatter of this note or task (or the last captured task's, or the tasks on selected quickfix lines) in a form. |
 
 ### Sprints and maintenance
@@ -777,6 +826,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `rename-tag[!] OLD NEW` | Rename a tag everywhere. |
 | `rename-project[!] OLD NEW` | Rename a project everywhere. |
 | `merge-project[!] OLD NEW` | Merge one project into another. |
+| `rename-person[!] HANDLE [NEW NAME]` | Rename a person everywhere (asks for the name if not given). |
 | `init [DIR]` | Choose or create the journal folder. |
 | `stats[!] [DAYS]` | Usage stats. `!` resets them. |
 
@@ -832,6 +882,7 @@ and it never replaces a key you've mapped yourself.
 | | `<leader>jj` | command menu | `<leader>jy` | today |
 | | `<leader>js` | standup | `<leader>jr` | report |
 | | `<leader>jP` | projects (switch, manage) | `<leader>je` | edit details (frontmatter) |
+| | `<leader>ju` | people | | |
 | **Notes** | `<leader>jl` | notes screen | `<leader>jd` | daily note |
 | | `<leader>jm` | meeting note | `<leader>jn` | topic note |
 | | `<leader>jf` | find notes | `<leader>jb` | backlinks |
@@ -952,7 +1003,7 @@ timestamps = { created = true, modified = true },  -- created:/modified: in fron
 search = { live = true },              -- the picker prompt re-runs the query as you type
 retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
 views = {},                            -- saved searches: name = "find arguments"
-people = { file = "people.md" },       -- your people list, relative to the journal root
+people = { contacts = { email = { label = "Email", open = "mailto:{value}", order = 1 } } },  -- see People
 actions = {
   include_daily = false,               -- also collect to-dos from daily notes
   unassigned_mine = true,              -- items without an owner count as yours
@@ -972,7 +1023,7 @@ telemetry = { enabled = true, retention_days = 180 },  -- local only; false to t
 root_markers = { ".logpose" },
 dirs = {                               -- relative to the journal root
   daily = "daily", meetings = "meetings", notes = "notes", projects = "projects", tasks = "tasks",
-  templates = "templates", reports = "reports",
+  people = "people", templates = "templates", reports = "reports",
 },
 affixes = { daily = "daily-", week = "week-", sprint = "" },  -- week-/sprint folders in tasks/archive/
 link_base = "",                        -- wiki-link targets are relative to this folder
@@ -1032,6 +1083,7 @@ headings, lists and code it inserts, and never rewraps your own text.
 │   └── archive/sprint-42/           done tasks from past sprints
 ├── notes/queue-design.md            topic notes
 ├── projects/acme-api.md             project pages
+├── people/ana-lopez.md              people pages
 ├── reports/sprint-42.md
 └── templates/                       your template overrides
 ```
