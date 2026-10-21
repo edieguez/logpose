@@ -63,7 +63,8 @@ these words:
   to-do   A checkbox (`- [ ]`) inside a note: a reminder, or a meeting's
           action item. |:Logpose-check| checks it off.
 
-A to-do that grows into real work becomes a task with |:Logpose-promote|.
+|:Logpose-promote| moves things up a level, linking both ends: a to-do
+becomes a task, and a task's write-up becomes a note.
 The board counts the notes linked with each task (`✎ 2`); `n` opens them.
 
 ==============================================================================
@@ -225,7 +226,8 @@ Getting tasks in and out ~
 
   |:Logpose-capture|  from anywhere: a Backlog task for the active project
   `a` on the board    a card in the focused column
-  |:Logpose-promote|  a to-do in a note becomes a Backlog task
+  |:Logpose-promote|  a to-do in a note becomes a Backlog task; in a task,
+                      its write-up becomes a note (`N` on the board)
   |:Logpose-done|     in a task file: move it to Done
   `x` on the board    move the card to Done
 
@@ -614,11 +616,22 @@ To-dos ~
     is edited, so |u| undoes it.
 
                                                             *:Logpose-promote*
-:Logpose promote
-    Turn the to-do under the cursor into a task in `tasks.promote_status`
-    (Backlog), with the note's project and a `From:` link back, and replace
-    the to-do's text with a link to the task. A checked to-do becomes a task
-    in Done.
+:[range]Logpose promote
+    Move something up a level, linking both ends to each other.
+
+    On a to-do: a task in `tasks.promote_status` (Backlog; Done if it was
+    checked), with the note's project and a `From:` link back. The to-do
+    keeps its text (an action item its owner and due date) and gains a
+    `→ [[task]]` line under it.
+
+    In a task file (not on one of its to-dos), or on [range] there: the
+    new-note form, filled in from the task (title, project, tags) with a
+    `content` field: `copy` (default) keeps the write-up in the task, `move`
+    leaves only the link there. The write-up is the body without `## Log`,
+    `## Notes` and the task's `From:` line, or the lines in [range]. The note
+    starts with `From: [[task]]`; the task gets the note under `## Notes`. A
+    note with that title gets the write-up added at its end. `N` on the
+    board does the same for the focused card.
 
                                                             *:Logpose-actions*
 :Logpose actions [{mode}] [{filters}...]
@@ -766,6 +779,7 @@ Sprints and maintenance ~
                 closes it, and the board picks up the change
   n             the notes linked with the task (`✎ 2` on the card): one
                 opens directly, several in the picker
+  N             a note from the task's write-up (|:Logpose-promote|)
   <CR>          open the task file
   z             fold / unfold the column
   gg  G         first / last card
