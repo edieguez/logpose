@@ -358,8 +358,29 @@ function M.complete(_, args)
   for _, t in ipairs(require("logpose.notes.meeting").types()) do
     table.insert(out, "type:" .. t.key)
   end
+  for _, t in ipairs({ "daily", "meeting", "topic", "project", "task", "person" }) do
+    table.insert(out, "type:" .. t)
+  end
   for _, c in ipairs(config.get().board.columns) do
     table.insert(out, "status:" .. c.key)
+  end
+  vim.list_extend(out, { "or", "not", "date:", "date>=", "date<=", "attendees:", "with:", "has:", "no:" })
+  -- other frontmatter keys in use
+  if root then
+    local keys = {}
+    for _, it in ipairs(index.build(root)) do
+      if index.is_file(it) then
+        for k in pairs(it.fields or {}) do
+          keys[k] = true
+        end
+      end
+    end
+    for _, k in ipairs({ "title", "type", "date", "project", "tags", "attendees", "with", "status" }) do
+      keys[k] = nil
+    end
+    for k in vim.spairs(keys) do
+      table.insert(out, k .. ":")
+    end
   end
   return out
 end

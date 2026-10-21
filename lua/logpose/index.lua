@@ -19,7 +19,7 @@ local M = {}
 ---@field text string
 ---@field date? string
 ---@field file_type string  where the file sits: daily|meeting|project|topic|task|person|other
----@field fields? table     people's pages: their frontmatter (name, aliases, role, contacts…)
+---@field fields? table     the frontmatter of the file (a line or to-do: of its note), for filters
 ---@field status? string   tasks: board column
 ---@field blocked? string  tasks: block reason
 ---@field due? string      tasks: due date
@@ -276,9 +276,7 @@ function M.index_lines(path, lines, root)
     names = names,
     links = {},
   }
-  if file_type == "person" then
-    note.fields = fm
-  end
+  note.fields = fm -- every frontmatter key, for filters (`role:lead`, `attendees:ana`)
   if file_type == "task" then
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
@@ -345,6 +343,7 @@ function M.index_lines(path, lines, root)
         title = title,
         section = section,
         section_title = section_title,
+        fields = fm,
         task_link = task_links[i] and task_links[i].link or nil,
         task_link_text = task_links[i] and task_links[i].link_text or nil,
       })
@@ -370,6 +369,7 @@ function M.index_lines(path, lines, root)
         title = title,
         section = section,
         section_title = section_title,
+        fields = fm,
       })
     end
   end
