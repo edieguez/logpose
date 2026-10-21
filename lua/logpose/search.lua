@@ -333,9 +333,15 @@ end
 --- Completion: scopes, then filters with known projects, tags and meeting types.
 ---@param args string[]
 ---@return string[]
-function M.complete(_, args)
+function M.complete(arglead, args)
   if #args == 0 then
     return M.SCOPES
+  end
+  -- a filter's values (project:, #, @, attendees:, date:…): what the journal holds
+  if arglead and (arglead:find("[:<>]") or arglead:match("^%-?[#@]")) then
+    return vim.tbl_map(function(it)
+      return it.word
+    end, require("logpose.filter").complete(arglead))
   end
   local out =
     { "open", "done", "blocked", "since:", "until:", "sprint:current", "sprint:-1", "week:current", "week:-1" }
