@@ -1,7 +1,7 @@
 import re, sys, html, pathlib
 from playwright.sync_api import sync_playwright
 d = pathlib.Path(sys.argv[1])
-views = [("board", "~/journal — :Logpose board"), ("today", ":Logpose today"), ("projects", ":Logpose projects"), ("edit", ":Logpose edit — Fix flaky checkout test"), ("notes", ":Logpose notes")]
+views = [("board", "~/journal — :Logpose board"), ("today", ":Logpose today"), ("projects", ":Logpose projects"), ("edit", ":Logpose edit — Fix flaky checkout test"), ("notes", ":Logpose notes"), ("meetings", ":Logpose meetings")]
 out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
 with sync_playwright() as p:
     b = p.chromium.launch()

@@ -16,7 +16,7 @@ CONTENTS                                                    *logpose-contents*
        Daily notes and standup ............. |logpose-standup|
        Meetings ............................ |logpose-meetings|
        Tasks and the board ................. |logpose-board|
-       Notes screen ........................ |logpose-notes|
+       Meetings, notes and people lists .... |logpose-lists|
        Today screen ........................ |logpose-today|
        Projects ............................ |logpose-projects|
        Managing projects ................... |logpose-project-manager|
@@ -272,32 +272,51 @@ A column's `hl` picks another group, or override these:
 Options: `board`, `tasks`.
 
 ------------------------------------------------------------------------------
-NOTES SCREEN                                                   *logpose-notes*
+MEETINGS, NOTES AND PEOPLE LISTS                               *logpose-lists*
+                                                               *logpose-notes*
+The board is for tasks; the lists are for everything else:
 
-The board is for tasks; |:Logpose-notes| is for notes. It lists them newest
-first in sections (meetings, topic notes, daily notes, project pages), each
-line with the note's date and title, its open to-dos (`☐ 2 to-dos`), the
-tasks it's linked with (`→ 1 task`) and, on the all-projects view, its
-project. A section shows its newest eight; `<CR>` on `… N more` shows all.
+  |:Logpose-meetings|  every meeting: date, type, title, who was there, open
+                     action items (`☐ 2 open`), tasks it led to (`→ 1 task`)
+                     Group by week, type, project or series.
+  |:Logpose-notes|     topic notes and project pages: date, title, open
+                     to-dos, linked tasks, project, tags. Group by type,
+                     project, tag or month. Daily notes show with
+                     `type:daily` in the filter, meetings with
+                     `type:meeting`.
+  |:Logpose-people|    everyone you work with (|logpose-people|). Group by
+                     page, project, role or when you last met.
 
-It shows the active project's notes (by `project:` or a `#project` tag), or
-all of them when there is none. `f` on a project in |:Logpose-projects|
-opens it for that project.
+Each shows the active project, or every project when there's none (a filter
+given on the command line looks in every project). A group shows its first
+ten; `<CR>` on `… N more` shows the rest.
 
-  <CR>   open the note (a heading: fold / unfold)
-  e      edit its details (|logpose-edit|)
-  /      filter, with |logpose-filters|
-  p      this project / all projects
-  g      group by type / by project
-  z      fold / unfold the section
-  a      a new note for this section: a meeting under Meetings, else a
-         topic note (in the form, with this screen's project)
-  n      new topic note       m  new meeting           d  daily note
-  b      board
-  r      refresh              q  close                 ?  help
+Moving an entry to another group changes its note, so the list and the
+files agree: another project moves a meeting to that project's folder (links
+follow), another type sets its `type:`, another tag swaps the note's tag,
+another project or role updates a person's page. Groups that come from the
+note itself (week, month, last met) can't be moved to.
 
-Highlights: `LogposeNotesHeading`, `LogposeNotesDate`, `LogposeNotesMeta`,
-`LogposeNotesTodos`, `LogposeNotesTasks`, `LogposeNotesHint`.
+  <CR>    open (a heading: fold; `… N more`: show all; a detail: open it)
+  <Tab>   details: attendees, action items, linked tasks; for a person,
+          their meetings, to-dos and mentions
+  K       peek: the note in a floating window, to read and edit
+  /       filter, with |logpose-filters| (`or`, `not`, any field…)
+  g       change the grouping          s   change the order
+  m       move to another group (asks; `new…` for a new project, tag or
+          role)                        < >  to the previous / next group
+  e       edit (|logpose-edit|)        a   add one, in the group you're in
+  p       this project / all           z   fold the group
+  ]] [[   next / previous group        r   refresh
+  q       close                        ?   help
+
+The notes list adds `d` (today's daily note) and `b` (the board); the people
+list `y`, `o`, `1` and `R` (|logpose-people-screen|). `f` on a project in
+|:Logpose-projects| opens its notes.
+
+Highlights: `LogposeListHeading`, `LogposeListGroup`, `LogposeListDate`,
+`LogposeListMeta`, `LogposeListTodos`, `LogposeListTasks`,
+`LogposeListPeople`, `LogposeListHint`.
 
 ------------------------------------------------------------------------------
 TODAY SCREEN                                                   *logpose-today*
@@ -467,26 +486,25 @@ A page per person you work with, `people/{slug}.md`: >markdown
 <
 `aliases` make "Ana", `@ana` and "Ana López" one person: in completion,
 in filters (`person:ana` also finds notes naming Ana López) and on the
-people screen. `projects` puts the person first in that project's meetings.
-Add a person with `a` on the people screen, |:Logpose-person|, or edit a
+people list. `projects` puts the person first in that project's meetings.
+Add a person with `a` on the people list, |:Logpose-person|, or edit a
 page with |:Logpose-edit|: the form has a field for each way to reach
 people.
 
                                                        *logpose-people-screen*
-|:Logpose-people| lists people with a page (role, how to reach them, when
-you last met, the open to-dos they own), most recently met first, then the
-people your notes mention who have no page yet. Keys:
+|:Logpose-people| is one of the lists (|logpose-lists|): people with a page
+(role, how to reach them, when you last met, the open to-dos they own),
+then the people your notes mention who have no page yet. Besides the lists'
+keys:
 
-  <CR>    open their page (no page yet: the form to add one); on a
-          detail line, open that note
-  <Tab>   show / hide their meetings, open to-dos, tasks and notes
-  e       edit their details          a   add a person
-  m       start a 1:1 with them (the first meeting type with `person`)
+  <CR>    open their page (no page yet: the form to add one)
+  a       add a person (on someone without a page: theirs)
+  1       start a 1:1 with them (the first meeting type with `person`)
   y       copy a way to reach them    o   open it (mail, chat…)
   R       rename them everywhere (|:Logpose-rename-person|)
-  /       filter by name, alias, role or project
-  p       this project / everyone     r   refresh
-  q       close                       ?   help
+
+`/` filters with any field too: `role:lead`, `slack:*`, `date>=-30d` (met
+in the last 30 days).
 
 `gx` on an `@mention`, or on a name in an `attendees:` or `with:` line,
 opens that person's page when there is one.
@@ -760,10 +778,14 @@ Finding things ~
 
 Notes and projects ~
 
+                                                           *:Logpose-meetings*
+:Logpose meetings [{filters}...]
+    The meetings list (|logpose-lists|), starting with {filters}
+    (|logpose-filters|).
+
                                                               *:Logpose-notes*
 :Logpose notes [{filters}...]
-    The notes screen (|logpose-notes|), starting with {filters}
-    (|logpose-filters|).
+    The notes list (|logpose-lists|), starting with {filters}.
 
                                                                *:Logpose-note*
 :Logpose note [{title}]
@@ -780,8 +802,8 @@ Notes and projects ~
     [range] of lines, together. See |logpose-edit|.
 
                                                              *:Logpose-people*
-:Logpose people [{filter}]
-    The people screen (|logpose-people-screen|), filtered by {filter}.
+:Logpose people [{filters}...]
+    The people list (|logpose-people-screen|), starting with {filters}.
 
                                                              *:Logpose-person*
 :Logpose person [{handle}]
@@ -907,13 +929,18 @@ Sprints and maintenance ~
 ==============================================================================
 6. SEARCH FILTERS                                            *logpose-filters*
 
-Used by |:Logpose-find|, |:Logpose-board|, |:Logpose-actions| and
-|:Logpose-report|. Every filter must match.
-
+Used by |:Logpose-find|, |:Logpose-board|, the lists (|logpose-lists|),
+|:Logpose-actions| and |:Logpose-report|. Filters next to each other must all
+match; `or` gives either one (`and` binds tighter), `not` or a leading `-`
+the opposite, and parentheses group: >
+  (type:retro or type:review) @ana -#draft
+<
   project:{name}          the item's project, or a `#{name}` tag
   #{tag}  tag:{tag}       tagged items
-  @{name}  person:{name}  involves the person (attendee, 1:1, @mention)
-  type:{type}             meetings of that type
+  @{name}  person:{name}  involves the person (attendee, 1:1, @mention),
+                          under any of their names
+  type:{type}             meetings of that type; or the kind of note:
+                          daily, meeting, topic, project, task, person
   open  done              tasks (in Done or not), to-dos (checked or not)
   status:{key}            tasks in that board column
   blocked                 blocked tasks
@@ -922,7 +949,19 @@ Used by |:Logpose-find|, |:Logpose-board|, |:Logpose-actions| and
   week:{spec}             a whole week or sprint: current, -N, +N, a date,
   sprint:{spec}           or a sprint number (needs `period.sprint.anchor`)
   section:{name}          lines under a `## ` heading containing {name}
-  other words             must all appear in the text
+  {key}:{value}           any frontmatter field containing {value} (case
+                          and accents ignored): `room:lisboa`, `role:lead`
+  attendees:{name}        meetings with the person, by any of their names
+  with:{name}             or part of one
+  date:{when}             a day, month (2026-10) or year; also `due:`,
+                          `created:`, `started:`, `done:`, `modified:`
+  {key}>={v}  {key}>{v}   comparisons, for dates (`date>=-7d`, `due<today`)
+  {key}<={v}  {key}<{v}   and numbers
+  date:{a}..{b}           a range of dates (`date:..2026-09` from the start)
+  {key}:*  has:{key}      has the field
+  no:{key}                doesn't
+  "two words"             a value with spaces: `attendees:"Ana López"`
+  other words             must all appear in the text (accents ignored)
 
 Tags are inline `#words` (not headings, URL fragments or numbers such as
 `#123`) and frontmatter `tags:`, compared without case.
@@ -940,7 +979,8 @@ you have mapped yourself are never replaced.
   <leader>ju  people
 
   Notes
-  <leader>jl  notes screen          <leader>jd  daily note
+  <leader>jl  notes list            <leader>jd  daily note
+  <leader>jM  meetings list
   <leader>jm  meeting note          <leader>jn  topic note
   <leader>jf  find notes            <leader>jb  backlinks
   <leader>j/  grep the journal

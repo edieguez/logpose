@@ -41,15 +41,15 @@ local tasks = {
 write(root .. "/.logpose", "")
 write(
   root .. "/projects/acme.md",
-  '---\ntitle: "Acme API"\ntype: project\nproject: acme\ndescription: Payments API for the Acme storefront\npaths: [~/work/acme-api]\ncolor: "#e0af68"\n---\n## Overview\n'
+  '---\ntitle: "Acme API"\ntype: project\nproject: acme\ndescription: Payments API for the Acme storefront\npaths: [~/work/acme-api]\ncolor: "#e0af68"\ncreated: 2026-09-01T09:00\n---\n## Overview\n'
 )
 write(
   root .. "/projects/thesis.md",
-  '---\ntitle: "Master\'s thesis"\ntype: project\nproject: thesis\n---\n## Overview\n'
+  '---\ntitle: "Master\'s thesis"\ntype: project\nproject: thesis\ncreated: 2026-08-20T09:00\n---\n## Overview\n'
 )
 write(
   root .. "/projects/legacy-billing.md",
-  '---\ntitle: "Legacy billing"\ntype: project\nproject: legacy-billing\narchived: true\n---\n## Overview\n'
+  '---\ntitle: "Legacy billing"\ntype: project\nproject: legacy-billing\narchived: true\ncreated: 2026-03-02T09:00\n---\n## Overview\n'
 )
 write(
   root .. "/tasks/billing.md",
@@ -96,8 +96,37 @@ vim.cmd("Logpose project none")
 vim.cmd("Logpose daily")
 vim.cmd("silent write")
 
+-- Earlier meetings, for :Logpose meetings.
+for _, m in ipairs({
+  {
+    "acme/2026-10-07 - refinement",
+    'type: refinement\ndate: 2026-10-07\nproject: acme\ntitle: "Refinement"\nattendees: [Ana López, Luis Pérez, Carla Gómez]',
+    "- [ ] Split the search epic @luis\n- [x] Estimate SSO\n",
+  },
+  {
+    "thesis/2026-10-09 - 1-1-dr-ruiz",
+    'type: 1on1\ndate: 2026-10-09\nproject: thesis\ntitle: "1:1 Dr. Ruiz"\nwith: Dr. Ruiz\nattendees: [Dr. Ruiz]',
+    "- [ ] Rewrite chapter 2 intro\n",
+  },
+  {
+    "2026-10-12 - sync-with-qa",
+    'type: adhoc\ndate: 2026-10-12\ntitle: "Sync with QA"\nattendees: [Marta, Ana López]',
+    "",
+  },
+  {
+    "acme/2026-10-01 - sprint-review",
+    'type: review\ndate: 2026-10-01\nproject: acme\ntitle: "Sprint review"\nattendees: [Ana López, Luis Pérez, Marta, Jorge]',
+    "- [x] Demo the new checkout\n",
+  },
+}) do
+  write(("%s/meetings/%s.md"):format(root, m[1]), ("---\n%s\n---\n## Notes\n\n%s"):format(m[2], m[3]))
+end
+
 -- When notes were last edited, for the today screen's "Recently edited".
-write(root .. "/notes/cache-design.md", "# Cache design\n\nSee [[search-index]].\n")
+write(
+  root .. "/notes/cache-design.md",
+  '---\ntitle: "Cache design"\nproject: acme\ntags: [arch]\ncreated: 2026-10-12T16:00\n---\nSee [[search-index]].\n'
+)
 local uv = vim.uv or vim.loop
 local now = os.time()
 for path, ago in pairs({
@@ -105,6 +134,10 @@ for path, ago in pairs({
   ["daily/daily-2026-10-14.md"] = 20 * 3600,
   ["meetings/acme/2026-10-14 - retro.md"] = 26 * 3600,
   ["meetings/acme/2026-10-15 - sprint-planning.md"] = 40 * 60,
+  ["meetings/acme/2026-10-07 - refinement.md"] = 8 * 86400,
+  ["meetings/thesis/2026-10-09 - 1-1-dr-ruiz.md"] = 6 * 86400,
+  ["meetings/2026-10-12 - sync-with-qa.md"] = 3 * 86400,
+  ["meetings/acme/2026-10-01 - sprint-review.md"] = 14 * 86400,
 }) do
   uv.fs_utime(root .. "/" .. path, now - ago, now - ago)
 end

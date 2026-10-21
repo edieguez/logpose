@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1264,6 +1264,51 @@ so an action item doesn't stay open after its task is done.
 both ways with the column from the log, asking for unstarted tasks, hand edits saved, unsaved
 buffers, the index safety net, carrying over.
 
+## C8 — Filter language and lists (0.46.0)
+
+**Goal.** Meetings, notes and people browsed like tasks are on the board: grouped, filtered by
+anything in their frontmatter (with `and`, `or`, `not`), and changed by moving them.
+
+**Design: the filter language** (`query.lua`)
+- `parse(args, today, lenient)` tokenizes the joined arguments (`(`, `)`, `"quoted text"`) and
+  builds an expression: `or` of `and`s of factors; a factor is `not`/`!`, a leading `-`
+  (not before a digit, so `-7d` stays a word), `( … )`, or a filter. `and` is implicit (or
+  written `and`/`&`); `or`/`|`. Lenient mode skips invalid or half-typed filters and unbalanced
+  parentheses; strict mode raises.
+- Filters: the old ones (project, tags, `type:`, open/done, since/until, week/sprint, section,
+  person/`@`, status, blocked, words) plus any frontmatter field `key:value` (contains, case and
+  accents ignored; lists match any element), `key>=v` `>` `<=` `<` (dates and numbers), ranges
+  `key:a..b`, `key:*`/`has:key`/`no:key`. Date fields (`date`, `due`, `done`, `created`,
+  `started`, `modified`) and date-looking values compare as days; a month or year means its
+  whole span (`date<=2026-10` includes the 31st). `attendees:`/`with:` match a person by any of
+  their names (`people.expand`) or part of one. `type:` also matches the kind of note
+  (`daily`, `meeting`, `topic`, `project`, `task`, `person`).
+- Items carry `fields` (the file's frontmatter; a to-do or line, its note's), so fields work in
+  every scope. `q` is `{ expr }`; `match`, `filter`, `is_empty`.
+
+**Design: lists** (`lists/init.lua`, views `lists/meetings.lua`, `lists/notes.lua`,
+`lists/people.lua`; `lists/common.lua` for shared pieces)
+- One engine renders a view: entries (`collect`), filtered by project scope and the filter,
+  sorted (`sorts`), grouped (`groupings[i].of(e)` → groups; an entry may be in several),
+  `## Group (n)` headings with the first ten rows and `… N more`, `<Tab>` details, folding.
+- Moving (`m`, `<`, `>`) calls the grouping's `move(s, e, from, to)`, which writes the note
+  through `edit.save.note` (a meeting's project moves its file and fixes links; tags and
+  `projects` lists swap `from` for `to`). Groupings without `move` (week, month, series, last
+  met, page, type of note) refuse with a message. `targets` lists where to go, `ask` adds
+  "new…".
+- Meetings: by week (default), type, project, series. Notes: topic notes and project pages
+  (archived projects' pages left out); daily notes / meetings only when the filter names
+  `type:daily` / `type:meeting`; by type, project, tag, month; the date shown is `date:`, else
+  `created:`, else the file's time. People: `people.known` entries with a synthesized item
+  (text = name, role, aliases; tags = projects; people = slugs; date = last met; fields = the
+  page's), by page, project, role, last met; keys `1`, `y`, `o`, `R`.
+- They replace the notes screen (`notes/browse.lua`) and the people screen
+  (`people/screen.lua`); `K` (peek) moved to `util/peek.lua`, shared with the board.
+
+**Tests** (`test_query.lua`, `test_lists.lua`, `test_lists_people.lua`): the language (or, not,
+parentheses, fields, people, dates, ranges, lenient parsing), each list's rows, details,
+groupings, filters and moves, projects screen `f`.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1291,7 +1336,8 @@ buffers, the index safety net, carrying over.
 | `:Logpose board [filters]`                | B1 |
 | `:Logpose promote`                        | B1, C1 |
 | `:Logpose today`, `edit`, `projects`      | later minors |
-| `:Logpose notes [filters]`                | C2 |
+| `:Logpose notes [filters]`                | C2, C8 |
+| `:Logpose meetings [filters]`             | C8 |
 | `:Logpose people [filter]`, `person [handle]`, `rename-person` | C6 |
 
 ## 6. Definition of done (every feature)
@@ -1329,6 +1375,9 @@ years).
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.46.0: the notes screen became the notes list (topic notes and project pages; meetings have
+  `:Logpose meetings`, daily notes need `type:daily`); on the people list `1` starts a 1:1 (`m`
+  moves); highlight groups `LogposeNotes*`/`LogposePeople*` became `LogposeList*`.
 - 0.45.0: `:Logpose project none` means no project (nothing detected, picked per note);
   `:Logpose project auto` is what `none` used to do (unpin and detect).
 - 0.43.0: `people.md` and `people.file` are gone: people live in `people/<slug>.md` pages;
