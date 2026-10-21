@@ -276,6 +276,9 @@ function M.series_lines(path, previous, carried, root)
       -- Drop an older "(from …)" so items carried several times keep one, current, origin.
       local text = it.text:gsub("%s*%(from %[%[.-%]%]%)$", ""):gsub("%s*%(from %[.-%]%(.-%)%)$", "")
       table.insert(lines, ("- [ ] %s (from %s)"):format(text, from))
+      if it.task_link_text then
+        table.insert(lines, "  " .. it.task_link_text) -- still its task's to-do
+      end
     end
   end
   return lines

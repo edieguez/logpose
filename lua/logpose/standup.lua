@@ -79,6 +79,12 @@ function M.prefill(prev_lines)
   local opts = config.get().standup
   local first, last = M.section_range(prev_lines, opts.sections.today)
   local yesterday, today, carried = {}, {}, {}
+  -- the `→ [[task]]` line under a to-do made into a task goes where the to-do goes
+  local link_rows = {}
+  for _, t in ipairs(todos.linked(prev_lines)) do
+    link_rows[t.link_row] = t.row
+  end
+  local moved = {}
   if first then
     for lnum = first, last do
       local line = prev_lines[lnum]
@@ -89,7 +95,10 @@ function M.prefill(prev_lines)
         elseif vim.trim(todo.text) ~= "" and opts.carry_forward then
           table.insert(today, todo.indent .. "- [ ] " .. todo.text)
           table.insert(carried, lnum)
+          moved[lnum] = true
         end
+      elseif link_rows[lnum] and moved[link_rows[lnum]] then
+        table.insert(today, line)
       elseif vim.trim(line) ~= "" and not line:match("^%s*[-*+]%s+%[>%]") then
         table.insert(yesterday, line) -- notes and plain bullets
       end
