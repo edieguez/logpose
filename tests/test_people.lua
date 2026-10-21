@@ -119,6 +119,103 @@ T["completion of people and past titles"] = function()
   eq(child.lua_get("LogposeCompleteTitles('')"), { "Ana", "Bob Smith" })
 end
 
+T["people.md adds people you haven't met yet; its spelling wins"] = function()
+  H.write(
+    root .. "/people.md",
+    "# People\n\n- Ana López (ana@acme.com) #acme\n- José Ruiz #thesis\n- Bob Smith\n- [ ] not a person\n"
+  )
+  local known = child.lua_get([[vim.tbl_map(function(p) return { p.slug, p.name, p.count, p.email or false } end,
+    require('logpose.people').known())]])
+  eq(known, {
+    { "ana", "Ana", 5, false }, -- "Ana" and "Ana López" are different people to logpose
+    { "bob-smith", "Bob Smith", 2, false },
+    { "ana-lopez", "Ana López", 0, "ana@acme.com" },
+    { "jose-ruiz", "José Ruiz", 0, false },
+  })
+end
+
+T["matching: any part of the name, accents ignored, the project's people first"] = function()
+  H.write(root .. "/people.md", "- Ana López #acme\n- José Ruiz #thesis\n- Lola Ortiz #acme\n")
+  local function names(q, project)
+    return child.lua_get(
+      ("vim.tbl_map(function(p) return p.name end, require('logpose.people').match(require('logpose.people').known(), %q, %s))"):format(
+        q,
+        project and ("%q"):format(project) or "nil"
+      )
+    )
+  end
+  eq(names("lop"), { "Ana López" }) -- a word of the name
+  eq(names("jose"), { "José Ruiz" }) -- no accent typed
+  eq(names("smi"), { "Bob Smith" })
+  eq(names("@bob"), { "Bob Smith" })
+  eq(names("ana"), { "Ana", "Ana López" }) -- the name's start, most involved first
+  eq(names("l"), { "Lola Ortiz", "Ana López" }) -- start of the name before a later word
+  eq(names("", "thesis")[1], "José Ruiz") -- this project's people first
+  eq(child.lua_get("LogposeCompletePeople('Ana, lop')"), { "Ana, Ana López" })
+end
+
+T["the edit form completes attendees from any part of the name"] = function()
+  H.write(root .. "/people.md", "- Ana López #acme\n")
+  local words = child.lua_get(
+    [[vim.tbl_map(function(it) return it.word end,
+    require('logpose.edit.form').candidates(..., 'meeting', 'attendees', 'lop', {}))]],
+    { root }
+  )
+  eq(words, { "Ana López" })
+end
+
+T["typing in the form's attendees keeps the menu on matches anywhere in the name"] = function()
+  H.write(root .. "/people.md", "- Ana López #acme\n- Lola Ortiz\n")
+  child.cmd("edit " .. root .. "/meetings/2026-10-08 - retro.md")
+  child.cmd("Logpose edit")
+  for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
+    if l == "Ana, Bob Smith" then
+      child.api.nvim_win_set_cursor(0, { i, #l })
+    end
+  end
+  child.type_keys("A", ", l")
+  local function menu()
+    return child.lua_get("vim.tbl_map(function(it) return it.word end, vim.fn.complete_info({ 'items' }).items)")
+  end
+  eq(menu(), { "Lola Ortiz", "Ana López" })
+  child.type_keys("o", "p") -- "lop": only a later word of the name matches
+  eq(menu(), { "Ana López" })
+  child.type_keys("<Esc>")
+end
+
+T["in a note: attendees, with: and @mentions complete people"] = function()
+  H.write(root .. "/people.md", "- Ana López #acme\n")
+  local path = root .. "/meetings/acme/2026-10-14 - sync.md"
+  H.write(path, '---\ntitle: "Sync"\nproject: acme\nattendees: [Ana]\n---\n')
+  child.cmd("edit " .. path)
+  -- being typed (not saved, so not in the index yet)
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "---",
+    'title: "Sync"',
+    "project: acme",
+    "attendees: [Ana, lop",
+    "with: bo",
+    "---",
+    "ask @jo and @smi",
+  })
+  local function items(row, col)
+    return child.lua_get(
+      ([[vim.tbl_map(function(it) return { it.label, it.textEdit.newText, it.textEdit.range.start.character } end,
+        require('logpose.completion').items(vim.api.nvim_buf_get_lines(0, %d, %d, false)[1], %d, %d, 0))]]):format(
+        row,
+        row + 1,
+        col,
+        row
+      )
+    )
+  end
+  eq(items(3, 20), { { "Ana López", "Ana López", 17 } }) -- after the comma; Ana's already there
+  eq(items(4, 8), { { "Bob Smith", "Bob Smith", 6 } })
+  eq(items(6, 16), { { "Bob Smith", "@bob-smith", 12 } })
+  eq(items(6, 4), {}) -- not after an @
+  eq(items(1, 8), {}) -- title: isn't a people field
+end
+
 T["completion offers person: filters"] = function()
   eq(vim.tbl_contains(child.fn.getcompletion("Logpose find tasks ", "cmdline"), "person:bob-smith"), true)
 end
