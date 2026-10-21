@@ -11,14 +11,15 @@ local M = {}
 
 M.name = "people"
 M.title = "People"
-M.empty = "nobody yet: a adds a person"
+M.empty = "Nobody yet: a adds a person"
 M.footer = "<CR> page · <Tab> details · e edit · a add · 1 1:1 · y/o contact · / filter · ? help"
+M.noun = "people"
+M.one = "person"
 M.help = {
-  "  <CR>   their page (no page yet: the form to add one)",
-  "  a      add a person (on someone without a page: theirs)",
-  "  1      start a 1:1 with them     R  rename them everywhere",
-  "  y      copy a way to reach them  o  open it (mail, chat…)",
-  "",
+  { "a", "add a person (on someone without a page: theirs)" },
+  { "1", "start a 1:1 with them" },
+  { "y  o", "copy a way to reach them · open it (mail, chat…)" },
+  { "R", "rename them everywhere" },
 }
 
 --- What involves each person: meetings (newest first), open to-dos, other mentions.

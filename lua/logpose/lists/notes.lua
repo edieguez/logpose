@@ -8,13 +8,14 @@ local M = {}
 
 M.name = "notes"
 M.title = "Notes"
-M.empty = "no notes yet: a writes one"
-M.footer = "<CR> open · <Tab> details · a new · / filter · g group · m move · ? help"
+M.empty = "No notes yet: a writes one"
+M.footer = "<CR> open · <Tab> details · / filter · g group · m move · a new · ? help"
+M.noun = "notes"
+M.one = "note"
 M.help = {
-  "  a      a new topic note (in this group's project or tag)",
-  "  d      today's daily note        b  the board",
-  "  daily notes and meetings show with type:daily / type:meeting in the filter",
-  "",
+  { "a", "a new topic note (in this group's project or tag)" },
+  { "d  b", "today's daily note · the board" },
+  { "type:daily", "in the filter: daily notes too (type:meeting: meetings)" },
 }
 
 --- Kinds of notes, in order.
@@ -134,7 +135,8 @@ M.sorts = {
 }
 
 function M.layout(ctx)
-  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + 10 + 2 + 30, 48)
+  ctx.day_w = common.day_width(ctx.entries)
+  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + ctx.day_w + 2 + 30, 48)
 end
 
 ---@param e logpose.ListEntry
@@ -145,7 +147,7 @@ function M.row(e, ctx)
   local it = e.item
   local title = it.file_type == "daily" and date.weekday_name(it.date or e.when) or (it.title or "")
   local chunks = {
-    { e.when ~= "" and e.when or "          ", "LogposeListDate" },
+    { lists.fit(common.day(e.when), ctx.day_w), "LogposeListDate" },
     { "  " },
     { lists.fit(title, ctx.title_w) },
   }
