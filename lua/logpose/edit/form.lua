@@ -83,18 +83,29 @@ function M.candidates(root, kind, key, partial, others)
     for _, c in ipairs(index.tag_counts(index.build(root))) do
       add(c.tag, tostring(c.count))
     end
-  elseif key == "attendees" or key == "with" then
-    for _, p in ipairs(require("logpose.people").known(root)) do
-      add(p.name, ("%d notes"):format(p.count))
+  elseif
+    key == "attendees"
+    or key == "with"
+    or (
+      key == "title"
+      and kind == "meeting"
+      and others
+      and others.type
+      and (config.get().meeting_types[vim.trim(others.type)] or {}).person
+    )
+  then
+    -- forgiving: any part of the name, accents ignored, this project's people first
+    local people = require("logpose.people")
+    local project = others and others.project and vim.trim(others.project) or nil
+    for _, p in ipairs(people.match(people.known(root), partial, project ~= "" and project or nil)) do
+      -- `equal`: matched here (any part of the name), so the menu mustn't narrow them by prefix
+      table.insert(items, { word = p.name, menu = people.describe(p), equal = 1, fuzzy = true })
     end
+    return items
   elseif key == "title" and kind == "meeting" and others and others.type then
-    -- a new meeting: the people for a 1:1, past titles for the rest
+    -- a new meeting: past titles of its type (a 1:1's people are above)
     local spec = config.get().meeting_types[vim.trim(others.type)]
-    if spec and spec.person then
-      for _, p in ipairs(require("logpose.people").known(root)) do
-        add(p.name, ("%d notes"):format(p.count))
-      end
-    elseif spec then
+    if spec then
       local seen = {}
       for _, it in ipairs(require("logpose.index").build(root)) do
         if it.kind == "note" and it.type == vim.trim(others.type) and it.title and not seen[it.title] then
@@ -194,7 +205,7 @@ local function at_cursor(f)
     partial = vim.trim(before)
     start = #before - #partial
   end
-  local items = M.candidates(f.model.root, f.model.kind, key, partial, f.model.new and texts(f) or nil)
+  local items = M.candidates(f.model.root, f.model.kind, key, partial, texts(f))
   if fields.LISTS[key] then
     -- don't offer what's already in the list
     local have = {}
@@ -898,8 +909,16 @@ function M.show(model, opts)
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedP" }, {
     group = group,
     buffer = buf,
-    callback = function()
+    callback = function(ev)
       M.render(f)
+      -- people match anywhere in the name: typing with the menu open asks again, rather than
+      -- letting the menu narrow by prefix
+      if ev.event == "TextChangedP" and f.accepted ~= vim.api.nvim_get_current_line() then
+        local _, items = at_cursor(f)
+        if items and items[1] and items[1].fuzzy then
+          popup(f)
+        end
+      end
     end,
   })
   vim.api.nvim_create_autocmd("BufWriteCmd", {

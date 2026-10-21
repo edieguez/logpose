@@ -123,6 +123,12 @@ M.defaults = {
   },
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
+  people = {
+    --- A list of people you work with, so they're suggested before your first meeting with them:
+    --- one per list item, `- Ana López (ana@acme.com) #acme` (the email and #projects are
+    --- optional; a #project puts them first in that project's meetings). Relative to the root.
+    file = "people.md",
+  },
   tasks = {
     --- Column a captured task starts in, and one promoted from a to-do.
     capture_status = "backlog",
@@ -314,6 +320,8 @@ local function validate(opts)
   check("telemetry.enabled", opts.telemetry.enabled, "boolean")
   check("telemetry.retention_days", opts.telemetry.retention_days, "number")
   check("views", opts.views, "table")
+  check("people", opts.people, "table")
+  check("people.file", opts.people.file, "string")
   for name, v in pairs(opts.views) do
     check("views." .. tostring(name), v, "string")
   end

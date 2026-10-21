@@ -1,4 +1,5 @@
---- blink.cmp source for `[[` note links. Add to your blink config:
+--- blink.cmp source for journal notes: `[[` links, people in `attendees:`/`with:`, `@` mentions
+--- (see `logpose.completion`). Add to your blink config:
 ---   sources = { per_filetype = { markdown = { inherit_defaults = true, "logpose" } },
 ---               providers = { logpose = { name = "logpose", module = "logpose.completion.blink" } } }
 local M = {}
@@ -12,12 +13,12 @@ function M:enabled()
 end
 
 function M:get_trigger_characters()
-  return { "[" }
+  return require("logpose.completion").TRIGGERS
 end
 
 function M:get_completions(ctx, callback)
   local row, col = ctx.cursor[1] - 1, ctx.cursor[2]
-  local items = require("logpose.links").complete_items(ctx.line, col, row, vim.api.nvim_buf_get_name(ctx.bufnr))
+  local items = require("logpose.completion").items(ctx.line, col, row, ctx.bufnr)
   callback({ items = items, is_incomplete_forward = false, is_incomplete_backward = false })
   return function() end
 end
