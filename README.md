@@ -38,7 +38,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim) (LazyVim included):
 {
   "edieguez/logpose",
   cmd = "Logpose",
-  ft = "markdown", -- enables `gx` on tickets and `[[` completion in journal notes
+  ft = "markdown", -- enables `gx` on links and tickets, and `[[` completion, in journal notes
   opts = {
     keymaps = true, -- optional: a <leader>j… key set (see Keymaps)
   },
@@ -579,6 +579,12 @@ tasks and run `:'<,'>Logpose edit` (see [Working on the board](#working-on-the-b
 | `:Logpose links` | Links going out of it, with missing targets flagged. |
 
 Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown links both work.
+A wiki link's target is relative to the journal root (`link_base`), not to the note, and may
+contain spaces: `[[meetings/acme/2026-10-14 - retro|Retro]]`.
+
+**Following links.** `gx` on a link in a journal note opens the note it points to, from
+anywhere on the link (the path or the label). On anything else, `gx` does what it did before
+logpose (your markdown plugin's `gx`, or Neovim's, which opens URLs).
 
 **Link completion.** Typing `[[` in a journal note offers every note:
 

@@ -490,7 +490,13 @@ Topic notes (|:Logpose-note|) hold knowledge that isn't tied to a day.
 Project pages (|:Logpose-project-page|) are the hub for a project.
 |:Logpose-backlinks| and |:Logpose-links| follow links in both directions.
 Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown
-links are understood.
+links are understood. A wiki link's target is relative to the journal root
+(`link_base`), not to the note, and may contain spaces.
+
+                                                                  *logpose-gx*
+`gx` in a journal note opens the note a link points to, from anywhere on the
+link. On anything else it does what `gx` did before (your markdown plugin's
+mapping, or Neovim's, which opens URLs).
 
                                                          *logpose-completion*
 Link completion ~
@@ -640,7 +646,7 @@ Finding things ~
 :Logpose ticket [{id}]
     Every line mentioning ticket {id} (default: the one under the cursor),
     as a whole word. With `tickets.url` set, `gx` on a ticket in a journal
-    note opens it.
+    note opens it (|logpose-gx|).
 
                                                           *:Logpose-backlinks*
 :Logpose backlinks
