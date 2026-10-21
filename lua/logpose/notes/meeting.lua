@@ -622,13 +622,14 @@ function M.command(opts)
   end
 
   config.with_root(safely(function(root)
-    local project = require("logpose.project").resolve(root)
-    if key then
+    local project, source = require("logpose.project").resolve(root)
+    if key and source ~= "none" then
       M.start(root, key, iso, project)
       return
     end
-    -- no type: the new-meeting form, to set the type, title, people and tags up front
-    require("logpose.edit").open_new_note(root, "meeting", { date = iso, project = project })
+    -- no type, or no project chosen (you pick it): the new-meeting form, to set the type,
+    -- title, project, people and tags up front
+    require("logpose.edit").open_new_note(root, "meeting", { type = key, date = iso, project = project })
   end))
 end
 

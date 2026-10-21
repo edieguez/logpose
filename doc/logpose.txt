@@ -320,9 +320,16 @@ One journal, many projects, kept apart automatically.
 Switching ~
 `:Logpose project` (or `P` on the board) opens the projects screen
 (|:Logpose-projects|); <CR> on a project switches to it. `:Logpose project
-{name}` switches directly; `none` (or `c` on the screen) unpins. Switching
-brings back the board on that project, as you left it, and takes effect
-everywhere else at once. `projects.open_board = false` stays where you are.
+{name}` switches directly; `auto` (or `c` on the screen) unpins and detects
+the project again. Switching brings back the board on that project, as you
+left it, and takes effect everywhere else at once. `projects.open_board =
+false` stays where you are.
+
+`:Logpose project none` (or `0` on the screen) means no project at all:
+nothing is pinned or detected, and new meetings and topic notes open their
+form with the project empty so you pick it per note (`:Logpose meeting
+retro` opens the form with the type chosen). Every screen shows all
+projects. It lasts, across restarts, until you switch or use `auto`.
 
 The active project is, in order:
 
@@ -355,7 +362,8 @@ The active project is marked with `●`.
   a      add a project (name, then repo folder)
   p      link another repo folder      R  rename it everywhere
   e      edit its name, description, repo folders and colour
-  M      merge it into another one     c  back to auto-detect
+  M      merge it into another one     c  detect the project (auto)
+  0      no project (pick one per note)
   D      archive it                    U  restore an archived one
   A      show / hide archived          r  refresh
   q      close                         ?  help
@@ -782,9 +790,10 @@ Notes and projects ~
     form to add one.
 
                                                             *:Logpose-project*
-:Logpose project [{name}|none]
-    Switch to project {name} ({name} is slugified), or `none` to go back to
-    detection (|logpose-projects|). Without an argument, opens the projects
+:Logpose project [{name}|none|auto]
+    Switch to project {name} ({name} is slugified); `none` for no project
+    (you pick one per note); `auto` to detect it again
+    (|logpose-projects|). Without an argument, opens the projects
     screen (|:Logpose-projects|).
 
                                                            *:Logpose-projects*
@@ -1141,7 +1150,7 @@ it was found, the active project, the current week or sprint, which journal
 folders exist, the picker in use and whether usage stats are on.
 
   Wrong project, or an empty board: check the active project in the health
-  report. `:Logpose project none` resets a pinned project; `p` on the board
+  report. `:Logpose project auto` unpins a project; `p` on the board
   shows all projects.
 
   A file wasn't changed: logpose never overwrites a file with unsaved

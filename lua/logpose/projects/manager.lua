@@ -21,7 +21,8 @@ M.HELP = {
   "  e      edit name, description, repo folders, colour",
   "  R      rename                    M  merge into another project",
   "  D      archive (hide)            U  restore an archived one",
-  "  A      show / hide archived      c  back to auto-detect",
+  "  A      show / hide archived",
+  "  0      no project (pick one per note)   c  detect it from the repo",
   "  r      refresh                   q  close",
 }
 
@@ -62,6 +63,12 @@ function M.build(root, opts)
       { "Active: ", "Comment" },
       { project.title(root, current), "Title" },
       { (" (%s)"):format(how[source] or source), "Comment" },
+    })
+  elseif source == "none" then
+    add({
+      { "Active: ", "Comment" },
+      { "none", "Title" },
+      { " (you pick the project per note · c detects it)", "Comment" },
     })
   else
     add({ { "Active: ", "Comment" }, { "none", "Title" }, { " (logpose follows the repo you are in)", "Comment" } })
@@ -319,7 +326,11 @@ function M.open(root)
   map("c", function()
     project.set(nil)
     render(buf, root)
-  end, "Back to auto-detect")
+  end, "Detect the project from the repo")
+  map("0", function()
+    project.set(false)
+    render(buf, root)
+  end, "No project")
   map(
     "b",
     on_project(function(p)

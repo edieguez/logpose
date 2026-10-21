@@ -423,10 +423,17 @@ switches without leaving where you are.
 ```vim
 :Logpose project          " the projects screen
 :Logpose project acme     " switch directly
-:Logpose project none     " go back to automatic detection (c on the projects screen)
+:Logpose project none     " no project: pick one for each note as you create it (0 on the screen)
+:Logpose project auto     " work it out from where you are (c on the projects screen)
 ```
 
-When you haven't pinned a project, logpose works it out from where you are:
+**No project** suits switching contexts all day: nothing is pinned or detected, and new meetings
+and topic notes open their form with the project empty, so you choose it there
+(`:Logpose meeting retro` opens the form with Retro picked, `:Logpose note Title` with the
+title). The board, today and notes screens show every project. It stays that way, across
+restarts, until you switch to a project or `auto`.
+
+With `auto` (the default), logpose works the project out from where you are:
 
 1. a match in `projects.paths` in your config;
 2. a repo folder listed in a project's page (see below);
@@ -463,6 +470,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `M` | Merge it into another project. |
 | `D` / `U` | Archive it / restore it (`A` shows archived projects). |
 | `c` | Go back to automatic detection. |
+| `0` | No project: pick one per note. |
 
 **The project page** (`projects/acme.md`) is where a project lives. Its frontmatter is what the
 projects screen shows, and you can edit it by hand (or with `e` there):
@@ -827,7 +835,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 |---|---|
 | `notes [FILTERS]` | The notes screen: notes by type or project, with their to-dos and linked tasks. |
 | `note [TITLE]` | Create or open a topic note. Without a title, the new-note form. |
-| `project [NAME\|none]` | Switch project (the projects screen without a name), or go back to detection. |
+| `project [NAME\|none\|auto]` | Switch project (the projects screen without a name); `none` for no project, `auto` to detect it. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
 | `people [FILTER]` | The people screen: everyone you work with, how to reach them, what involves them. |
@@ -1113,7 +1121,7 @@ To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]` carried to 
   active project, the current week or sprint, which folders exist, the picker in use, and
   whether usage stats are on.
 - **"Wrong project" or "no tasks on the board":** check the active project in the health report.
-  `:Logpose project none` resets a pinned project, and `p` on the board shows all projects.
+  `:Logpose project auto` unpins a project (or `none`), and `p` on the board shows all projects.
 - **A file wasn't changed:** logpose never overwrites a file with unsaved changes. It edits the
   open buffer instead, or refuses and tells you.
 - **Search has no preview:** install one of the [optional pickers](#install).
