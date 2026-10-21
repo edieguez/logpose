@@ -136,6 +136,13 @@ M.builtin = {
   },
   note = { module = "logpose.notes.topic", fn = "note_command", complete = false, desc = "logpose: topic note" },
   notes = { module = "logpose.notes.browse", desc = "logpose: browse notes, by type or project" },
+  people = { module = "logpose.people.screen", complete = false, desc = "logpose: people you work with" },
+  person = {
+    module = "logpose.people.screen",
+    fn = "person_command",
+    complete_fn = "complete_person",
+    desc = "logpose: open or add a person's page",
+  },
   ["project-page"] = {
     module = "logpose.notes.topic",
     fn = "project_page_command",
@@ -153,6 +160,10 @@ M.builtin = {
     fn = "rename_tag_command",
     complete_fn = "complete_tags",
     desc = "logpose: rename a tag everywhere",
+  },
+  ["rename-person"] = {
+    module = "logpose.people.rename",
+    desc = "logpose: rename a person everywhere",
   },
   ["rename-project"] = {
     module = "logpose.maintenance",

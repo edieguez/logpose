@@ -293,12 +293,13 @@ function M.apply(changes)
   index.clear_cache()
 end
 
+--- Show the plan and apply it once confirmed (`bang`: right away).
 ---@param root string
 ---@param changes logpose.Change[]
 ---@param title string
 ---@param bang boolean
 ---@param after? fun()
-local function confirm_and_apply(root, changes, title, bang, after)
+function M.confirm_and_apply(root, changes, title, bang, after)
   if #changes == 0 then
     require("logpose.util.ui").notify("logpose: nothing to change", vim.log.levels.INFO)
     return
@@ -365,7 +366,12 @@ function M.rename_tag_command(opts)
     error(("logpose: invalid tag %q"):format(new), 0)
   end
   config.with_root(ui.safely(function(root)
-    confirm_and_apply(root, M.plan_tag(root, old, new), ("Rename #%s → #%s"):format(norm(old), norm(new)), opts.bang)
+    M.confirm_and_apply(
+      root,
+      M.plan_tag(root, old, new),
+      ("Rename #%s → #%s"):format(norm(old), norm(new)),
+      opts.bang
+    )
   end))
 end
 
@@ -377,7 +383,7 @@ function M.move_project(old, new, opts)
   config.with_root(ui.safely(function(root)
     local project = require("logpose.project")
     local o, n = project.normalize(old) or old, project.normalize(new) or new
-    confirm_and_apply(
+    M.confirm_and_apply(
       root,
       M.plan_project(root, old, new, { merge = opts.merge }),
       (opts.merge and "Merge project %s into %s" or "Rename project %s → %s"):format(o, n),
