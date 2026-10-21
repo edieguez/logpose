@@ -1,4 +1,5 @@
---- nvim-cmp source for `[[` note links. Registered as "logpose" by require("logpose").setup()
+--- nvim-cmp source for journal notes: `[[` links, people in `attendees:`/`with:`, `@` mentions
+--- (see `logpose.completion`). Registered as "logpose" by require("logpose").setup()
 --- when nvim-cmp is installed; add { name = "logpose" } to your markdown sources.
 local M = {}
 
@@ -11,21 +12,17 @@ function M:is_available()
 end
 
 function M:get_trigger_characters()
-  return { "[" }
+  return require("logpose.completion").TRIGGERS
 end
 
 function M:get_keyword_pattern()
-  return [=[\[\[[^\]]*]=]
+  -- a link being typed, an @handle, or a word (a name after `attendees:`)
+  return [=[\%(\[\[[^\]]*\|@[[:alnum:]_.-]*\|\k\+\)]=]
 end
 
 function M:complete(params, callback)
   local row, col = params.context.cursor.row - 1, params.context.cursor.col - 1
-  local items = require("logpose.links").complete_items(
-    params.context.cursor_line,
-    col,
-    row,
-    vim.api.nvim_buf_get_name(params.context.bufnr)
-  )
+  local items = require("logpose.completion").items(params.context.cursor_line, col, row, params.context.bufnr)
   callback({ items = items, isIncomplete = false })
 end
 
