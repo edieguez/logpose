@@ -88,7 +88,8 @@ logpose keeps three things apart, and every command, screen and search uses thes
 `:Logpose promote` moves things up a level, and links both ends to each other:
 
 - **A to-do becomes a task.** The task gets `From: [[the note]]`; the to-do keeps its text (so an
-  action item keeps its owner and due date) and gains a `→ [[task]]` line under it.
+  action item keeps its owner and due date) and gains a `→ [[task]]` line under it. From then on
+  they [stay in step](#a-to-do-and-its-task-stay-in-step).
 - **A task's write-up becomes a note.** The note starts with `From: [[the task]]`; the task lists
   the note under `## Notes`.
 
@@ -331,6 +332,22 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 To-dos aren't tasks: `:Logpose check` checks one off (or a visual selection of them), and again
 unchecks it. `:Logpose done` only works in a task file.
+
+### A to-do and its task stay in step
+
+Once a to-do is a task, finishing either one finishes the other:
+
+- **The task done** (`x` on the board, `:Logpose done`, the form, or `status: done` saved by hand)
+  checks its to-do, in every note where it is (a to-do carried to a newer note keeps its `→` line).
+- **The to-do checked** (`:Logpose check`, or `[x]` saved by hand) moves the task to Done. If the
+  task hasn't started yet (Backlog or TODO), logpose asks first; say no and it won't ask again
+  for that task.
+- **Reopening works the same way.** The task moved out of Done unchecks the to-do; the to-do
+  unchecked moves the task back to the column it was in before Done.
+
+Notes changed this way keep their `modified:` date. A note with unsaved changes is edited in its
+buffer, for you to save. Board undo (`u`) puts the to-do back too. If a task is marked done
+outside Neovim, its to-do still counts as done in `actions`, `find todos` and the today screen.
 
 ### From a task to a note
 
