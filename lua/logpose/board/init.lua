@@ -54,10 +54,11 @@ function M.show(root)
   local existing = vim.fn.bufnr("logpose://board")
   local b = existing > 0 and M.boards[existing] or nil
   if b and b.root == root and vim.api.nvim_buf_is_valid(existing) then
+    local win = vim.api.nvim_get_current_win()
     if vim.api.nvim_get_current_buf() ~= existing then
-      vim.api.nvim_win_set_buf(0, existing)
+      win = require("logpose.util.ui").show(existing)
     end
-    view.setup_window(vim.api.nvim_get_current_win())
+    view.setup_window(win)
     view.refresh(b, (view.focused(b) or {}).file)
     return b
   end
@@ -81,19 +82,19 @@ function M.open_board(root, opts)
   vim.bo[buf].bufhidden = "hide"
   vim.bo[buf].swapfile = false
   vim.bo[buf].filetype = "logpose-board"
-  local tab
+  local tab, win
   if config.get().board.open == "tab" then
     vim.cmd("tabnew")
     tab = vim.api.nvim_get_current_tabpage()
     local scratch = vim.api.nvim_get_current_buf()
-    vim.api.nvim_win_set_buf(0, buf)
+    win = require("logpose.util.ui").show(buf)
     if scratch ~= buf and vim.api.nvim_buf_get_name(scratch) == "" then
       pcall(vim.api.nvim_buf_delete, scratch, { force = true })
     end
   else
-    vim.api.nvim_win_set_buf(0, buf)
+    win = require("logpose.util.ui").show(buf)
   end
-  view.setup_window(vim.api.nvim_get_current_win())
+  view.setup_window(win)
   ---@type logpose.Board
   local b = {
     root = root,

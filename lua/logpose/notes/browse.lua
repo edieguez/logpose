@@ -335,8 +335,7 @@ function M.open(root, opts)
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "logpose-notes"
-  vim.api.nvim_win_set_buf(0, buf)
-  local win = vim.api.nvim_get_current_win()
+  local win = require("logpose.util.ui").show(buf)
   vim.wo[win].wrap = false
   vim.wo[win].cursorline = true
   local project = opts.project

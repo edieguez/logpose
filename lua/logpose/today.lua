@@ -198,7 +198,7 @@ function M.open(root)
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "markdown"
-  vim.api.nvim_win_set_buf(0, buf)
+  require("logpose.util.ui").show(buf)
   render(buf, root)
   local function map(lhs, fn, desc)
     vim.keymap.set("n", lhs, ui.safely(fn), { buffer = buf, nowait = true, silent = true, desc = desc })
