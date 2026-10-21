@@ -437,6 +437,22 @@ function M.notes(b)
   )
 end
 
+--- The focused task's write-up as a note (the new-note form, filled in from the task).
+---@param b logpose.Board
+function M.to_note(b)
+  local it = view.focused(b)
+  if not it then
+    return
+  end
+  M.count(b, "to_note")
+  require("logpose.notes.from_task").open(b.root, it.file, nil, nil, {
+    on_save = function()
+      -- the task now links to the note: its card counts it when the board shows again
+      require("logpose.index").clear_cache()
+    end,
+  })
+end
+
 --- Fold the focused column to a narrow strip, or unfold it.
 ---@param b logpose.Board
 function M.toggle_fold(b)

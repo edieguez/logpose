@@ -121,9 +121,14 @@ end
 ---@param kind "meeting"|"topic"
 ---@param r logpose.EditResult
 ---@param ctx? table  the form's cache (a meeting already built for the preview)
----@return string? path, integer[]? cursor, boolean? existed
-function M.create_note(root, kind, r, ctx)
+---@param model? logpose.EditModel
+---@return string? path, integer[]? cursor, boolean? existed, string? message
+function M.create_note(root, kind, r, ctx, model)
   local v = r.values
+  if model and model.from_task then
+    local path, cursor, message = require("logpose.notes.from_task").apply(root, model.from_task, v)
+    return path, cursor, false, message
+  end
   local function str(x)
     return type(x) == "string" and x ~= "" and x or nil
   end
