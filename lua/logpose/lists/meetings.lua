@@ -8,11 +8,12 @@ local M = {}
 
 M.name = "meetings"
 M.title = "Meetings"
-M.empty = "no meetings yet: a starts one"
-M.footer = "<CR> open · <Tab> details · a new · / filter · g group · m move · ? help"
+M.empty = "No meetings yet: a starts one"
+M.footer = "<CR> open · <Tab> details · / filter · g group · m move · a new · ? help"
+M.noun = "meetings"
+M.one = "meeting"
 M.help = {
-  "  a      a new meeting (of this group's type or project)",
-  "",
+  { "a", "a new meeting (of this group's type or project)" },
 }
 
 --- The meeting types' labels.
@@ -120,7 +121,8 @@ M.sorts = {
 
 ---@param ctx table
 function M.layout(ctx)
-  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + 15 + 2 + 30, 40)
+  ctx.day_w = common.day_width(ctx.entries)
+  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + ctx.day_w + 2 + 30, 40)
   local labels = type_labels()
   local w = 0
   for _, e in ipairs(ctx.entries) do
@@ -134,10 +136,8 @@ end
 ---@param ctx table
 ---@return table[]
 function M.row(e, ctx)
-  local date = require("logpose.util.date")
   local it = e.item
-  local day = it.date and (it.date .. " " .. date.weekday_name(it.date):sub(1, 3)) or "              "
-  local chunks = { { day, "LogposeListDate" }, { "  " } }
+  local chunks = { { lists.fit(common.day(it.date), ctx.day_w), "LogposeListDate" }, { "  " } }
   if ctx.type_w > 0 then
     table.insert(chunks, { lists.fit(ctx.labels[it.type] or it.type or "", ctx.type_w), "LogposeListMeta" })
     table.insert(chunks, { "  " })

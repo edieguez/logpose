@@ -485,16 +485,31 @@ end
 
 ---@param b logpose.Board
 function M.set_filter(b)
-  vim.ui.input(
-    { prompt = "Filter: ", default = b.filter },
-    ui.safely(function(input)
-      if input == nil then
-        return
+  local win = vim.fn.bufwinid(b.buf)
+  if win == -1 then
+    return
+  end
+  local before = b.filter
+  local focus = (view.focused(b) or {}).file
+  require("logpose.filter.bar").open({
+    win = win,
+    title = "Filter tasks",
+    text = b.filter,
+    root = b.root,
+    on_change = function(text)
+      b.filter = vim.trim(text)
+      view.refresh(b, focus)
+      local n = 0
+      for _, col in ipairs(b.columns or {}) do
+        n = n + #col.cards
       end
-      b.filter = vim.trim(input)
-      view.refresh(b)
-    end)
-  )
+      return ("%d task%s"):format(n, n == 1 and "" or "s")
+    end,
+    on_done = function(text)
+      b.filter = text or before
+      view.refresh(b, focus)
+    end,
+  })
 end
 
 ---@param b logpose.Board
