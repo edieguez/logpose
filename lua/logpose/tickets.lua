@@ -102,8 +102,8 @@ local function run(m)
   end
 end
 
---- `gx`: the ticket under the cursor opens in the tracker, a link to a note opens the note;
---- anything else goes to the `gx` you had (a URL opens in the browser).
+--- `gx`: the ticket under the cursor opens in the tracker, a link to a note opens the note, a
+--- person (`@ana`, an attendee) opens their page; anything else goes to the `gx` you had (a URL opens in the browser).
 function M.gx()
   local buf = vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_get_current_line()
@@ -131,6 +131,16 @@ function M.gx()
         ui.notify(("logpose: no note at [[%s]]"):format(link.target), vim.log.levels.WARN)
         return
       end
+    end
+  end
+  if root then
+    -- a person (an @mention, an attendee): their page, when they have one
+    local people = require("logpose.people")
+    local name = people.at(buf, vim.api.nvim_win_get_cursor(0)[1], col)
+    local p = name and people.find(people.known(root), name)
+    if p and p.page then
+      vim.cmd.edit(vim.fn.fnameescape(p.page))
+      return
     end
   end
   if prev then
