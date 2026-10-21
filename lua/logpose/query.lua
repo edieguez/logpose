@@ -117,9 +117,21 @@ function M.match(item, q)
       return false
     end
   end
-  for _, person in ipairs(q.people) do
-    if not has(item.people or {}, person) then
-      return false
+  if #q.people > 0 then
+    -- a person under any of their names (a page's name and aliases), worked out once per query
+    q._people = q._people
+      or vim.tbl_map(function(person)
+        local ok, set = pcall(require("logpose.people").expand, person)
+        return ok and set or { [person] = true }
+      end, q.people)
+    for _, set in ipairs(q._people) do
+      local found = false
+      for _, slug in ipairs(item.people or {}) do
+        found = found or set[slug] == true
+      end
+      if not found then
+        return false
+      end
     end
   end
   if q.type and item.type ~= q.type then

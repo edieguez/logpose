@@ -86,14 +86,19 @@ function M.items(line, col, row, bufnr)
     local partial = rest:match("[,%[]%s*([^,%[]*)$") or rest
     partial = partial:gsub("^[\"']", "")
     local start = col - #partial
+    local known = people.known(root)
     local have = {}
-    for name in rest:gsub("[%[%]\"']", ""):gmatch("[^,]+") do
-      have[require("logpose.util.text").slugify(vim.trim(name))] = true
+    local done = rest:sub(1, #rest - #partial) -- the names before the one being typed
+    for name in done:gsub("[%[%]\"']", ""):gmatch("[^,]+") do
+      local p = people.find(known, name)
+      if p then
+        have[p] = true
+      end
     end
     local range = { start = { line = row, character = start }, ["end"] = { line = row, character = col } }
     local i = 0
-    for _, p in ipairs(people.match(people.known(root), partial, project)) do
-      if not have[p.slug] or vim.trim(partial) ~= "" and people.plain(p.name) == people.plain(vim.trim(partial)) then
+    for _, p in ipairs(people.match(known, partial, project)) do
+      if not have[p] then
         i = i + 1
         local name = key == "with" and p.name or yaml_item(p.name)
         table.insert(out, person_item(p, i, name, range, p.name .. " " .. people.plain(p.name)))

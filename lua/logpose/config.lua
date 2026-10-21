@@ -19,6 +19,7 @@ M.defaults = {
     reports = "reports",
     notes = "notes",
     projects = "projects",
+    people = "people",
     tasks = "tasks",
   },
   affixes = {
@@ -124,10 +125,14 @@ M.defaults = {
   --- Saved searches: name -> `:Logpose find` arguments, run with `:Logpose view <name>`.
   views = {},
   people = {
-    --- A list of people you work with, so they're suggested before your first meeting with them:
-    --- one per list item, `- Ana López (ana@acme.com) #acme` (the email and #projects are
-    --- optional; a #project puts them first in that project's meetings). Relative to the root.
-    file = "people.md",
+    --- Ways to reach people: each is a key on a person's page (`email: ana@acme.com`,
+    --- `slack: ana.lopez`). `label` names it; `show` is how the value reads ({value}); `open` is a
+    --- URL template for opening it (`o` on the people screen); without `open` it can be copied
+    --- (`y`). `order` sorts them. Add your chat app here, e.g.
+    ---   slack = { label = "Slack", show = "@{value}", open = "https://acme.slack.com/team/{value}" }
+    contacts = {
+      email = { label = "Email", open = "mailto:{value}", order = 1 },
+    },
   },
   tasks = {
     --- Column a captured task starts in, and one promoted from a to-do.
@@ -321,7 +326,23 @@ local function validate(opts)
   check("telemetry.retention_days", opts.telemetry.retention_days, "number")
   check("views", opts.views, "table")
   check("people", opts.people, "table")
-  check("people.file", opts.people.file, "string")
+  check("people.contacts", opts.people.contacts, "table")
+  for key, c in pairs(opts.people.contacts) do
+    if c then
+      check("people.contacts." .. key, c, "table")
+      if not tostring(key):match("^[%w_]+$") then
+        error(("logpose: people.contacts key %q: use letters, digits and _"):format(key), 0)
+      end
+      for _, k in ipairs({ "label", "show", "open" }) do
+        if c[k] ~= nil then
+          check(("people.contacts.%s.%s"):format(key, k), c[k], "string")
+        end
+      end
+      if ({ name = true, aliases = true, role = true, projects = true, title = true })[key] then
+        error(("logpose: people.contacts key %q is a person's own field"):format(key), 0)
+      end
+    end
+  end
   for name, v in pairs(opts.views) do
     check("views." .. tostring(name), v, "string")
   end

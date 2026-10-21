@@ -68,7 +68,7 @@ function M.candidates(root, kind, key, partial, others)
   local function add(word, menu)
     table.insert(items, { word = word, menu = menu })
   end
-  if key == "project" then
+  if key == "project" or key == "projects" then
     local project = require("logpose.project")
     for _, name in ipairs(project.known(root)) do
       local title = project.title(root, name)
@@ -206,6 +206,21 @@ local function at_cursor(f)
     start = #before - #partial
   end
   local items = M.candidates(f.model.root, f.model.kind, key, partial, texts(f))
+  if items[1] and items[1].fuzzy then
+    -- people: don't offer anyone already in the list, under any of their names
+    local people = require("logpose.people")
+    local known = people.known(f.model.root)
+    local have = {}
+    for name in before:sub(1, start):gmatch("[^,]+") do
+      local p = people.find(known, name)
+      if p then
+        have[p.name] = true
+      end
+    end
+    return start, vim.tbl_filter(function(it)
+      return not have[it.word]
+    end, items)
+  end
   if fields.LISTS[key] then
     -- don't offer what's already in the list
     local have = {}
@@ -635,7 +650,8 @@ local function window_title(model, width)
     return " Edit " .. model.title .. " "
   end
   -- say what's being edited: a task and a note are different things
-  local what = ({ task = "task", meeting = "meeting", project = "project page" })[model.kind] or "note"
+  local what = ({ task = "task", meeting = "meeting", project = "project page", person = "person" })[model.kind]
+    or "note"
   local head = (" Edit %s · "):format(what)
   return head .. require("logpose.board.text").fit(model.title, width - #head - 4):gsub("%s+$", "") .. " "
 end
@@ -690,7 +706,10 @@ function M.save(f)
     if model.kind == "meeting" and r.meeting and r.meeting.missing and r.meeting.result == "" then
       goto_field(f, 2)
       error(("logpose: this meeting needs %s in the title field"):format(r.meeting.missing), 0)
-    elseif model.kind ~= "meeting" and vim.trim(r.values.title or "") == "" then
+    elseif model.kind == "person" and vim.trim(r.values.name or "") == "" then
+      goto_field(f, 1)
+      error("logpose: give the person a name", 0)
+    elseif model.kind ~= "meeting" and model.kind ~= "person" and vim.trim(r.values.title or "") == "" then
       goto_field(f, 1)
       error("logpose: give the note a title", 0)
     end
@@ -992,7 +1011,8 @@ function M.show(model, opts)
   end, "Accept or next field", true)
 
   -- start on the first value; something new starts with typing its title
-  goto_field(f, model.new and math.max(1, vim.fn.index(model.keys, "title") + 1) or 1)
+  local first = vim.fn.index(model.keys, "title") >= 0 and "title" or "name"
+  goto_field(f, model.new and math.max(1, vim.fn.index(model.keys, first) + 1) or 1)
   if model.new then
     vim.cmd("startinsert!")
   end

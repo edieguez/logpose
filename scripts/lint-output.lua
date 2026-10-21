@@ -57,6 +57,16 @@ answers = { "Sync with QA" }
 run("Logpose meeting adhoc")
 run("Logpose note Queue design")
 run("Logpose project-page acme")
+local ok_person, perr = pcall(require("logpose.people").create, root, {
+  name = "Ana López",
+  aliases = { "Ana" },
+  role = "Backend lead",
+  projects = { "acme" },
+  email = "ana@acme.io",
+})
+if not ok_person then
+  io.stderr:write("people.create: " .. tostring(perr) .. "\n")
+end
 run("Logpose capture fix flaky test #perf due:2026-10-20")
 run("Logpose capture write the retro")
 run("Logpose board")
