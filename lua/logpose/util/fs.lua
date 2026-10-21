@@ -166,7 +166,8 @@ end
 --- unsaved, so nothing the user typed is lost.
 ---@param path string
 ---@param transform fun(lines: string[]): string[]?
----@param opts? { tidy?: boolean }  tidy: normalize blank lines for markdownlint (markdown.tidy)
+---@param opts? { tidy?: boolean, raw?: boolean }  tidy: normalize blank lines for markdownlint
+---  (markdown.tidy); raw: leave `modified:` as it is
 ---@return boolean ok, string? err, "file"|"buffer"|nil changed
 function M.update_lines(path, transform, opts)
   local tidy = opts and opts.tidy
@@ -179,7 +180,9 @@ function M.update_lines(path, transform, opts)
     if tidy then
       new = require("logpose.markdown").tidy(new)
     end
-    new = require("logpose.timestamps").touch(new)
+    if not (opts and opts.raw) then
+      new = require("logpose.timestamps").touch(new)
+    end
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, new)
     return true, nil, "buffer"
   end
@@ -195,7 +198,7 @@ function M.update_lines(path, transform, opts)
   if not new then
     return true, nil, nil
   end
-  local ok, err = M.write_file(path, table.concat(new, "\n") .. "\n", { tidy = tidy })
+  local ok, err = M.write_file(path, table.concat(new, "\n") .. "\n", { tidy = tidy, raw = opts and opts.raw })
   if not ok then
     return false, err
   end

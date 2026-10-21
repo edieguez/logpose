@@ -31,7 +31,10 @@ local M = {}
 ---@field project? string
 ---@field tags string[]     lowercase, without '#'; a file's tags include all its inline tags
 ---@field fm_tags? string[] notes and tasks: tags from frontmatter
----@field checked? boolean  to-dos only
+---@field checked? boolean  to-dos only; also true for a to-do whose task is done
+---@field task_link? { target: string, style: string }  to-dos made into tasks: the `→` link
+---@field task_link_text? string  that line, trimmed
+---@field done_by_task? string  a to-do counted as checked because its task (this file) is done
 ---@field title? string     the file's title (on every item of that file)
 ---@field series? string    meeting series (frontmatter; on every item of that note)
 ---@field section? string   lowercased `## ` heading the item sits under (not date headings)
@@ -289,6 +292,11 @@ function M.index_lines(path, lines, root)
     retrievable[name:lower()] = true
   end
 
+  -- to-dos made into tasks: the `→ [[task]]` line under them
+  local task_links = {}
+  for _, t in ipairs(require("logpose.todos").linked(lines)) do
+    task_links[t.row] = t
+  end
   local section_date, section, section_title
   local note_tags = vim.list_extend({}, note.tags)
   for i = body, #lines do
@@ -337,6 +345,8 @@ function M.index_lines(path, lines, root)
         title = title,
         section = section,
         section_title = section_title,
+        task_link = task_links[i] and task_links[i].link or nil,
+        task_link_text = task_links[i] and task_links[i].link_text or nil,
       })
     elseif
       not is_heading
@@ -441,6 +451,35 @@ function M.flush()
   M.generation = M.generation + 1
 end
 
+--- A to-do made into a task counts as checked once its task is done, even when the box wasn't
+--- ticked (the note was edited outside Neovim, say). Replaces those items with marked copies.
+---@param root string
+---@param items logpose.Item[]
+local function follow_tasks(root, items)
+  local tasks, by_name
+  local done = config.get().board.done
+  for i, it in ipairs(items) do
+    if it.kind == "todo" and it.task_link and not it.checked then
+      if not tasks then
+        tasks, by_name = {}, {}
+        for _, t in ipairs(items) do
+          if t.kind == "task" then
+            tasks[vim.fs.normalize(t.file)] = t
+            local stem = vim.fn.fnamemodify(t.file, ":t:r"):lower()
+            by_name[stem] = by_name[stem] or {}
+            table.insert(by_name[stem], t.file)
+          end
+        end
+      end
+      local path = require("logpose.links").resolve(root, it.file, it.task_link, by_name)
+      local task = path and tasks[vim.fs.normalize(path)]
+      if task and task.status == done then
+        items[i] = vim.tbl_extend("force", it, { checked = true, done_by_task = task.file })
+      end
+    end
+  end
+end
+
 --- Build the index for the whole journal.
 ---@param root string
 ---@return logpose.Item[]
@@ -487,6 +526,7 @@ function M.build(root)
       cache[path] = nil
     end
   end
+  follow_tasks(root, items)
   memo = { root = root, gen = M.generation, items = items }
   if not memo_pending then
     memo_pending = true

@@ -16,12 +16,40 @@ function M.parse(line)
   return { indent = indent, checked = mark ~= " ", text = rest }
 end
 
+--- To-dos made into tasks: each to-do followed by the `→ [[task]]` line `:Logpose promote` adds
+--- (indented under it). `link` is the link on that line, `link_row` where it is.
+---@param lines string[]
+---@return { row: integer, checked: boolean, indent: string, text: string, link: { target: string, style: string }, link_row: integer, link_text: string }[]
+function M.linked(lines)
+  local out, cur = {}, nil
+  for i, line in ipairs(lines) do
+    local t = M.parse(line)
+    if t then
+      cur = { row = i, checked = t.checked, indent = t.indent, text = t.text }
+    elseif cur then
+      local indent, rest = line:match("^(%s*)(.-)%s*$")
+      if rest ~= "" then
+        if #indent <= #cur.indent then
+          cur = nil
+        elseif rest:match("^→%s") and not cur.link then
+          local l = require("logpose.index").links_in(rest)[1]
+          if l then
+            cur.link, cur.link_row, cur.link_text = l, i, rest
+            table.insert(out, cur)
+          end
+        end
+      end
+    end
+  end
+  return out
+end
+
 --- Check off the to-dos on rows `line1`..`line2` of `buf`, or uncheck them when every one is
 --- already checked. Edited through the API, so `u` undoes it.
 ---@param buf integer
 ---@param line1 integer
 ---@param line2 integer
----@return { checked: integer, unchecked: integer, skipped: integer }
+---@return { checked: integer, unchecked: integer, skipped: integer, rows: table<integer, boolean> }
 function M.check(buf, line1, line2)
   local lines = vim.api.nvim_buf_get_lines(buf, line1 - 1, line2, false)
   local rows, all_checked = {}, true
@@ -32,7 +60,7 @@ function M.check(buf, line1, line2)
       all_checked = all_checked and t.checked
     end
   end
-  local out = { checked = 0, unchecked = 0, skipped = #lines - #rows }
+  local out = { checked = 0, unchecked = 0, skipped = #lines - #rows, rows = {} }
   for _, r in ipairs(rows) do
     local line = vim.api.nvim_buf_get_lines(buf, r.row - 1, r.row, false)[1]
     local new
@@ -45,6 +73,7 @@ function M.check(buf, line1, line2)
     end
     if new then
       vim.api.nvim_buf_set_lines(buf, r.row - 1, r.row, false, { new })
+      out.rows[r.row] = true
     end
   end
   return out
@@ -57,6 +86,7 @@ local function todos(n)
 end
 
 --- `:Logpose check`: check off the to-do on this line (or the selected lines); again to uncheck.
+--- A to-do made into a task brings its task along (`sync.todos_changed`).
 ---@param opts logpose.CommandOpts
 function M.check_command(opts)
   local line1, line2 = opts.line1, opts.line2
@@ -64,10 +94,20 @@ function M.check_command(opts)
     line1 = vim.api.nvim_win_get_cursor(0)[1]
     line2 = line1
   end
-  local r = M.check(vim.api.nvim_get_current_buf(), line1, line2)
+  local buf = vim.api.nvim_get_current_buf()
+  local r = M.check(buf, line1, line2)
   if r.checked + r.unchecked == 0 then
     error("logpose: no to-do here (a `- [ ]` line)", 0)
   end
+  -- to-dos made into tasks: their tasks follow
+  local changes = {}
+  for _, t in ipairs(M.linked(vim.api.nvim_buf_get_lines(buf, 0, -1, false))) do
+    if r.rows[t.row] then
+      table.insert(changes, { link = t.link, checked = t.checked })
+    end
+  end
+  local root = #changes > 0 and require("logpose.config").resolve_root()
+  local file = vim.api.nvim_buf_get_name(buf)
   local parts = {}
   if r.checked > 0 then
     table.insert(parts, todos(r.checked) .. " checked")
@@ -79,6 +119,9 @@ function M.check_command(opts)
     table.insert(parts, ("skipped %d other line%s"):format(r.skipped, r.skipped == 1 and "" or "s"))
   end
   ui.notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
+  if root and file ~= "" then
+    require("logpose.sync").todos_changed(root, require("logpose.util.fs").normalize(file), changes)
+  end
 end
 
 --- `:Logpose promote`: turn the to-do on the cursor line into a task (a task file in
