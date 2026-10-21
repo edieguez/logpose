@@ -1,5 +1,5 @@
 --- Projects: one journal, notes tagged by the project you're working on.
---- `:Logpose project [name|none]`.
+--- `:Logpose project [name|none|auto]`.
 local config = require("logpose.config")
 local fs = require("logpose.util.fs")
 local state = require("logpose.state")
@@ -8,7 +8,7 @@ local ui = require("logpose.util.ui")
 
 local M = {}
 
----@alias logpose.ProjectSource "explicit"|"path"|"page"|"git"
+---@alias logpose.ProjectSource "explicit"|"none"|"path"|"page"|"git"
 
 --- Project names are used in paths, so they are always slugs.
 ---@param name string
@@ -37,15 +37,18 @@ local function is_within(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
---- Active project: set explicitly -> `projects.paths` -> a project page's `paths:` -> git repo
---- -> none.
---- Detection never applies inside the journal itself.
+--- Active project: set explicitly (a project, or none at all) -> `projects.paths` -> a project
+--- page's `paths:` -> git repo -> none.
+--- Detection never applies inside the journal itself. With no project chosen (`:Logpose project
+--- none`) nothing is detected: new notes start without one and you pick it in their form.
 ---@param root? string journal root
 ---@return string? name, logpose.ProjectSource? source
 function M.resolve(root)
   local explicit = state.get("project")
   if type(explicit) == "string" and explicit ~= "" then
     return explicit, "explicit"
+  elseif explicit == false then
+    return nil, "none"
   end
 
   local ctx = context_path()
@@ -176,7 +179,8 @@ function M.known(root, opts)
       table.insert(out, name)
     end
   end
-  add(state.get("project"))
+  local pinned = state.get("project")
+  add(type(pinned) == "string" and pinned or nil)
   for _, name in pairs(config.get().projects.paths) do
     add(name)
   end
@@ -487,20 +491,29 @@ local SOURCE_LABEL = {
 ---@return string
 function M.describe(name, source)
   if not name then
-    return "no active project"
+    return source == "none" and "no project (you pick one per note)" or "no active project"
   end
   return ("project %s (%s)"):format(name, SOURCE_LABEL[source] or source)
 end
 
---- Set (or clear with nil) the explicit project.
----@param name? string
+--- Set the explicit project; nil goes back to detecting it, false means no project at all.
+---@param name? string|false
 function M.set(name)
+  if name == false then
+    state.set("project", false)
+    M.changed()
+    require("logpose.util.ui").notify(
+      "logpose: no project: new notes start without one (pick it in their form)",
+      vim.log.levels.INFO
+    )
+    return
+  end
   if name == nil then
     state.set("project", nil)
     M.changed()
     local root = config.resolve_root()
     require("logpose.util.ui").notify(
-      "logpose: project cleared; now " .. M.describe(M.resolve(root)),
+      "logpose: project detection on; now " .. M.describe(M.resolve(root)),
       vim.log.levels.INFO
     )
     return
@@ -529,13 +542,15 @@ function M.switch_to(name)
   end
 end
 
-local CLEAR = { "none", "auto", "clear" }
+local AUTO = { "auto", "detect", "clear" }
 
 ---@param opts logpose.CommandOpts
 function M.command(opts)
   local arg = table.concat(opts.args, " ")
   if arg ~= "" then
-    if vim.tbl_contains(CLEAR, arg) then
+    if arg == "none" then
+      M.set(false)
+    elseif vim.tbl_contains(AUTO, arg) then
       M.set(nil)
     else
       M.switch_to(arg)
@@ -555,7 +570,7 @@ function M.complete(_, args)
     return {}
   end
   local items = M.known(config.resolve_root())
-  table.insert(items, "none")
+  vim.list_extend(items, { "none", "auto" })
   return items
 end
 

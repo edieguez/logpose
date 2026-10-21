@@ -81,9 +81,36 @@ T["resolve"]["an explicit project wins until cleared"] = function()
   child.cmd("Logpose project Thesis")
   eq(resolve(), { "thesis", "explicit" })
   H.contains(child.notifications()[1].msg, "project set to thesis")
-  child.cmd("Logpose project none")
+  child.cmd("Logpose project auto")
   eq(resolve(), { "acme", "git" })
   H.contains(child.notifications()[2].msg, "now project acme (from the git repo)")
+end
+
+T["resolve"]["none: no project at all, even in a repo"] = function()
+  local dir = repo("acme")
+  setup("{ projects = { open_board = false } }")
+  child.cmd("edit " .. dir .. "/src/main.go")
+  child.cmd("Logpose project none")
+  eq(child.lua_get(("select(2, require('logpose.project').resolve(%q))"):format(root)), "none")
+  eq(child.lua_get(("require('logpose.project').resolve(%q)"):format(root)), vim.NIL)
+  H.contains(child.notifications()[1].msg, "no project")
+  -- it sticks across sessions (saved), until a project or auto
+  eq(child.lua_get("require('logpose.state').get('project')"), false)
+  child.cmd("Logpose project auto")
+  eq(resolve(), { "acme", "git" })
+end
+
+T["resolve"]["none: new meetings and notes ask for their project in the form"] = function()
+  child.cmd("Logpose project none")
+  child.cmd("Logpose meeting retro")
+  local form = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(form, "retro")
+  eq(#vim.fn.globpath(root .. "/meetings", "**/*.md", false, true), 0) -- nothing until saved
+  child.cmd("close")
+  child.cmd("Logpose note Queue design")
+  form = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(form, "Queue design")
+  eq(vim.fn.filereadable(root .. "/notes/queue-design.md"), 0)
 end
 
 T["require('logpose').project()"] = function()
@@ -104,7 +131,7 @@ end
 T["completes known projects"] = function()
   vim.fn.mkdir(root .. "/meetings/thesis", "p")
   vim.fn.mkdir(root .. "/meetings/acme", "p")
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none", "auto" })
 end
 
 T["rejects an invalid name"] = function()
@@ -134,7 +161,7 @@ T["meetings"]["same title in two projects are both linked"] = function()
   child.cmd("Logpose meeting retro")
   child.cmd("Logpose project thesis")
   child.cmd("Logpose meeting retro")
-  child.cmd("Logpose project none")
+  child.cmd("Logpose project auto")
   child.cmd("Logpose meeting retro")
   local daily = H.read(root .. "/daily/daily-2026-10-14.md")
   H.contains(daily, "- acme: [[meetings/acme/2026-10-14 - retro|Retro]]")

@@ -98,7 +98,7 @@ T["switching"][":Logpose project completes projects that only exist in task file
   task("b", "hiraishin")
   page("thesis")
   page("old", "archived: true\n")
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "hiraishin", "logpose", "thesis", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "hiraishin", "logpose", "thesis", "none", "auto" })
   -- archived projects stay searchable
   eq(
     child.lua_get(("require('logpose.search').projects(%q, require('logpose.index').build(%q))"):format(root, root)),
@@ -305,7 +305,7 @@ T["manager"]["a adds a project with a display name and its repo folder"] = funct
   H.contains(t, "project: thesis-work")
   H.contains(t, "paths: [" .. vim.fn.fnamemodify(repo, ":~"))
   H.contains(child.api.nvim_get_current_line(), "Thesis Work")
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis-work", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis-work", "none", "auto" })
 end
 
 T["manager"]["p links another repo folder"] = function()
@@ -330,13 +330,13 @@ T["manager"]["D archives a project and U restores it"] = function()
   H.contains(H.read(root .. "/projects/acme.md"), "archived: true")
   eq(project_of("a"), "acme")
   eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis", "none", "auto" })
   H.contains(text(), "## Archived (1)  A shows them")
   child.type_keys("A")
   on("▸ acme")
   child.type_keys("U")
   eq(H.read(root .. "/projects/acme.md"):match("archived") == nil, true)
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none", "auto" })
 end
 
 T["manager"]["R renames everywhere"] = function()
@@ -419,7 +419,7 @@ T["merge"]["M folds a project into another: tasks, meetings, links; the old page
   H.contains(old, "archived: true\nmerged_into: acme")
   H.contains(H.read(root .. "/meetings/acme/2026-10-01 - kickoff.md"), "series: acme/kickoff")
   eq(child.lua_get("require('logpose.state').get('project')"), "acme")
-  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "none" })
+  eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "none", "auto" })
 end
 
 T["merge"]["rename refuses an existing project and points at merge"] = function()
