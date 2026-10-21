@@ -494,9 +494,12 @@ links are understood. A wiki link's target is relative to the journal root
 (`link_base`), not to the note, and may contain spaces.
 
                                                                   *logpose-gx*
-`gx` in a journal note opens the note a link points to, from anywhere on the
-link. On anything else it does what `gx` did before (your markdown plugin's
-mapping, or Neovim's, which opens URLs).
+`gx` in a journal note opens the note a wiki link points to, from anywhere
+on the link. Everything else goes to the `gx` the buffer already had: a
+markdown plugin's buffer mapping (which keeps markdown links, anchors and
+URLs), or Neovim's (then logpose also follows markdown links to notes).
+logpose maps `gx` after the other FileType handlers, so load order doesn't
+matter.
 
                                                          *logpose-completion*
 Link completion ~

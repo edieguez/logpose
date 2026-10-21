@@ -582,9 +582,12 @@ Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown lin
 A wiki link's target is relative to the journal root (`link_base`), not to the note, and may
 contain spaces: `[[meetings/acme/2026-10-14 - retro|Retro]]`.
 
-**Following links.** `gx` on a link in a journal note opens the note it points to, from
-anywhere on the link (the path or the label). On anything else, `gx` does what it did before
-logpose (your markdown plugin's `gx`, or Neovim's, which opens URLs).
+**Following links.** `gx` on a wiki link in a journal note opens the note it points to, from
+anywhere on the link (the path or the label). Everything else goes to the `gx` you already have:
+a markdown plugin's (such as markwright.nvim, which keeps following markdown links, anchors,
+footnotes and URLs), or Neovim's, in which case logpose also opens markdown links to notes.
+logpose sets its `gx` after other plugins have set theirs, so the order they load in doesn't
+matter.
 
 **Link completion.** Typing `[[` in a journal note offers every note:
 
