@@ -8,24 +8,33 @@ local actions = require("logpose.board.actions")
 local M = {}
 
 M.HELP = {
-  "logpose board",
-  "  h / l        previous / next column      j / k   previous / next card",
-  "  H / L  < >   move the card left / right  1-9     move it to column N",
-  "  x            done                        b       block / unblock",
-  "  <C-j>/<C-k>  move the card down / up     a       add a card here",
-  "  K            peek: the task in a float   D       delete the card (asks)",
-  "  n            notes linked with the task (meetings, daily notes …)",
-  "  N            make a note from the task's write-up (copy or move it)",
-  "  <CR>         open the task file          /       filter (find filters)",
-  "  z            fold / unfold the column    gg / G  first / last card",
-  "  u / <C-r>    undo / redo a board change",
-  "  c            compact cards on / off      s       rows per project on / off",
-  "  p            this project / all          P       projects (switch)",
-  "  m            move the card to a project  e       edit the card's fields",
-  "  v            mark / unmark the card      V <Esc> unmark all",
-  "               (H L 1-9 x b m e then act on every marked card)",
-  "  r            refresh                     q       close",
-  "  ?            this help",
+  { "Moving around" },
+  { "h l  j k", "previous / next column · previous / next card" },
+  { "gg  G", "first / last card" },
+  { "z", "fold / unfold the column" },
+  { "Cards" },
+  { "H L  < >", "move the card left / right" },
+  { "1-9", "move it to column N" },
+  { "x", "done" },
+  { "b", "block (asks why) / unblock" },
+  { "<C-j> <C-k>", "move the card down / up" },
+  { "a", "add a card here" },
+  { "D", "delete the card (asks)" },
+  { "m", "move the card to another project" },
+  { "e", "edit the card's fields" },
+  { "v  V <Esc>", "mark / unmark the card · unmark all (H L 1-9 x b m e act on all)" },
+  { "u  <C-r>", "undo / redo a board change" },
+  { "Reading" },
+  { "<CR>", "open the task file" },
+  { "K", "peek: the task in a floating window" },
+  { "n", "notes linked with the task" },
+  { "N", "a note from the task's write-up" },
+  { "View" },
+  { "/", "filter: the board follows as you type; Tab completes" },
+  { "<BS>", "clear the filter" },
+  { "p  P", "this project / all · the projects screen" },
+  { "c  s", "compact cards · rows per project" },
+  { "r  q", "refresh · close" },
 }
 
 ---@param b logpose.Board
@@ -179,8 +188,14 @@ function M.attach(b)
     actions.close(b)
   end, "Close")
   map("?", function()
-    require("logpose.util.ui").notify(table.concat(M.HELP, "\n"), vim.log.levels.INFO)
+    require("logpose.util.help").with_filters("Board", M.HELP)
   end, "Help")
+  map("<BS>", function()
+    if b.filter ~= "" then
+      b.filter = ""
+      view.refresh(b, (view.focused(b) or {}).file)
+    end
+  end, "Clear the filter")
 end
 
 return M

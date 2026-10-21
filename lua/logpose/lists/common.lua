@@ -148,6 +148,37 @@ function M.month_group(iso)
   return { { key = y .. "-" .. m, label = names[tonumber(m)] .. " " .. y } }
 end
 
+--- A day in words: "Today", "Yesterday", "Tomorrow", else "Wed 14 Oct" (with the year when it
+--- isn't this one).
+---@param iso? string
+---@return string
+function M.day(iso)
+  if not iso or iso == "" then
+    return ""
+  end
+  local date = require("logpose.util.date")
+  local today = date.today()
+  if iso == today then
+    return "Today"
+  elseif iso == date.add_days(today, -1) then
+    return "Yesterday"
+  elseif iso == date.add_days(today, 1) then
+    return "Tomorrow"
+  end
+  return date.short(iso, today)
+end
+
+--- The width of the date column for `entries` (by their `when`).
+---@param entries table[]
+---@return integer
+function M.day_width(entries)
+  local w = 0
+  for _, e in ipairs(entries) do
+    w = math.max(w, vim.fn.strdisplaywidth(M.day(e.when)))
+  end
+  return w
+end
+
 --- Newest first, then by title.
 function M.newest(a, b)
   local da, db = a.when or "", b.when or ""

@@ -489,7 +489,12 @@ function M.open(root)
     render(buf, root)
   end, "Refresh")
   map("?", function()
-    ui.notify(table.concat(M.HELP, "\n"), vim.log.levels.INFO)
+    require("logpose.util.help").open(
+      "Projects",
+      vim.tbl_map(function(l)
+        return { l }
+      end, vim.list_slice(M.HELP, 3))
+    )
   end, "Help")
   map("q", function()
     local alt = vim.fn.bufnr("#")

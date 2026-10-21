@@ -26,8 +26,12 @@ local ns = vim.api.nvim_create_namespace("logpose.lists")
 M.SHOWN = 10
 
 M.HL = {
-  LogposeListHeading = "Title",
+  LogposeListTitle = "Title",
+  LogposeListScope = "Title",
+  LogposeListFilter = "Special",
   LogposeListGroup = "Title",
+  LogposeListCount = "Comment",
+  LogposeListTree = "NonText",
   LogposeListDate = "Comment",
   LogposeListMeta = "Comment",
   LogposeListTodos = "DiagnosticWarn",
@@ -136,18 +140,21 @@ function M.build(s, width)
     table.insert(lines, chunks)
     rows[#lines] = r
   end
-  local scope = s.project and project.title(s.root, s.project) or "all projects"
   local g, sort = grouping(s), s.view.sorts[s.sort]
-  add({
-    { "# " .. s.view.title, "LogposeListHeading" },
-    { " · " .. scope, "LogposeListHeading" },
-  })
-  add({
-    {
-      ("%d · by %s · %s%s"):format(#entries, g.label, sort.label, s.filter ~= "" and (" · " .. s.filter) or ""),
-      "LogposeListHint",
-    },
-  })
+  s.count = #entries
+  -- the window's top bar: what this is, then how it's shown
+  local scope = s.project and project.title(s.root, s.project) or "all projects"
+  local function esc(str)
+    return (str:gsub("%%", "%%%%"))
+  end
+  local noun = #entries == 1 and (s.view.one or s.view.name) or (s.view.noun or s.view.name)
+  s.winbar = "%#LogposeListTitle# "
+    .. esc(s.view.title)
+    .. "%#LogposeListScope# · "
+    .. esc(scope)
+    .. (s.filter ~= "" and ("%#LogposeListFilter#  " .. esc(s.filter)) or "")
+    .. "%=%#LogposeListHint#"
+    .. esc(("%d %s · by %s · %s · ? help "):format(#entries, noun, g.label, sort.label))
   local ctx = { s = s, width = width, all_projects = not s.project, entries = entries, project_hl = {} }
   local pages = project.pages(s.root)
   ctx.hl = function(name)
@@ -157,15 +164,16 @@ function M.build(s, width)
   if s.view.layout then
     s.view.layout(ctx)
   end
-  for _, grp in ipairs(groups) do
-    add({})
+  for gi, grp in ipairs(groups) do
+    if gi > 1 then
+      add({})
+    end
     local folded = s.folded[grp.key]
     add({
-      { (folded and "▸ " or "") .. "## " .. grp.label, "LogposeListGroup" },
-      { (" (%d)"):format(#grp.entries), "LogposeListMeta" },
+      { (folded and "▸ " or "▾ ") .. grp.label, "LogposeListGroup" },
+      { ("  %d"):format(#grp.entries), "LogposeListCount" },
     }, { heading = true, group = grp.key })
     if not folded then
-      add({})
       local shown = s.more[grp.key] and #grp.entries or math.min(#grp.entries, M.SHOWN)
       for i = 1, shown do
         local e = grp.entries[i]
@@ -174,32 +182,31 @@ function M.build(s, width)
         add(chunks, { entry = e, group = grp.key })
         if s.expanded[e.key] and s.view.details then
           local details = s.view.details(e, s)
-          for _, d in ipairs(details) do
-            local c = vim.deepcopy(d.chunks)
-            table.insert(c, 1, { "      " })
-            add(c, { entry = e, group = grp.key, file = d.file, lnum = d.lnum, detail = true })
-          end
           if #details == 0 then
-            add({ { "      nothing more to show", "LogposeListHint" } }, { entry = e, group = grp.key, detail = true })
+            details = { { chunks = { { "nothing more to show", "LogposeListHint" } } } }
+          end
+          for di, d in ipairs(details) do
+            local c = vim.deepcopy(d.chunks)
+            table.insert(c, 1, { di == #details and "    └ " or "    ├ ", "LogposeListTree" })
+            add(c, { entry = e, group = grp.key, file = d.file, lnum = d.lnum, detail = true })
           end
         end
       end
       if shown < #grp.entries then
         add(
-          { { ("  … %d more (<CR> shows them)"):format(#grp.entries - shown), "LogposeListHint" } },
+          { { ("  … %d more  <CR>"):format(#grp.entries - shown), "LogposeListHint" } },
           { more = true, group = grp.key }
         )
       end
     end
   end
   if #groups == 0 then
-    add({})
-    add({
-      {
-        s.filter ~= "" and "  nothing matches the filter" or ("  " .. (s.view.empty or "nothing yet")),
-        "LogposeListHint",
-      },
-    })
+    if s.filter ~= "" then
+      add({ { ("  No %s match ‹%s›"):format(s.view.noun or s.view.name, s.filter), "LogposeListHint" } })
+      add({ { "  / changes the filter · <BS> clears it · ? lists what you can filter by", "LogposeListHint" } })
+    else
+      add({ { "  " .. (s.view.empty or "Nothing yet"), "LogposeListHint" } })
+    end
   end
   add({})
   add({
@@ -221,6 +228,9 @@ function M.render(s, keep)
   local width = win ~= -1 and vim.api.nvim_win_get_width(win) or vim.o.columns
   local lines, rows = M.build(s, width)
   s.rows = rows
+  if win ~= -1 then
+    vim.wo[win].winbar = s.winbar
+  end
   local texts = vim.tbl_map(function(chunks)
     local line = table.concat(vim.tbl_map(function(c)
       return c[1]
@@ -450,20 +460,14 @@ function M.open(root, view, opts)
     jump(-1)
   end, "Previous group")
   map("/", function()
-    vim.ui.input(
-      {
-        prompt = ("Filter %s: "):format(view.name),
-        default = s.filter,
-        completion = "customlist,v:lua.require'logpose.lists'.complete_input",
-      },
-      ui.safely(function(input)
-        if input ~= nil then
-          s.filter = vim.trim(input)
-          refresh()
-        end
-      end)
-    )
+    M.filter_bar(s)
   end, "Filter")
+  map("<BS>", function()
+    if s.filter ~= "" then
+      s.filter = ""
+      refresh()
+    end
+  end, "Clear the filter")
   map("g", function()
     s.group = s.group % #view.groupings + 1
     s.folded, s.more = {}, {}
@@ -571,7 +575,7 @@ function M.open(root, view, opts)
     refresh()
   end, "Refresh")
   map("?", function()
-    ui.notify(table.concat(M.help(view), "\n"), vim.log.levels.INFO)
+    require("logpose.util.help").with_filters(view.title, M.help(view))
   end, "Help")
   map("q", function()
     local alt = vim.fn.bufnr("#")
@@ -599,56 +603,65 @@ function M.open(root, view, opts)
   return buf
 end
 
---- The help text: the view's own keys, then the shared ones.
----@param view table
----@return string[]
-function M.help(view)
-  local lines = { "logpose " .. view.name, "" }
-  vim.list_extend(lines, view.help or {})
-  vim.list_extend(lines, {
-    "  <CR>   open (on a heading: fold; on “… more”: show all)",
-    "  <Tab>  details                   K  peek (read and edit in a float)",
-    "  /      filter: #tag @person type:retro date>=-7d attendees:ana, with or, not, ( )",
-    "  g      group by: " .. table.concat(
-      vim.tbl_map(function(g)
-        return g.label
-      end, view.groupings),
-      " · "
-    ),
-    "  s      order                     p  this project / all",
-    "  m      move to another group (changes the note)   < >  to the previous / next group",
-    "  ]] [[  next / previous group     z  fold the group",
-    "  e      edit                      a  add",
-    "  r      refresh                   q  close",
+--- The filter bar over the list: the list follows as you type; <Esc> puts the old filter back.
+---@param s logpose.ListState
+function M.filter_bar(s)
+  local win = vim.fn.bufwinid(s.buf)
+  if win == -1 then
+    return
+  end
+  local before = s.filter
+  local e = M.entry_at(s)
+  local noun = s.view.noun or s.view.name
+  require("logpose.filter.bar").open({
+    win = win,
+    title = "Filter " .. noun,
+    text = s.filter,
+    root = s.root,
+    on_change = function(text)
+      s.filter = vim.trim(text)
+      M.render(s, e and e.key)
+      return ("%d %s"):format(s.count or 0, s.count == 1 and (s.view.one or noun) or noun)
+    end,
+    on_done = function(text)
+      s.filter = text or before
+      M.render(s, e and e.key)
+    end,
   })
-  return lines
 end
 
---- Completion for the filter prompt ('customlist': the whole line, complete its last word).
----@param arglead string
----@param cmdline string
----@return string[]
-function M.complete_input(arglead, cmdline, _)
-  local line = cmdline or arglead
-  local word = line:match("(%S*)$") or ""
-  local before = line:sub(1, #line - #word)
-  local out = {}
-  for _, c in ipairs(require("logpose.search").complete(word, { "notes" })) do
-    if vim.startswith(c, word) then
-      table.insert(out, before .. c)
-    end
+--- The help rows: the view's own keys, then the shared ones.
+---@param view table
+---@return table[]
+function M.help(view)
+  local rows = { { "Keys" } }
+  vim.list_extend(rows, view.help or {})
+  local function labels(list)
+    return table.concat(
+      vim.tbl_map(function(x)
+        return x.label
+      end, list),
+      " · "
+    )
   end
-  return out
-end
-
---- A short date and how far it is from today, for rows.
----@param iso? string
----@return string
-function M.day(iso)
-  if not iso or iso == "" then
-    return "          "
-  end
-  return iso
+  vim.list_extend(rows, {
+    { "<CR>", "open (a heading: fold; … more: show all; a detail: open it)" },
+    { "<Tab>", "details" },
+    { "K", "peek: read and edit in a floating window" },
+    { "/", "filter: the list follows as you type; Tab completes" },
+    { "<BS>", "clear the filter" },
+    { "g", "group by: " .. labels(view.groupings) },
+    { "s", "order: " .. labels(view.sorts) },
+    { "m", "move to another group: changes the note" },
+    { "< >", "move to the previous / next group" },
+    { "e", "edit" },
+    { "a", "add one, in the group you're in" },
+    { "p", "this project / all projects" },
+    { "z", "fold the group" },
+    { "]] [[", "next / previous group" },
+    { "r  q", "refresh · close" },
+  })
+  return rows
 end
 
 M.fit = fit
