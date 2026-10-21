@@ -40,6 +40,7 @@ local KEYWORDS = {
     "edit",
     "mark",
     "notes",
+    "to_note",
   }, -- recorded by the board's keys
 }
 

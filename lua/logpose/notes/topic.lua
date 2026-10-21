@@ -24,15 +24,17 @@ end
 ---@param fm string[][]
 ---@param root string
 ---@param no_open? boolean only create it
+---@param body? string[]  the note's text instead of the template's (the cursor goes at its end)
 ---@return string path, integer[]? cursor, boolean? existed
-local function create(path, tpl, vars, fm, root, no_open)
+local function create(path, tpl, vars, fm, root, no_open, body)
   if fs.exists(path) then
     if not no_open then
       open(path)
     end
     return path, nil, true
   end
-  local rendered = template.render(template.load(tpl, root), template.vars(date.today(), vars))
+  local rendered = body and { text = table.concat(body, "\n") .. "\n", cursor = { #body + 1, 0 } }
+    or template.render(template.load(tpl, root), template.vars(date.today(), vars))
   local lines = { "---" }
   for _, kv in ipairs(fm) do
     table.insert(lines, kv[1] .. ": " .. kv[2])
@@ -68,7 +70,7 @@ end
 --- only creates it.
 ---@param root string
 ---@param title string
----@param opts? { project?: string|false, tags?: string[], open?: boolean }
+---@param opts? { project?: string|false, tags?: string[], open?: boolean, body?: string[] }
 ---@return string path, integer[]? cursor, boolean? existed
 function M.note(root, title, opts)
   opts = opts or {}
@@ -86,7 +88,7 @@ function M.note(root, title, opts)
     table.insert(fm, { "project", project })
   end
   table.insert(fm, { "tags", fmt.render("tags", opts.tags or {}) })
-  return create(path, "note", { title = title, project = project or "" }, fm, root, opts.open == false)
+  return create(path, "note", { title = title, project = project or "" }, fm, root, opts.open == false, opts.body)
 end
 
 --- Project page `projects/<slug>.md`, created if needed and opened (unless `opts.open == false`).

@@ -48,7 +48,7 @@ M.LISTS = { tags = true, attendees = true, paths = true }
 M.DATES = { due = true, date = true }
 
 --- Keys with a fixed set of values: `<CR>` picks one and `<C-a>`/`<C-x>` cycle through them.
-M.CHOICES = { status = true, type = true, project = true }
+M.CHOICES = { status = true, type = true, project = true, content = true }
 
 --- What to type, shown in an empty field.
 M.HINTS = {
@@ -65,6 +65,7 @@ M.HINTS = {
   paths = "repo folders, comma-separated",
   color = "#rrggbb or a highlight group",
   context = "a line of context (optional)",
+  content = "copy (keep it in the task too) or move · <CR> to pick",
 }
 
 --- In a bulk edit: an empty field leaves each task as it is.
@@ -209,7 +210,7 @@ end
 --- `defaults` and saving creates the note.
 ---@param root string
 ---@param kind "meeting"|"topic"
----@param defaults? { type?: string, title?: string, date?: string, project?: string, attendees?: string[], tags?: string[] }
+---@param defaults? { type?: string, title?: string, date?: string, project?: string, attendees?: string[], tags?: string[], from_task?: table }
 ---@return logpose.EditModel
 function M.load_new_note(root, kind, defaults)
   defaults = defaults or {}
@@ -224,15 +225,22 @@ function M.load_new_note(root, kind, defaults)
     initial.date = defaults.date or date.today()
     initial.attendees = table.concat(defaults.attendees or {}, ", ")
   end
+  local keys = vim.deepcopy(M.NEW_NOTE_FIELDS[kind])
+  if defaults.from_task then
+    -- a task's write-up becoming a note: copy it, or move it out of the task
+    table.insert(keys, "content")
+    initial.content = "copy"
+  end
   return {
     root = root,
     kind = kind,
-    keys = vim.deepcopy(M.NEW_NOTE_FIELDS[kind]),
+    keys = keys,
     old = {},
     info = {},
-    title = kind == "meeting" and "New meeting" or "New topic note",
+    title = defaults.from_task and "Note from task" or kind == "meeting" and "New meeting" or "New topic note",
     new = true,
     initial = initial,
+    from_task = defaults.from_task,
   }
 end
 
@@ -376,6 +384,12 @@ function M.check(kind, key, text, ctx)
       return text, "not a meeting type · <CR> to pick"
     end
     return text, nil, spec.label
+  elseif key == "content" then
+    local v = text:lower()
+    if v ~= "copy" and v ~= "move" then
+      return text, "copy or move · <CR> to pick"
+    end
+    return v, nil, v == "copy" and "the task keeps it too" or "the task keeps a link to the note"
   elseif key == "color" then
     if text:match("^#%x%x%x%x%x%x$") or vim.fn.hlexists(text) == 1 then
       return text, nil, nil
@@ -584,14 +598,35 @@ local function new_note_effects(model, r, ctx)
     if not path then
       return out
     end
-    if fs.exists(path) then
-      return { "open the existing " .. rel(path) }
+    local t = model.from_task
+    if t then
+      if fs.exists(path) then
+        table.insert(out, "add the task's write-up to the existing " .. rel(path))
+      else
+        local line = "create " .. rel(path)
+        if type(v.project) == "string" and v.project ~= "" and not r.errors.project then
+          line = line .. ", for " .. v.project
+        end
+        table.insert(out, line)
+      end
+      local what = t.selection and ("the %d selected line%s"):format(t.lines, t.lines == 1 and "" or "s")
+        or ("the task's write-up (%d line%s; ## Log left out)"):format(t.lines, t.lines == 1 and "" or "s")
+      table.insert(out, (v.content == "move" and "move " or "copy ") .. what)
+      table.insert(out, "link the note and the task to each other")
+      if fs.exists(path) then
+        table.insert(out, "then open it to write")
+        return out
+      end
+    else
+      if fs.exists(path) then
+        return { "open the existing " .. rel(path) }
+      end
+      local line = "create " .. rel(path)
+      if type(v.project) == "string" and v.project ~= "" and not r.errors.project then
+        line = line .. ", for " .. v.project
+      end
+      table.insert(out, line)
     end
-    local line = "create " .. rel(path)
-    if type(v.project) == "string" and v.project ~= "" and not r.errors.project then
-      line = line .. ", for " .. v.project
-    end
-    table.insert(out, line)
   end
   if type(v.tags) == "table" and #v.tags > 0 then
     table.insert(out, "tagged " .. table.concat(v.tags, ", "))
