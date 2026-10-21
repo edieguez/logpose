@@ -125,6 +125,15 @@ end
 ---@return string? path, integer[]? cursor, boolean? existed, string? message
 function M.create_note(root, kind, r, ctx, model)
   local v = r.values
+  if kind == "person" then
+    local people = require("logpose.people")
+    local path = people.page_path(root, vim.trim(v.name or ""))
+    if path and fs.exists(path) then
+      return path, nil, true
+    end
+    local p, cursor = people.create(root, v)
+    return p, cursor, false
+  end
   if model and model.from_task then
     local path, cursor, message = require("logpose.notes.from_task").apply(root, model.from_task, v)
     return path, cursor, false, message

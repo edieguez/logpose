@@ -14,7 +14,22 @@ M.FIELDS = {
   project = { "title", "description", "paths", "color" },
   topic = { "title", "project", "tags" },
   other = { "title", "project", "tags" },
+  person = {}, -- see M.fields_for: its own fields, then the configured ways to reach people
 }
+
+--- Fields offered for a kind of note.
+---@param kind string
+---@return string[]
+function M.fields_for(kind)
+  if kind == "person" then
+    local keys = { "name", "aliases", "role", "projects" }
+    for _, c in ipairs(require("logpose.people").contact_kinds()) do
+      table.insert(keys, c.key)
+    end
+    return keys
+  end
+  return M.FIELDS[kind]
+end
 
 --- Fields of a new task (`context` is a line under `## Context`, not frontmatter).
 M.NEW_FIELDS = { "title", "status", "project", "tags", "due", "blocked", "context" }
@@ -42,7 +57,7 @@ M.MANAGED = {
 }
 
 --- Keys whose value is a list (`[a, b]` in the file, `a, b` in the form).
-M.LISTS = { tags = true, attendees = true, paths = true }
+M.LISTS = { tags = true, attendees = true, paths = true, aliases = true, projects = true }
 
 --- Keys holding a date.
 M.DATES = { due = true, date = true }
@@ -65,6 +80,10 @@ M.HINTS = {
   paths = "repo folders, comma-separated",
   color = "#rrggbb or a highlight group",
   context = "a line of context (optional)",
+  name = "their full name",
+  aliases = "other ways you write them: Ana, ana.lopez (for @ana…)",
+  role = "what they do (optional)",
+  projects = "projects they work on · <Tab> completes",
   content = "copy (keep it in the task too) or move · <CR> to pick",
 }
 
@@ -161,7 +180,7 @@ function M.load(path, root)
       table.insert(keys, key)
     end
   end
-  for _, key in ipairs(M.FIELDS[kind]) do
+  for _, key in ipairs(M.fields_for(kind)) do
     add(key)
   end
   for _, e in ipairs(entries) do
@@ -175,6 +194,9 @@ function M.load(path, root)
     initial[key] = M.text(old[key])
   end
   local title = type(old.title) == "string" and old.title ~= "" and old.title or vim.fs.basename(path)
+  if kind == "person" and type(old.name) == "string" and old.name ~= "" then
+    title = old.name
+  end
   return { root = root, kind = kind, keys = keys, old = old, info = info, path = path, title = title, initial = initial }
 end
 
@@ -219,13 +241,24 @@ function M.load_new_note(root, kind, defaults)
     project = defaults.project or "",
     tags = table.concat(defaults.tags or {}, ", "),
   }
+  if kind == "person" then
+    initial = {
+      name = defaults.name or "",
+      aliases = table.concat(defaults.aliases or {}, ", "),
+      role = defaults.role or "",
+      projects = defaults.project or "",
+    }
+    for key, v in pairs(defaults.contacts or {}) do
+      initial[key] = v
+    end
+  end
   if kind == "meeting" then
     local types = require("logpose.notes.meeting").types()
     initial.type = defaults.type or (types[1] and types[1].key) or ""
     initial.date = defaults.date or date.today()
     initial.attendees = table.concat(defaults.attendees or {}, ", ")
   end
-  local keys = vim.deepcopy(M.NEW_NOTE_FIELDS[kind])
+  local keys = vim.deepcopy(kind == "person" and M.fields_for("person") or M.NEW_NOTE_FIELDS[kind])
   if defaults.from_task then
     -- a task's write-up becoming a note: copy it, or move it out of the task
     table.insert(keys, "content")
@@ -237,7 +270,9 @@ function M.load_new_note(root, kind, defaults)
     keys = keys,
     old = {},
     info = {},
-    title = defaults.from_task and "Note from task" or kind == "meeting" and "New meeting" or "New topic note",
+    title = defaults.from_task and "Note from task"
+      or ({ meeting = "New meeting", person = "New person" })[kind]
+      or "New topic note",
     new = true,
     initial = initial,
     from_task = defaults.from_task,
@@ -342,8 +377,13 @@ function M.check(kind, key, text, ctx)
   if text == "" then
     if key == "title" and (kind == "task" or kind == "meeting" or kind == "project") then
       return "", "a title is needed"
+    elseif key == "name" and kind == "person" then
+      return "", "a name is needed"
     end
     return "", nil, nil
+  end
+  if key == "email" and not text:find("@", 1, true) then
+    return text, "not an email address"
   end
   if key == "status" and kind == "task" then
     local taskfile = require("logpose.taskfile")
@@ -464,7 +504,7 @@ function M.collect(model, texts, ctx)
       end
     else
       value, err, note = M.check(model.kind, key, text, ctx)
-      if model.new and key == "title" and vim.trim(text) == "" then
+      if model.new and (key == "title" or key == "name") and vim.trim(text) == "" then
         err = nil -- a new title: asked for on save, not shouted at while you start typing
       end
       if not err and model.kind == "project" and key == "project" and not M.same(model.old[key], value) then
@@ -570,6 +610,28 @@ local function new_note_effects(model, r, ctx)
     return require("logpose.link").relpath(model.root, path)
   end
   local out = {}
+  if model.kind == "person" then
+    local name = vim.trim(type(v.name) == "string" and v.name or "")
+    local path = name ~= "" and require("logpose.people").page_path(model.root, name)
+    if not path then
+      return out
+    end
+    if fs.exists(path) then
+      return { "nothing: " .. rel(path) .. " already exists" }
+    end
+    table.insert(out, "create " .. rel(path))
+    local reach = {}
+    for _, c in ipairs(require("logpose.people").contact_kinds()) do
+      if type(v[c.key]) == "string" and v[c.key] ~= "" then
+        table.insert(reach, c.label)
+      end
+    end
+    if #reach > 0 then
+      table.insert(out, "reach them by " .. table.concat(reach, ", "))
+    end
+    table.insert(out, "then open it to write notes")
+    return out
+  end
   if model.kind == "meeting" then
     local note = M.build_meeting(model, r, ctx)
     if not note then

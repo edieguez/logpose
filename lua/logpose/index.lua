@@ -2,6 +2,7 @@
 --- reports filter. Pickers only display these items. Four kinds, kept apart:
 ---   note  a note (daily, meeting, topic note, project page): the whole file
 ---   task  a task file under `dirs.tasks`: the whole file, with its status, due date…
+---   person  a person's page under `dirs.people`: name, aliases, role, contacts, notes
 ---   todo  a checkbox line (`- [ ] …`) in a note or a task file
 ---   line  a tagged line, or any line under a retrievable section (Decisions, Blockers…)
 local config = require("logpose.config")
@@ -12,12 +13,13 @@ local markdown = require("logpose.markdown")
 local M = {}
 
 ---@class logpose.Item
----@field kind "note"|"task"|"todo"|"line"
+---@field kind "note"|"task"|"person"|"todo"|"line"
 ---@field file string
 ---@field lnum integer
 ---@field text string
 ---@field date? string
----@field file_type string  where the file sits: daily|meeting|project|topic|task|other
+---@field file_type string  where the file sits: daily|meeting|project|topic|task|person|other
+---@field fields? table     people's pages: their frontmatter (name, aliases, role, contacts…)
 ---@field status? string   tasks: board column
 ---@field blocked? string  tasks: block reason
 ---@field due? string      tasks: due date
@@ -184,6 +186,8 @@ function M.file_type(path, root)
     return "meeting"
   elseif under(path, p("tasks")) then
     return "task"
+  elseif under(path, p("people")) then
+    return "person"
   elseif under(path, p("projects")) then
     return "project"
   elseif under(path, p("notes")) then
@@ -204,6 +208,9 @@ function M.index_lines(path, lines, root)
   local name = vim.fn.fnamemodify(path, ":t:r")
 
   local title = type(fm.title) == "string" and fm.title ~= "" and fm.title or nil
+  if file_type == "person" and type(fm.name) == "string" and fm.name ~= "" then
+    title = fm.name
+  end
   if not title then
     for i = body, #lines do
       local h = lines[i]:match("^#%s+(.+)$")
@@ -250,7 +257,7 @@ function M.index_lines(path, lines, root)
   end
 
   local note = {
-    kind = file_type == "task" and "task" or "note",
+    kind = (file_type == "task" or file_type == "person") and file_type or "note",
     file = path,
     lnum = 1,
     text = title,
@@ -266,6 +273,9 @@ function M.index_lines(path, lines, root)
     names = names,
     links = {},
   }
+  if file_type == "person" then
+    note.fields = fm
+  end
   if file_type == "task" then
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
@@ -487,11 +497,11 @@ function M.build(root)
   return vim.list_extend({}, items)
 end
 
---- Is this item a whole file (a note or a task), not a line in one?
+--- Is this item a whole file (a note, a task or a person's page), not a line in one?
 ---@param it logpose.Item
 ---@return boolean
 function M.is_file(it)
-  return it.kind == "note" or it.kind == "task"
+  return it.kind == "note" or it.kind == "task" or it.kind == "person"
 end
 
 --- Tags with the number of places they appear (tagged tasks/lines, plus notes tagging them in
