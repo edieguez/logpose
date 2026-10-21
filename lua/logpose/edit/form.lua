@@ -103,6 +103,9 @@ function M.candidates(root, kind, key, partial, others)
         end
       end
     end
+  elseif key == "content" then
+    add("copy", "keep the write-up in the task too")
+    add("move", "leave only a link to the note in the task")
   elseif key == "type" and kind == "meeting" then
     for _, t in ipairs(require("logpose.notes.meeting").types()) do -- in their `order`
       add(t.key, t.spec.label)
@@ -680,7 +683,7 @@ function M.save(f)
       goto_field(f, 1)
       error("logpose: give the note a title", 0)
     end
-    local path, cursor, existed = save.create_note(model.root, model.kind, r, f.ctx)
+    local path, cursor, existed, message = save.create_note(model.root, model.kind, r, f.ctx, model)
     if not path then
       error("logpose: pick a meeting type and a valid date first", 0)
     end
@@ -691,7 +694,10 @@ function M.save(f)
       pcall(vim.api.nvim_win_set_cursor, 0, cursor)
     end
     ui.notify(
-      existed and ("logpose: %s already exists; opened it"):format(require("logpose.link").relpath(model.root, path))
+      message
+        or existed and ("logpose: %s already exists; opened it"):format(
+          require("logpose.link").relpath(model.root, path)
+        )
         or ("logpose: created %s"):format(require("logpose.link").relpath(model.root, path)),
       vim.log.levels.INFO
     )

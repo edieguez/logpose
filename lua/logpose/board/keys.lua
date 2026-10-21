@@ -15,6 +15,7 @@ M.HELP = {
   "  <C-j>/<C-k>  move the card down / up     a       add a card here",
   "  K            peek: the task in a float   D       delete the card (asks)",
   "  n            notes linked with the task (meetings, daily notes …)",
+  "  N            make a note from the task's write-up (copy or move it)",
   "  <CR>         open the task file          /       filter (find filters)",
   "  z            fold / unfold the column    gg / G  first / last card",
   "  u / <C-r>    undo / redo a board change",
@@ -100,6 +101,9 @@ function M.attach(b)
   map("n", function()
     actions.notes(b)
   end, "Notes linked with the task")
+  map("N", function()
+    actions.to_note(b)
+  end, "Note from the task")
   map("z", function()
     actions.toggle_fold(b)
   end, "Fold / unfold the column")
