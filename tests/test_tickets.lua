@@ -86,6 +86,27 @@ T["gx follows note links, spaces and all, and hands the rest to your gx"] = func
   eq(child.lua_get("_G.mine"), "https://example.com/x") -- yours, untouched
 end
 
+T["a markdown plugin's own gx, mapped after logpose, keeps markdown links; logpose takes wiki links"] = function()
+  -- like markwright: a buffer-local (expr) gx set on FileType, after logpose's autocmd
+  child.lua([[vim.api.nvim_create_autocmd("FileType", { pattern = "markdown", callback = function(ev)
+    vim.keymap.set("n", "gx", function() _G.plugin = (_G.plugin or 0) + 1; return "" end, { buffer = ev.buf, expr = true })
+  end })]])
+  H.write(root .. "/meetings/2026-10-15 - retro.md", "# Retro\n")
+  local task = root .. "/tasks/t.md"
+  H.write(task, "[[meetings/2026-10-15 - retro|Retro]] and [anchor](<../meetings/2026-10-15 - retro.md#x>)\n")
+  child.cmd("edit " .. task)
+  child.bo.filetype = "markdown"
+  eq(child.lua_get("vim.fn.maparg('gx', 'n', false, true).desc"), "logpose: follow a link or open a ticket")
+  child.api.nvim_win_set_cursor(0, { 1, 50 })
+  child.type_keys("gx")
+  eq(child.lua_get("_G.plugin"), 1) -- the plugin follows its markdown link (and its #anchor)
+  eq(child.api.nvim_buf_get_name(0), task)
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+  child.type_keys("gx")
+  eq(child.api.nvim_buf_get_name(0), root .. "/meetings/2026-10-15 - retro.md")
+  eq(child.lua_get("_G.plugin"), 1)
+end
+
 T[":Logpose ticket lists whole-word mentions"] = function()
   child.lua(
     [[vim.ui.select = function(items, opts, cb) _G.labels = vim.tbl_map(opts.format_item, items); _G.prompt = opts.prompt; cb(items[2]) end]]

@@ -81,6 +81,27 @@ end
 ---@type table<integer, table>
 local previous = {}
 
+--- Run a mapping as `maparg()` describes it.
+---@param m table
+local function run(m)
+  if m.callback then
+    local keys = m.callback()
+    if m.expr == 1 and type(keys) == "string" and keys ~= "" then
+      vim.api.nvim_feedkeys(
+        vim.api.nvim_replace_termcodes(keys, true, false, true),
+        m.noremap == 1 and "n" or "m",
+        false
+      )
+    end
+  elseif m.rhs and m.rhs ~= "" then
+    local keys = m.rhs
+    if m.expr == 1 then
+      keys = vim.api.nvim_eval(keys)
+    end
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), m.noremap == 1 and "n" or "m", false)
+  end
+end
+
 --- `gx`: the ticket under the cursor opens in the tracker, a link to a note opens the note;
 --- anything else goes to the `gx` you had (a URL opens in the browser).
 function M.gx()
@@ -93,26 +114,27 @@ function M.gx()
     vim.ui.open(url)
     return
   end
+  local prev = previous[buf]
+  -- a markdown plugin's own gx (buffer-local) already follows markdown links, anchors included:
+  -- logpose only takes the wiki links it doesn't know
+  local plugin = prev and prev.buffer == 1
   local root = config.resolve_root()
   if root then
-    local path, link = require("logpose.links").follow(root, fs.normalize(vim.api.nvim_buf_get_name(buf)), line, col)
-    if path then
-      vim.cmd.edit(vim.fn.fnameescape(path))
-      return
-    elseif link and link.style == "wiki" then
-      ui.notify(("logpose: no note at [[%s]]"):format(link.target), vim.log.levels.WARN)
-      return
+    local links = require("logpose.links")
+    local link = links.at(line, col)
+    if link and (link.style == "wiki" or not plugin) then
+      local path = links.follow(root, fs.normalize(vim.api.nvim_buf_get_name(buf)), line, col)
+      if path then
+        vim.cmd.edit(vim.fn.fnameescape(path))
+        return
+      elseif link.style == "wiki" then
+        ui.notify(("logpose: no note at [[%s]]"):format(link.target), vim.log.levels.WARN)
+        return
+      end
     end
   end
-  local prev = previous[buf]
-  if prev and prev.callback then
-    prev.callback()
-  elseif prev and prev.rhs and prev.rhs ~= "" then
-    vim.api.nvim_feedkeys(
-      vim.api.nvim_replace_termcodes(prev.rhs, true, false, true),
-      prev.noremap == 1 and "n" or "m",
-      false
-    )
+  if prev then
+    run(prev)
   else
     vim.ui.open(vim.fn.expand("<cfile>"))
   end
@@ -130,13 +152,20 @@ function M.attach(buf)
   if not vim.startswith(abs, fs.normalize(root) .. "/") then
     return
   end
-  local prev = vim.api.nvim_buf_call(buf, function()
-    return vim.fn.maparg("gx", "n", false, true)
+  -- After every FileType handler has run, so a markdown plugin mapping gx for the buffer (in any
+  -- order) ends up behind logpose's, which hands it everything but wiki links and tickets.
+  vim.schedule(function()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local prev = vim.api.nvim_buf_call(buf, function()
+      return vim.fn.maparg("gx", "n", false, true)
+    end)
+    if prev.desc ~= "logpose: follow a link or open a ticket" then
+      previous[buf] = next(prev) and prev or nil
+    end
+    vim.keymap.set("n", "gx", M.gx, { buffer = buf, desc = "logpose: follow a link or open a ticket" })
   end)
-  if prev.desc ~= "logpose: follow a link or open a ticket" then
-    previous[buf] = next(prev) and prev or nil
-  end
-  vim.keymap.set("n", "gx", M.gx, { buffer = buf, desc = "logpose: follow a link or open a ticket" })
 end
 
 function M.setup_autocmd()
