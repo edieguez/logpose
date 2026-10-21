@@ -82,8 +82,8 @@ function M.check_command(opts)
 end
 
 --- `:Logpose promote`: turn the to-do on the cursor line into a task (a task file in
---- `tasks.promote_status`, or Done if it was checked), and link the to-do to it. The task gets a
---- `From:` link back to the note.
+--- `tasks.promote_status`, or Done if it was checked). The two link to each other: the to-do
+--- keeps its text and gains a `→ [[task]]` line under it, the task gets a `From:` link back.
 ---@param root string
 ---@return string path the new task file
 function M.promote(root)
@@ -94,7 +94,7 @@ function M.promote(root)
   if note == "" or vim.bo[buf].buftype ~= "" then
     error("logpose: :Logpose promote works on a to-do in a journal note", 0)
   end
-  if taskfile.is_task_file(note, root) then
+  if taskfile.is_task_file(note, root) and not M.parse(vim.api.nvim_get_current_line()) then
     error("logpose: this is a task already; promote works on a to-do in a note", 0)
   end
   local row = vim.api.nvim_win_get_cursor(0)[1]
@@ -123,8 +123,11 @@ function M.promote(root)
     body = { "From: " .. link.make(path, note, note_item.title, root) },
   })
   local was_modified = vim.bo[buf].modified
-  local prefix = line:match("^(%s*[-*+]%s+%[.%]%s+)")
-  vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { prefix .. link.make(note, path, title, root) })
+  -- the to-do keeps its words (its owner and due date keep it in :Logpose actions) and links to
+  -- the task, which links back with `From:`
+  -- (on a line of its own under the item, so long lines stay within markdownlint's limit)
+  local cont = string.rep(" ", #todo.indent + 2) .. "→ " .. link.make(note, path, "task", root)
+  vim.api.nvim_buf_set_lines(buf, row, row, false, { cont })
   if not was_modified then
     vim.api.nvim_buf_call(buf, function()
       vim.cmd("silent write")
@@ -141,9 +144,20 @@ function M.promote(root)
   return path
 end
 
----@param _ logpose.CommandOpts
-function M.promote_command(_)
-  require("logpose.config").with_root(ui.safely(M.promote))
+--- `:Logpose promote`: on a to-do, a task; in a task file (not on one of its to-dos), the
+--- task's write-up (or the selected lines) becomes a note.
+---@param opts logpose.CommandOpts
+function M.promote_command(opts)
+  require("logpose.config").with_root(ui.safely(function(root)
+    local path = vim.api.nvim_buf_get_name(0)
+    local taskfile = require("logpose.taskfile")
+    local on_todo = M.parse(vim.api.nvim_get_current_line()) ~= nil and (opts.range or 0) == 0
+    if path ~= "" and taskfile.is_task_file(path, root) and not on_todo then
+      require("logpose.notes.from_task").command(root, require("logpose.util.fs").normalize(path), opts)
+      return
+    end
+    M.promote(root)
+  end))
 end
 
 return M
