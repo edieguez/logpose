@@ -543,6 +543,24 @@ in `find`.
 **People** come from meeting `attendees:`, 1:1s and `@mentions`. `:Logpose find people` lists
 everyone with how much involves them; pick a person to see all of it.
 
+**The people list.** To have people suggested before your first meeting with them, list them in
+`people.md` at the journal's root, one per item:
+
+```markdown
+- Ana López (ana@acme.com) #acme
+- Luis Pérez #acme #web
+- José Ruiz
+```
+
+The email and `#projects` are optional; a `#project` puts that person first in that project's
+meetings. The list's spelling of a name wins.
+
+**Suggesting people.** Wherever logpose asks for a person (the forms' `attendees`, a 1:1's
+person, the attendees prompt, and in a note itself; see [completion in notes](#topic-notes-and-links)),
+any part of the name matches and accents don't matter: `lop` finds Ana López, `jose` finds José
+Ruiz. The note's project's people come first, then the people you meet most. Names already in
+the list aren't offered again.
+
 ## Editing details
 
 **Fix a task's project, a meeting's attendees or a due date without editing YAML.**
@@ -612,7 +630,9 @@ footnotes and URLs), or Neovim's, in which case logpose also opens markdown link
 logpose sets its `gx` after other plugins have set theirs, so the order they load in doesn't
 matter.
 
-**Link completion.** Typing `[[` in a journal note offers every note:
+**Completion in notes.** In a journal note, typing `[[` offers every note and task to link;
+in the frontmatter's `attendees:` and `with:` lines, typing a name (after `[` or a comma) offers
+people; and `@` in the text offers people as `@handle`. It needs a completion plugin:
 
 - **blink.cmp:** add `logpose = { name = "logpose", module = "logpose.completion.blink" }` to
   `sources.providers`, and `"logpose"` to your markdown sources.
@@ -932,6 +952,7 @@ timestamps = { created = true, modified = true },  -- created:/modified: in fron
 search = { live = true },              -- the picker prompt re-runs the query as you type
 retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
 views = {},                            -- saved searches: name = "find arguments"
+people = { file = "people.md" },       -- your people list, relative to the journal root
 actions = {
   include_daily = false,               -- also collect to-dos from daily notes
   unassigned_mine = true,              -- items without an owner count as yours
