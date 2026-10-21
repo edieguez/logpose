@@ -4,53 +4,36 @@ local eq = H.eq
 
 local T = MiniTest.new_set()
 
-T["parse"] = function()
-  eq(
-    query.parse({
-      "project:Acme",
-      "#Perf",
-      "tag:#ux",
-      "type:retro",
-      "open",
-      "since:2026-10-01",
-      "until:2026-10-14",
-      "Flaky",
-      "Test",
-    }),
-    {
-      project = "acme",
-      tags = { "perf", "ux" },
-      type = "retro",
-      state = "open",
-      since = "2026-10-01",
-      ["until"] = "2026-10-14",
-      words = { "flaky", "test" },
-      people = {},
-    }
-  )
-  eq(query.parse({ "p:x" }).project, "x")
-  eq(query.parse({}), { tags = {}, words = {}, people = {} })
+local function m(item, args, today)
+  return query.match(item, query.parse(args, today or "2026-10-14"))
 end
 
 T["parse rejects bad dates"] = function()
   MiniTest.expect.error(function()
     query.parse({ "since:someday" })
   end, "since: needs a date")
+  MiniTest.expect.error(function()
+    query.parse({ "date>=someday" })
+  end, "date: needs a date")
+end
+
+local dated = function(d)
+  return { kind = "note", text = "x", tags = {}, date = d }
 end
 
 T["relative dates"] = function()
-  local q = query.parse({ "since:-7d", "until:yesterday" }, "2026-10-14")
-  eq({ q.since, q["until"] }, { "2026-10-07", "2026-10-13" })
-  eq(query.parse({ "since:today" }, "2026-10-14").since, "2026-10-14")
-  eq(query.parse({ "until:+2w" }, "2026-10-14")["until"], "2026-10-28")
-  eq(query.parse({ "since:2026-01-01" }, "2026-10-14").since, "2026-01-01")
+  eq(m(dated("2026-10-07"), { "since:-7d", "until:yesterday" }), true)
+  eq(m(dated("2026-10-06"), { "since:-7d" }), false)
+  eq(m(dated("2026-10-14"), { "until:yesterday" }), false)
+  eq(m(dated("2026-10-28"), { "until:+2w" }), true)
+  eq(m(dated("2026-10-29"), { "until:+2w" }), false)
 end
 
 T["week: and sprint: expand to a date range"] = function()
-  local q = query.parse({ "week:current" }, "2026-10-14")
-  eq({ q.since, q["until"] }, { "2026-10-12", "2026-10-18" })
-  q = query.parse({ "week:-1" }, "2026-10-14")
-  eq({ q.since, q["until"] }, { "2026-10-05", "2026-10-11" })
+  eq(m(dated("2026-10-12"), { "week:current" }), true)
+  eq(m(dated("2026-10-18"), { "week:current" }), true)
+  eq(m(dated("2026-10-11"), { "week:current" }), false)
+  eq(m(dated("2026-10-05"), { "week:-1" }), true)
   MiniTest.expect.error(function()
     query.parse({ "sprint:current" }, "2026-10-14")
   end, "needs `period.sprint.anchor`")
@@ -61,7 +44,6 @@ end
 
 T["section filter"] = function()
   local q = query.parse({ "section:open-questions" })
-  eq(q.section, "open questions")
   eq(query.match({ kind = "line", text = "x", tags = {}, section = "open questions" }, q), true)
   eq(query.match({ kind = "line", text = "x", tags = {}, section = "decisions" }, q), false)
   eq(query.match({ kind = "line", text = "x", tags = {} }, q), false)
@@ -84,10 +66,6 @@ local note = {
   project = "thesis",
   tags = { "team" },
 }
-
-local function m(item, args)
-  return query.match(item, query.parse(args))
-end
 
 T["match"] = MiniTest.new_set()
 
@@ -123,10 +101,93 @@ end
 T["lenient parse skips half-typed and invalid filters"] = function()
   local q, skipped =
     query.parse({ "project:", "#", "@", "since:2026-1", "sprint:", "#perf", "open", "flaky" }, "2026-10-14", true)
-  eq(q, { tags = { "perf" }, words = { "flaky" }, people = {}, state = "open" })
   eq(#skipped, 5)
+  eq(query.match(task, q), true)
   eq(query.split("  #perf   open "), { "#perf", "open" })
   eq(query.split(""), {})
+  eq(query.split('attendees:"Ana López" (a or b)'), { "attendees:Ana López", "(", "a", "or", "b", ")" })
+  -- an open parenthesis while typing
+  eq(query.match(task, query.parse({ "(#perf", "or" }, nil, true)), true)
+  MiniTest.expect.error(function()
+    query.parse({ "(#perf" })
+  end, "a %( without its %)")
+end
+
+local meeting = {
+  kind = "note",
+  file_type = "meeting",
+  type = "retro",
+  text = "Retro",
+  title = "Retro",
+  date = "2026-10-14",
+  project = "acme",
+  tags = { "team" },
+  people = { "ana", "bob-smith" },
+  fields = {
+    type = "retro",
+    date = "2026-10-14",
+    attendees = { "Ana", "Bob Smith" },
+    room = "Lisboa",
+    score = "7",
+  },
+}
+local daily = { kind = "note", file_type = "daily", text = "d", tags = {}, date = "2026-10-13", fields = {} }
+
+T["or, not and parentheses"] = function()
+  eq(m(meeting, { "type:planning", "or", "type:retro" }), true)
+  eq(m(meeting, { "type:planning", "OR", "type:review" }), false)
+  eq(m(meeting, { "not", "type:retro" }), false)
+  eq(m(meeting, { "-type:retro" }), false)
+  eq(m(meeting, { "-#draft" }), true)
+  eq(m(meeting, { "(type:planning", "or", "type:retro)", "project:acme" }), true)
+  eq(m(meeting, { "(type:planning", "or", "type:retro)", "project:thesis" }), false)
+  eq(m(meeting, { "type:planning", "or", "type:retro", "project:thesis" }), false) -- and binds tighter
+  eq(m(meeting, { "#team", "and", "@ana" }), true)
+  eq(m(meeting, { "-7d" }), false) -- a word, not a negation
+end
+
+T["type: is the meeting type or the kind of note"] = function()
+  eq(m(meeting, { "type:meeting" }), true)
+  eq(m(daily, { "type:daily" }), true)
+  eq(m(meeting, { "type:daily" }), false)
+  eq(m(daily, { "-type:daily" }), false)
+end
+
+T["any frontmatter field"] = function()
+  eq(m(meeting, { "room:lisboa" }), true)
+  eq(m(meeting, { "room:lis" }), true) -- contains, accents and case ignored
+  eq(m(meeting, { "room:madrid" }), false)
+  eq(m(meeting, { "room:*" }), true)
+  eq(m(meeting, { "has:room" }), true)
+  eq(m(meeting, { "no:room" }), false)
+  eq(m(meeting, { "no:due" }), true)
+  eq(m(meeting, { "score>=7" }), true)
+  eq(m(meeting, { "score>7" }), false)
+  eq(m(meeting, { "score<10" }), true) -- numbers compare as numbers
+end
+
+T["attendees and with match people, partly typed"] = function()
+  eq(m(meeting, { "attendees:ana" }), true)
+  eq(m(meeting, { "attendees:bob" }), true)
+  eq(m(meeting, { 'attendees:"Bob Smith"' }), true)
+  eq(m(meeting, { "attendees:carla" }), false)
+  eq(m(meeting, { "with:ana" }), false)
+end
+
+T["dates: a day, a month, comparisons and ranges"] = function()
+  eq(m(meeting, { "date:2026-10-14" }), true)
+  eq(m(meeting, { "date:2026-10" }), true)
+  eq(m(meeting, { "date:2026-09" }), false)
+  eq(m(meeting, { "date:2026" }), true)
+  eq(m(meeting, { "date:today" }), true)
+  eq(m(meeting, { "date>=-7d" }), true)
+  eq(m(meeting, { "date<today" }), false)
+  eq(m(meeting, { "date<=2026-10" }), true) -- the whole month
+  eq(m(meeting, { "date>2026-09" }), true)
+  eq(m(meeting, { "date>2026-10" }), false)
+  eq(m(meeting, { "date:2026-10-01..2026-10-15" }), true)
+  eq(m(meeting, { "date:2026-10-15..2026-10-31" }), false)
+  eq(m(meeting, { "date:..2026-10" }), true)
 end
 
 return T
