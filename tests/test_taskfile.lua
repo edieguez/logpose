@@ -252,7 +252,7 @@ T["promote turns a to-do into a linked task"] = function()
   child.cmd("Logpose promote")
   local path = root .. "/tasks/fix-ci-ana.md"
   local t = fm(path)
-  eq({ t.title, t.status, t.project, t.tags, t.due }, { "fix CI @ana", "todo", "acme", { "perf" }, "2026-10-20" })
+  eq({ t.title, t.status, t.project, t.tags, t.due }, { "fix CI @ana", "backlog", "acme", { "perf" }, "2026-10-20" })
   H.contains(H.read(path), "From: [[meetings/acme/2026-10-15 - retro|Retro]]")
   eq(child.api.nvim_buf_get_lines(0, 7, 8, false)[1], "- [ ] [[tasks/fix-ci-ana|fix CI @ana]]")
   eq(child.bo.modified, false) -- saved
