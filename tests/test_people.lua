@@ -68,7 +68,7 @@ end
 T["find people, then everything involving them"] = function()
   select_picks("Bob Smith")
   child.cmd("Logpose find people")
-  eq(child.lua_get("_G.offered")[1].labels, { "Ana (5)", "Bob Smith (2)" })
+  eq(child.lua_get("_G.offered")[1].labels, { "Ana · 5 notes", "Bob Smith · 2 notes" })
   local second = child.lua_get("_G.offered")[2]
   eq(second.prompt, "Bob Smith")
   eq(second.labels, { "2026-10-08  meeting/retro  Retro", "Paired with @bob.smith on tests  · Retro" })
@@ -119,23 +119,32 @@ T["completion of people and past titles"] = function()
   eq(child.lua_get("LogposeCompleteTitles('')"), { "Ana", "Bob Smith" })
 end
 
-T["people.md adds people you haven't met yet; its spelling wins"] = function()
-  H.write(
-    root .. "/people.md",
-    "# People\n\n- Ana López (ana@acme.com) #acme\n- José Ruiz #thesis\n- Bob Smith\n- [ ] not a person\n"
-  )
-  local known = child.lua_get([[vim.tbl_map(function(p) return { p.slug, p.name, p.count, p.email or false } end,
-    require('logpose.people').known())]])
+--- A person's page.
+local function person(slug, fm)
+  H.write(root .. "/people/" .. slug .. ".md", "---\n" .. fm .. "\n---\n## Notes\n")
+end
+
+T["people pages add people you haven't met yet; aliases make one person"] = function()
+  person("ana-lopez", 'name: "Ana López"\naliases: [Ana]\nemail: ana@acme.com\nslack: ana.lopez\nprojects: [acme]')
+  person("jose-ruiz", 'name: "José Ruiz"\nrole: Designer')
+  local known = child.lua_get([[vim.tbl_map(function(p)
+    return { p.slug, p.name, p.count, p.contacts.email or false, p.page and vim.fs.basename(p.page) or false }
+  end, require('logpose.people').known())]])
   eq(known, {
-    { "ana", "Ana", 5, false }, -- "Ana" and "Ana López" are different people to logpose
-    { "bob-smith", "Bob Smith", 2, false },
-    { "ana-lopez", "Ana López", 0, "ana@acme.com" },
-    { "jose-ruiz", "José Ruiz", 0, false },
+    { "ana-lopez", "Ana López", 5, "ana@acme.com", "ana-lopez.md" }, -- "Ana" and @ana are her
+    { "bob-smith", "Bob Smith", 2, false, false }, -- mentioned, no page
+    { "jose-ruiz", "José Ruiz", 0, false, "jose-ruiz.md" },
   })
+  -- person: filters and the find screen go by the person, any name
+  select_picks()
+  child.cmd("Logpose find todos person:ana-lopez")
+  eq(#child.lua_get("_G.offered")[1].labels, 2) -- fix CI @ana, ask @Ana about leave: by her alias
 end
 
 T["matching: any part of the name, accents ignored, the project's people first"] = function()
-  H.write(root .. "/people.md", "- Ana López #acme\n- José Ruiz #thesis\n- Lola Ortiz #acme\n")
+  person("ana-lopez", 'name: "Ana López"\nprojects: [acme]')
+  person("jose-ruiz", 'name: "José Ruiz"\nprojects: [thesis]')
+  person("lola-ortiz", 'name: "Lola Ortiz"\nprojects: [acme]')
   local function names(q, project)
     return child.lua_get(
       ("vim.tbl_map(function(p) return p.name end, require('logpose.people').match(require('logpose.people').known(), %q, %s))"):format(
@@ -155,17 +164,21 @@ T["matching: any part of the name, accents ignored, the project's people first"]
 end
 
 T["the edit form completes attendees from any part of the name"] = function()
-  H.write(root .. "/people.md", "- Ana López #acme\n")
+  person("ana-lopez", 'name: "Ana López"\nrole: Backend lead\nslack: ana.lopez')
   local words = child.lua_get(
     [[vim.tbl_map(function(it) return it.word end,
     require('logpose.edit.form').candidates(..., 'meeting', 'attendees', 'lop', {}))]],
     { root }
   )
   eq(words, { "Ana López" })
+  local menu =
+    child.lua_get("require('logpose.edit.form').candidates(..., 'meeting', 'attendees', 'lop', {})[1].menu", { root })
+  eq(menu, "Backend lead · ana.lopez") -- no `show` configured for slack: the value as is
 end
 
 T["typing in the form's attendees keeps the menu on matches anywhere in the name"] = function()
-  H.write(root .. "/people.md", "- Ana López #acme\n- Lola Ortiz\n")
+  person("ana-lopez", 'name: "Ana López"')
+  person("lola-ortiz", 'name: "Lola Ortiz"')
   child.cmd("edit " .. root .. "/meetings/2026-10-08 - retro.md")
   child.cmd("Logpose edit")
   for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
@@ -184,7 +197,7 @@ T["typing in the form's attendees keeps the menu on matches anywhere in the name
 end
 
 T["in a note: attendees, with: and @mentions complete people"] = function()
-  H.write(root .. "/people.md", "- Ana López #acme\n")
+  person("ana-lopez", 'name: "Ana López"')
   local path = root .. "/meetings/acme/2026-10-14 - sync.md"
   H.write(path, '---\ntitle: "Sync"\nproject: acme\nattendees: [Ana]\n---\n')
   child.cmd("edit " .. path)

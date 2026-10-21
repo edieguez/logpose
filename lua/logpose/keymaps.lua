@@ -10,6 +10,7 @@ M.MAPS = {
   { "r", "n", "<Plug>(logpose-report)", "Report" },
   { "P", "n", "<cmd>Logpose projects<cr>", "Projects" },
   { "e", "n", "<Plug>(logpose-edit)", "Edit details (frontmatter)" },
+  { "u", "n", "<Plug>(logpose-people)", "People" },
   -- notes
   { "d", "n", "<Plug>(logpose-daily)", "Note: daily" },
   { "m", "n", "<Plug>(logpose-meeting)", "Note: meeting" },

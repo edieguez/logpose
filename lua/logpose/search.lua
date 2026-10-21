@@ -236,29 +236,45 @@ function M.find(root, scope, args)
   end
 
   if scope == "people" then
-    local people = index.people(items)
-    if #people == 0 then
+    -- everyone, under their page's name (aliases merged), with what involves them here
+    local mod = require("logpose.people")
+    local entries = {}
+    for _, p in ipairs(mod.known(root)) do
+      local involving = vim.tbl_filter(function(it)
+        if it.file == p.page then
+          return false
+        end
+        for _, slug in ipairs(it.people or {}) do
+          if p.slugs[slug] then
+            return true
+          end
+        end
+        return false
+      end, items)
+      if #involving > 0 or (p.page and #args == 0) then
+        local about = mod.describe(vim.tbl_extend("force", p, { count = #involving }))
+        table.insert(entries, {
+          display = about ~= "" and ("%s · %s"):format(p.name, about) or p.name,
+          name = p.name,
+          involving = involving,
+          page = p.page,
+          preview = list_preview(involving),
+        })
+      end
+    end
+    if #entries == 0 then
       require("logpose.util.ui").notify("logpose: no people found", vim.log.levels.INFO)
       return
     end
-    local entries = vim.tbl_map(function(p)
-      return {
-        display = ("%s (%d)"):format(p.name, p.count),
-        person = p.slug,
-        name = p.name,
-        preview = list_preview(vim.tbl_filter(function(it)
-          return vim.tbl_contains(it.people or {}, p.slug)
-        end, items)),
-      }
-    end, people)
     picker.pick(entries, {
       prompt = "People" .. suffix,
       cwd = root,
       on_choice = function(choice)
-        local involving = vim.tbl_filter(function(it)
-          return vim.tbl_contains(it.people or {}, choice.person)
-        end, items)
-        show(involving, choice.name, root)
+        if #choice.involving == 0 and choice.page then
+          vim.cmd.edit(vim.fn.fnameescape(choice.page))
+        else
+          show(choice.involving, choice.name, root)
+        end
       end,
     })
     return
@@ -335,7 +351,7 @@ function M.complete(_, args)
     for _, c in ipairs(index.tag_counts(items)) do
       table.insert(out, "#" .. c.tag)
     end
-    for _, p in ipairs(index.people(items)) do
+    for _, p in ipairs(require("logpose.people").known(root)) do
       table.insert(out, "person:" .. p.slug)
     end
   end
