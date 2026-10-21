@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1133,6 +1133,28 @@ for tasks.
 - Entry points: `:Logpose meeting` without a type (a date-only argument prefills `date`),
   `:Logpose note` without a title, the notes screen's `a` (by section), `n`, `m`
   (`edit.open_new_note`). The edit form for existing meetings gains `tags`.
+
+## C4 — Promotion, both ways (0.41.0)
+
+**Goal.** "Promote" moves things up a level, and both ends link to each other: a to-do becomes a
+task, a task's write-up becomes a note.
+
+**Design**
+- To-do → task (`todos.promote`): unchanged task creation (`From: [[note]]` in its body), but the
+  to-do keeps its text and gains an indented `→ [[task|task]]` line under it (it used to be
+  replaced by the link; a line of its own keeps long items within markdownlint's limit), so an
+  action item keeps its `@owner` and `due:` and stays in `:Logpose actions`. A to-do inside a
+  task file can be promoted too.
+- Task → note (`notes/from_task.lua`): `:Logpose promote` in a task file not on a to-do (or with a
+  range), `N` on the board (`actions.to_note`). `M.rows(lines, l1, l2)`: the body rows without
+  the `## Log` and `## Notes` sections and `From:` lines, blank ends trimmed. The new-note form
+  (`load_new_note(root, "topic", { from_task = info })`, titled "Note from task") adds a
+  `content` field (`copy` | `move`, a CHOICES field). Preview: create or add to the note, `copy|move
+  the task's write-up (N lines; ## Log left out)` or `the N selected lines`, `link the note and
+  the task to each other`. `M.apply`: the note gets `From: [[task]]` + the write-up (a new note
+  via `topic.note(..., { body })`, an existing one at its end); the task gets `- [[note]]` under
+  `## Notes` (created before `## Log`), and with `move` loses the write-up rows (recomputed from
+  its current lines). The board's `✎` count picks the note up through `links.related`.
 
 ## 5. Command reference (final state)
 
