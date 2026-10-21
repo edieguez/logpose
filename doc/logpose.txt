@@ -422,6 +422,18 @@ People come from meeting `attendees:`, the person of a 1:1 and `@mentions`.
 `:Logpose find people` lists everyone; `@ana` or `person:ana` filters any
 search.
 
+                                                         *logpose-people-list*
+To have people suggested before your first meeting with them, list them in
+`people.md` (`people.file`) at the journal root, one per list item:
+`- Ana López (ana@acme.com) #acme`. The email and #projects are optional; a
+#project puts the person first in that project's meetings. The list's
+spelling of a name wins.
+
+Wherever a person is asked for (the forms' `attendees`, a 1:1's person, the
+attendees prompt, and in notes, |logpose-completion|), any part of the name
+matches and accents are ignored: `lop` finds Ana López. The note's
+project's people come first, then the people you meet most.
+
 Options: `me`, `actions`.
 
 ------------------------------------------------------------------------------
@@ -504,8 +516,10 @@ logpose maps `gx` after the other FileType handlers, so load order doesn't
 matter.
 
                                                          *logpose-completion*
-Link completion ~
-Typing `[[` in a journal note offers every note, inserted in `link_style`.
+Completion in notes ~
+In a journal note, `[[` offers every note and task to link (inserted in
+`link_style`); a name in the frontmatter's `attendees:` or `with:` line
+offers people; `@` in the text offers people as `@handle`.
 
   blink.cmp   add this provider, and `"logpose"` to your markdown sources:
     `logpose = { name = "logpose", module = "logpose.completion.blink" }`
@@ -957,6 +971,8 @@ Search and action items ~
                  questions.
   views          (table)       Saved searches: name -> `find` arguments,
                  e.g. `{ acme = "tasks open project:acme" }`.
+  people         (table)       `file` ("people.md"): your people list,
+                 relative to the root (|logpose-people-list|).
   actions        (table)       `include_daily` (false): also collect daily
                  note to-dos. `unassigned_mine` (true): items without
                  an owner count for `mine`. `output`: "quickfix" (default)
