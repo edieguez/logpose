@@ -1,5 +1,6 @@
 --- Ticket references: `gx` on PROJ-123 opens the tracker (`tickets.url`), `:Logpose ticket [ID]`
---- lists every journal line that mentions it.
+--- lists every journal line that mentions it. `gx` in a journal note also follows note links
+--- (`[[meetings/acme/2026-10-14 - retro|Retro]]`, which have spaces `<cfile>` stops at).
 local config = require("logpose.config")
 local fs = require("logpose.util.fs")
 local ui = require("logpose.util.ui")
@@ -76,19 +77,48 @@ function M.command(opts)
   end))
 end
 
---- `gx`: open the ticket under the cursor, else behave like the default `gx`.
+--- What `gx` did in each buffer before logpose mapped it (your markdown plugin's, or Neovim's).
+---@type table<integer, table>
+local previous = {}
+
+--- `gx`: the ticket under the cursor opens in the tracker, a link to a note opens the note;
+--- anything else goes to the `gx` you had (a URL opens in the browser).
 function M.gx()
+  local buf = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
-  local id = M.at(vim.api.nvim_get_current_line(), col)
+  local id = M.at(line, col)
   local url = id and M.url(id)
   if url then
     vim.ui.open(url)
     return
   end
-  vim.ui.open(vim.fn.expand("<cfile>"))
+  local root = config.resolve_root()
+  if root then
+    local path, link = require("logpose.links").follow(root, fs.normalize(vim.api.nvim_buf_get_name(buf)), line, col)
+    if path then
+      vim.cmd.edit(vim.fn.fnameescape(path))
+      return
+    elseif link and link.style == "wiki" then
+      ui.notify(("logpose: no note at [[%s]]"):format(link.target), vim.log.levels.WARN)
+      return
+    end
+  end
+  local prev = previous[buf]
+  if prev and prev.callback then
+    prev.callback()
+  elseif prev and prev.rhs and prev.rhs ~= "" then
+    vim.api.nvim_feedkeys(
+      vim.api.nvim_replace_termcodes(prev.rhs, true, false, true),
+      prev.noremap == 1 and "n" or "m",
+      false
+    )
+  else
+    vim.ui.open(vim.fn.expand("<cfile>"))
+  end
 end
 
---- Buffer-local setup for markdown buffers inside the journal: `gx` and highlighting.
+--- Buffer-local setup for markdown buffers inside the journal: `gx` (tickets and note links).
 ---@param buf integer
 function M.attach(buf)
   local root = config.resolve_root()
@@ -100,9 +130,13 @@ function M.attach(buf)
   if not vim.startswith(abs, fs.normalize(root) .. "/") then
     return
   end
-  if config.get().tickets.url then
-    vim.keymap.set("n", "gx", M.gx, { buffer = buf, desc = "logpose: open ticket or link" })
+  local prev = vim.api.nvim_buf_call(buf, function()
+    return vim.fn.maparg("gx", "n", false, true)
+  end)
+  if prev.desc ~= "logpose: follow a link or open a ticket" then
+    previous[buf] = next(prev) and prev or nil
   end
+  vim.keymap.set("n", "gx", M.gx, { buffer = buf, desc = "logpose: follow a link or open a ticket" })
 end
 
 function M.setup_autocmd()
