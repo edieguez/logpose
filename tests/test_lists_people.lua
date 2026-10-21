@@ -52,7 +52,7 @@ T["lists people with a page, then the ones your notes mention"] = function()
   child.cmd("Logpose people")
   eq(child.bo.filetype, "logpose-people")
   local s = screen()
-  H.contains(s, "# People · everyone")
+  H.contains(s, "# People · all projects")
   H.contains(s, "## With a page (2)")
   local ana = child.api.nvim_buf_get_lines(0, line_with("Ana López") - 1, line_with("Ana López"), false)[1]
   H.contains(ana, "Backend lead")
@@ -93,12 +93,21 @@ T["<CR> opens the page; on someone without one, the form to add it"] = function(
   H.contains(child.api.nvim_buf_get_lines(0, 0, 1, false)[1], "Bob Smith")
 end
 
-T["/ filters by name, role or project; p toggles the project"] = function()
-  child.lua("require('logpose.people.screen').open(..., { filter = 'pm' })", { root })
+T["/ filters by name, role, project or any field; p toggles the project"] = function()
+  child.cmd("Logpose people pm")
   local s = screen()
   H.contains(s, "Carla")
   eq(s:find("Ana López", 1, true), nil)
-  child.lua("require('logpose.people.screen').open(..., { project = 'acme' })", { root })
+  child.cmd("Logpose people slack:* or role:pm")
+  s = screen()
+  H.contains(s, "Carla")
+  H.contains(s, "Ana López")
+  eq(s:find("Bob Smith", 1, true), nil)
+  child.cmd("Logpose people date>=2026-10-10")
+  s = screen()
+  H.contains(s, "Ana López") -- met on the 14th
+  eq(s:find("Carla", 1, true), nil)
+  child.lua("require('logpose.lists').open(..., require('logpose.lists.people'), { project = 'acme' })", { root })
   s = screen()
   H.contains(s, "# People · ")
   H.contains(s, "Ana López")
@@ -163,9 +172,31 @@ T["rename-person: the page moves, keeps the old name, and notes follow"] = funct
   eq(screen():find("Ana López", 1, true), nil)
 end
 
-T["m starts a 1:1 with them"] = function()
+T["by project or role; moving changes their page"] = function()
   child.cmd("Logpose people")
+  child.type_keys("g")
+  local s = screen()
+  H.contains(s, "## acme (2)") -- Ana (page) and Bob (mentioned)
+  H.contains(s, "## No project (1)")
+  child.type_keys("g")
+  H.contains(screen(), "## Backend lead (1)")
+  child.api.nvim_win_set_cursor(0, { line_with("  Carla"), 2 })
+  child.lua("vim.ui.input = function(o, cb) cb('Product manager') end")
+  child.lua([[vim.ui.select = function(items, opts, cb)
+    for _, it in ipairs(items) do if opts.format_item(it) == "new…" then return cb(it) end end
+  end]])
   child.type_keys("m")
+  H.contains(H.read(root .. "/people/carla.md"), "role: Product manager")
+  H.contains(screen(), "## Product manager (1)")
+  -- someone without a page can't be moved: add one first
+  child.api.nvim_win_set_cursor(0, { line_with("  Bob Smith"), 2 })
+  child.type_keys("m")
+  H.contains(child.notifications()[#child.notifications()].msg, "Bob Smith has no page yet")
+end
+
+T["1 starts a 1:1 with them"] = function()
+  child.cmd("Logpose people")
+  child.type_keys("1")
   local form = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   H.contains(form, "Ana López")
 end

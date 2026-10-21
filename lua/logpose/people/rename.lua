@@ -187,7 +187,7 @@ function M.complete(arglead, args)
   if #args > 0 then
     return {}
   end
-  return require("logpose.people.screen").complete_person(arglead)
+  return require("logpose.lists.people").complete_person(arglead)
 end
 
 return M

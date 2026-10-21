@@ -355,7 +355,7 @@ function M.open(root)
   map(
     "f",
     on_project(function(p)
-      require("logpose.notes.browse").open(root, { project = p })
+      require("logpose.lists").open(root, require("logpose.lists.notes"), { project = p })
     end, true),
     "Notes"
   )

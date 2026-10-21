@@ -98,8 +98,16 @@ end)
 bench("today", function()
   require("logpose.today").open(root)
 end)
-bench("notes screen", function()
-  require("logpose.notes.browse").open(root, { project = false })
+for _, view in ipairs({ "notes", "meetings", "people" }) do
+  bench(view .. " list", function()
+    require("logpose.lists").open(root, require("logpose.lists." .. view), { project = false })
+  end)
+end
+bench("meetings: filter (or, attendees, date)", function()
+  require("logpose.lists").open(root, require("logpose.lists.meetings"), {
+    project = false,
+    filter = "(type:retro or type:planning) date>=2026-01 -project:nothing",
+  })
 end)
 bench("projects: stats", function()
   require("logpose.projects").stats(root)
