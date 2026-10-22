@@ -13,7 +13,7 @@
 ---                descending?: boolean, none?: string }
 ---   sorts: { label, cmp(a, b) }
 ---   row(e, ctx) -> chunks;  details?(e, s) -> { { chunks, file?, lnum? }… }
----   open(e, s), edit(e, s, done(key?)), add(s, group, done), keys(s, map, helpers)
+---   open(e, s), edit(e, s, done(key?)), add(s, group, done(key?)), keys(s, map, helpers)
 local config = require("logpose.config")
 local fit = require("logpose.board.text").fit
 local ui = require("logpose.util.ui")
@@ -557,8 +557,8 @@ function M.open(root, view, opts)
   map("a", function()
     if view.add then
       local _, grp = M.entry_at(s)
-      view.add(s, grp or group_at(s), function()
-        refresh()
+      view.add(s, grp or group_at(s), function(key)
+        refresh(key)
       end)
     end
   end, "Add")
