@@ -34,13 +34,16 @@ local function select_picks(...)
 end
 
 T["links_in"] = function()
-  local links = child.lua_get([=[require('logpose.index').links_in(
-    "see [[projects/acme|Acme]] and [[acme#goals]], [doc](../notes/x.md) [web](https://x.y) [a](<my note.md>)")]=])
+  local links = child.lua_get([=[vim.tbl_map(function(l) return { l.target, l.style } end,
+    require('logpose.index').links_in("see [[projects/acme|Acme]] and [[acme#goals]], [doc](../notes/x.md) "
+      .. '[web](https://x.y) [a](<my note.md>) [t](y.md "Title") [p](my%20note.md) [h](#here)'))]=])
   eq(links, {
-    { target = "projects/acme", style = "wiki" },
-    { target = "acme", style = "wiki" },
-    { target = "../notes/x.md", style = "markdown" },
-    { target = "my note.md", style = "markdown" },
+    { "projects/acme", "wiki" },
+    { "acme", "wiki" },
+    { "../notes/x.md", "markdown" },
+    { "my note.md", "markdown" },
+    { "y.md", "markdown" },
+    { "my note.md", "markdown" },
   })
 end
 
