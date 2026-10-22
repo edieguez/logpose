@@ -87,6 +87,19 @@ T["a new daily note starts from the previous one"] = function()
   H.contains(prev, "- [x] review PR #acme\n")
 end
 
+T["an unsaved previous note is carried from its buffer"] = function()
+  H.write(d("2026-10-12"), PREV)
+  child.cmd("edit " .. d("2026-10-12"))
+  child.api.nvim_buf_set_lines(0, 5, 5, false, { "- [ ] new unsaved" })
+  child.cmd("Logpose daily")
+  H.contains(H.read(d("2026-10-14")), "- [ ] new unsaved\n- [ ] fix flaky test #acme\n")
+  local buf = child.fn.bufnr(d("2026-10-12"))
+  eq(
+    child.api.nvim_buf_get_lines(buf, 5, 9, false),
+    { "- [>] new unsaved", "- [x] review PR #acme", "- [>] fix flaky test #acme", "- [>] write thesis chapter #thesis" }
+  )
+end
+
 T["carried to-dos are only listed once by search"] = function()
   H.write(d("2026-10-12"), PREV)
   child.cmd("Logpose daily")

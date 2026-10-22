@@ -200,6 +200,22 @@ function M.write_file(path, content, opts)
   return true
 end
 
+--- The lines `update_lines` edits: an unsaved buffer's, else the file's (without the final "").
+--- Read rows from here before editing them, so they point at the same lines.
+---@param path string
+---@return string[]? lines, string? err
+function M.current_lines(path)
+  local buf = M.find_buf(path)
+  if buf and vim.bo[buf].modified then
+    return vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  end
+  local lines, err = M.read_lines(path)
+  if lines and lines[#lines] == "" then
+    table.remove(lines)
+  end
+  return lines, err
+end
+
 --- Apply `transform(lines) -> new_lines|nil` to a file (lines without trailing newline).
 --- If a buffer showing the file has unsaved changes, the buffer is edited instead and left
 --- unsaved, so nothing the user typed is lost.
@@ -225,13 +241,9 @@ function M.update_lines(path, transform, opts)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, new)
     return true, nil, "buffer"
   end
-  local content, read_err = M.read_file(path)
-  if not content then
+  local lines, read_err = M.current_lines(path)
+  if not lines then
     return false, ("logpose: cannot read %s: %s"):format(path, read_err)
-  end
-  local lines = vim.split(content, "\n", { plain = true })
-  if lines[#lines] == "" then
-    table.remove(lines)
   end
   local new = transform(lines)
   if not new then

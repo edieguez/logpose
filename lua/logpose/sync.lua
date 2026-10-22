@@ -13,15 +13,11 @@ local M = {}
 ---@type table<string, boolean>
 M.declined = {}
 
---- Current lines of a file: its buffer when loaded, else the file.
+--- Current lines of a file: the ones `fs.update_lines` edits.
 ---@param path string
 ---@return string[]
 local function lines_of(path)
-  local buf = fs.find_buf(path)
-  if buf then
-    return vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  end
-  return fs.read_lines(path) or {}
+  return fs.current_lines(path) or {}
 end
 
 --- Journal files by lowercase name, for short wiki links.
