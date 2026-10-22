@@ -57,9 +57,7 @@ end
 ---@param b logpose.Board
 --- Map the board's keys in its buffer.
 function M.attach(b)
-  local function map(lhs, fn, desc)
-    vim.keymap.set("n", lhs, ui.safely(fn), { buffer = b.buf, nowait = true, silent = true, desc = desc })
-  end
+  local map = ui.mapper(b.buf)
   local function step(dc, dr)
     return function()
       b.focus.col = b.focus.col + dc

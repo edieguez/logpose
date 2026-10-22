@@ -266,24 +266,14 @@ end
 ---@param root string
 ---@return integer buf
 function M.open(root)
-  local name = "logpose://projects"
-  local existing = vim.fn.bufnr(name)
-  if existing > 0 then
-    pcall(vim.api.nvim_buf_delete, existing, { force = true })
-  end
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "logpose-projects"
+  local buf = ui.screen_buf("logpose://projects", "logpose-projects")
   require("logpose.util.ui").show(buf)
   vim.wo[0][0].wrap = false
   vim.wo[0][0].cursorline = true
   vim.b[buf].logpose_expanded = {}
   render(buf, root)
 
-  local function map(lhs, fn, desc)
-    vim.keymap.set("n", lhs, ui.safely(fn), { buffer = buf, nowait = true, silent = true, desc = desc })
-  end
+  local map = ui.mapper(buf)
   --- Run `fn(project)` on the project under the cursor (or the one its detail line belongs to).
   local function on_project(fn, allow_archived)
     return function()
