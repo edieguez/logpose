@@ -28,6 +28,27 @@ T["write_file"]["leaves no temp files behind"] = function()
   eq(H.read(dir .. "/note.md"), "two\n")
 end
 
+T["write_file"]["keeps the old file when the flush fails"] = function()
+  local dir = H.tmpdir()
+  local path = dir .. "/note.md"
+  H.write(path, "good\n")
+  child.lua([[
+    local open = io.open
+    io.open = function(...)
+      local f = open(...)
+      return setmetatable({}, { __index = {
+        write = function(_, s) return f:write(s) end,
+        close = function() f:close(); return nil, "No space left on device" end,
+      } })
+    end
+  ]])
+  local res = write(path, "cut")
+  eq(res[1], false)
+  H.contains(res[2], "No space left")
+  eq(H.read(path), "good\n")
+  eq(vim.fn.readdir(dir), { "note.md" })
+end
+
 T["write_file"]["keeps file permissions"] = function()
   local dir = H.tmpdir()
   local path = dir .. "/script.sh"
