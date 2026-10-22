@@ -106,13 +106,20 @@ function M.frontmatter(lines)
     return {}, 1
   end
   local fm = {}
+  local block -- the key of an empty value, whose `  - item` lines make a list
   for i = 2, #lines do
     local line = lines[i]
     if line == "---" then
       return fm, i + 1
     end
     local key, value = line:match("^([%w_%-]+):%s*(.-)%s*$")
-    if key then
+    local entry = block and line:match("^%s+%-%s+(.-)%s*$")
+    block = key and value == "" and key or (entry and block)
+    if entry then
+      fm[block] = type(fm[block]) == "table" and fm[block] or {}
+      entry = entry:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
+      table.insert(fm[block], entry)
+    elseif key then
       local list = value:match("^%[(.*)%]$")
       if list then
         local items = {}

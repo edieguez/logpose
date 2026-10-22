@@ -47,4 +47,11 @@ T["read lists keys in order with their values"] = function()
   eq(entries, { { key = "title", value = "A: b" }, { key = "tags", value = { "x", "y" } } })
 end
 
+T["block lists: read as lists, replaced whole"] = function()
+  local lines = { "---", "tags:", "  - perf", '  - "ci"', "due:", "---", "- body" }
+  eq(fm.read(lines), { { key = "tags", value = { "perf", "ci" } }, { key = "due", value = "" } })
+  eq(fm.set(lines, { tags = { "perf" } }), { "---", "tags: [perf]", "due:", "---", "- body" })
+  eq(fm.set(lines, { tags = false }), { "---", "due:", "---", "- body" })
+end
+
 return T
