@@ -82,6 +82,25 @@ function M.find_buf(path)
   return nil
 end
 
+--- Loaded buffers showing `path` or a file under it: list of { buf, rest }, where `rest` is
+--- the name past `path` ("" for `path` itself, "/x.md" under a folder).
+---@param path string
+---@return { buf: integer, rest: string }[]
+function M.bufs_under(path)
+  local target = canonical(path)
+  local out = {}
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(buf)
+    if vim.api.nvim_buf_is_loaded(buf) and name ~= "" then
+      name = canonical(name)
+      if name == target or vim.startswith(name, target .. "/") then
+        table.insert(out, { buf = buf, rest = name:sub(#target + 1) })
+      end
+    end
+  end
+  return out
+end
+
 --- Check that none of `paths` has unsaved changes in a buffer.
 ---@param paths string[]
 ---@return boolean ok, string? err

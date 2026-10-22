@@ -129,6 +129,25 @@ T["rename-project moves the folder and page and fixes links"] = function()
   eq(child.lua_get("require('logpose').project()"), "acme-web")
 end
 
+T["rename-project: open buffers follow their files"] = function()
+  H.write(p("projects/acme.md"), "# Acme\n")
+  H.write(p("meetings/acme/a.md"), "# a\n")
+  child.cmd("edit " .. p("meetings/acme/a.md"))
+  child.cmd("split " .. p("projects/acme.md"))
+  child.cmd("Logpose rename-project! acme web")
+  eq(child.api.nvim_buf_get_name(0), p("projects/web.md"))
+  child.cmd("wall")
+  eq(vim.fn.filereadable(p("projects/acme.md")), 0)
+  eq(vim.fn.isdirectory(p("meetings/acme")), 0)
+  eq(vim.fn.filereadable(p("meetings/web/a.md")), 1)
+
+  child.cmd("edit " .. p("projects/web.md"))
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "# Web!" })
+  child.cmd("Logpose rename-project! web acme")
+  H.contains(child.notifications()[#child.notifications()].msg, "unsaved changes")
+  eq(vim.fn.filereadable(p("projects/web.md")), 1)
+end
+
 T["rename-project refuses to overwrite"] = function()
   H.write(p("meetings/acme/a.md"), "# a\n")
   H.write(p("meetings/web/b.md"), "# b\n")
