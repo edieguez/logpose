@@ -311,7 +311,7 @@ local function atom(arg, today)
     elseif key == "section" then
       local section = (value:lower():gsub("%-", " "))
       return node(function(it)
-        return it.section ~= nil and it.section:find(section, 1, true) ~= nil
+        return it.section ~= nil and it.section:gsub("%-", " "):find(section, 1, true) ~= nil
       end)
     elseif key == "person" then
       local set
