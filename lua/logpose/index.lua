@@ -605,32 +605,6 @@ function M.tag_counts(items)
   return out
 end
 
---- People with the number of items involving them (notes, tasks, lines), most first.
----@param items logpose.Item[]
----@return { slug: string, name: string, count: integer }[]
-function M.people(items)
-  local counts, names = {}, {}
-  for _, item in ipairs(items) do
-    for slug, name in pairs(item.names or {}) do
-      names[slug] = names[slug] or name
-    end
-    for _, slug in ipairs(item.people or {}) do
-      counts[slug] = (counts[slug] or 0) + 1
-    end
-  end
-  local out = {}
-  for slug, count in pairs(counts) do
-    table.insert(out, { slug = slug, name = names[slug] or slug, count = count })
-  end
-  table.sort(out, function(a, b)
-    if a.count ~= b.count then
-      return a.count > b.count
-    end
-    return a.slug < b.slug
-  end)
-  return out
-end
-
 --- Projects seen in the index (frontmatter), sorted.
 ---@param items logpose.Item[]
 ---@return string[]
