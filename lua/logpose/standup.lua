@@ -324,15 +324,12 @@ function M.command(opts)
       require("logpose.util.ui").notify(err, vim.log.levels.WARN)
       return
     end
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.bo[buf].modifiable = false
-    vim.bo[buf].bufhidden = "wipe"
-    vim.bo[buf].filetype = "markdown"
-    pcall(vim.api.nvim_buf_set_name, buf, "logpose://standup/" .. iso)
-    vim.cmd(("botright %dsplit"):format(math.min(#lines + 1, 25)))
-    vim.api.nvim_win_set_buf(0, buf)
-    vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
+    ui.scratch(lines, {
+      name = "logpose://standup/" .. iso,
+      filetype = "markdown",
+      height = math.min(#lines + 1, 25),
+      locked = true,
+    })
   end))
 end
 
