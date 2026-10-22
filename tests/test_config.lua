@@ -138,6 +138,14 @@ T["resolve_root"]["ignores a saved root that no longer exists"] = function()
   eq(resolve()[1], vim.NIL)
 end
 
+T["an unreadable state file is set aside, not overwritten"] = function()
+  local path = child.lua_get("require('logpose.state').path()")
+  H.write(path, '{"root": "/my/journal", oops')
+  child.lua("require('logpose.state').set('recent', {})")
+  eq(H.read(path .. ".bad"), '{"root": "/my/journal", oops')
+  H.contains(child.notifications()[1].msg, "couldn't be read")
+end
+
 T["path joins dirs onto the root"] = function()
   local journal = H.journal()
   child.lua(("require('logpose').setup({ root = %q })"):format(journal))

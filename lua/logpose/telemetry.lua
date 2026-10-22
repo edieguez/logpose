@@ -45,7 +45,8 @@ local KEYWORDS = {
 }
 
 M.throttle_ms = 60 * 1000
-M._data = nil
+M._data = nil -- what's on disk plus this Neovim's counts
+M._pending = {} -- this Neovim's counts not written yet: day -> key -> { ok, err }
 M._dirty = false
 M._last_flush = -math.huge -- the first event is written right away
 
@@ -55,14 +56,24 @@ function M.path()
 end
 
 ---@return table
-local function load()
-  if M._data then
-    return M._data
-  end
+local function read()
   local content = fs.read_file(M.path())
   local ok, data = pcall(vim.json.decode, content or "")
-  M._data = (ok and type(data) == "table" and type(data.days) == "table") and data or { version = 1, days = {} }
+  return (ok and type(data) == "table" and type(data.days) == "table") and data or { version = 1, days = {} }
+end
+
+---@return table
+local function load()
+  M._data = M._data or read()
   return M._data
+end
+
+--- Add `ok`/`err` uses of `key` on `day` to a day -> key -> counts table.
+local function add(days, day, key, ok, err)
+  days[day] = days[day] or {}
+  local entry = days[day][key] or { ok = 0, err = 0 }
+  entry.ok, entry.err = entry.ok + ok, entry.err + err
+  days[day][key] = entry
 end
 
 --- Event key for a command: "find tasks", "meeting", "archive"…
@@ -83,21 +94,28 @@ function M.key(name, args)
   return name
 end
 
---- Write pending counts, dropping days older than the retention window.
+--- Write pending counts on top of what's on disk now (another Neovim may have written since),
+--- dropping days older than the retention window.
 function M.flush()
-  if not M._data or not M._dirty then
+  if not M._dirty then
     return
+  end
+  local data = read()
+  for day, events in pairs(M._pending) do
+    for key, e in pairs(events) do
+      add(data.days, day, key, e.ok, e.err)
+    end
   end
   local cutoff =
     require("logpose.util.date").add_days(require("logpose.util.date").today(), -config.get().telemetry.retention_days)
-  for day in pairs(M._data.days) do
+  for day in pairs(data.days) do
     if day < cutoff then
-      M._data.days[day] = nil
+      data.days[day] = nil
     end
   end
-  local ok = fs.write_file(M.path(), vim.json.encode(M._data) .. "\n")
+  local ok = fs.write_file(M.path(), vim.json.encode(data) .. "\n")
   if ok then
-    M._dirty = false
+    M._data, M._pending, M._dirty = data, {}, false
     M._last_flush = (vim.uv or vim.loop).now()
   end
 end
@@ -110,17 +128,11 @@ function M.record(name, args, ok)
   if not config.get().telemetry.enabled then
     return
   end
-  local data = load()
   local day = require("logpose.util.date").today()
   local key = M.key(name, args)
-  data.days[day] = data.days[day] or {}
-  local entry = data.days[day][key] or { ok = 0, err = 0 }
-  if ok then
-    entry.ok = entry.ok + 1
-  else
-    entry.err = entry.err + 1
-  end
-  data.days[day][key] = entry
+  local n_ok, n_err = ok and 1 or 0, ok and 0 or 1
+  add(load().days, day, key, n_ok, n_err)
+  add(M._pending, day, key, n_ok, n_err)
   M._dirty = true
   if (vim.uv or vim.loop).now() - M._last_flush >= M.throttle_ms then
     M.flush()
@@ -213,7 +225,7 @@ end
 ---@param opts logpose.CommandOpts
 function M.command(opts)
   if opts.bang then
-    M._data, M._dirty = { version = 1, days = {} }, false
+    M._data, M._pending, M._dirty = { version = 1, days = {} }, {}, false
     os.remove(M.path())
     require("logpose.util.ui").notify("logpose: usage stats reset", vim.log.levels.INFO)
     return
