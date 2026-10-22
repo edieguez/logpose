@@ -161,7 +161,7 @@ function M.row(e, ctx)
       { ("→ %d task%s"):format(#e.info.tasks, #e.info.tasks == 1 and "" or "s"), "LogposeListTasks" }
     )
   end
-  if ctx.all_projects and it.project then
+  if ctx.all_projects and ctx.group ~= "project" and it.project then
     table.insert(meta, { "◆ " .. it.project, ctx.hl(it.project) })
   end
   if #(it.fm_tags or {}) > 0 then
