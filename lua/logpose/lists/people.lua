@@ -19,7 +19,7 @@ M.help = {
   { "a", "add a person (on someone without a page: theirs)" },
   { "1", "start a 1:1 with them" },
   { "y  o", "copy a way to reach them · open it (mail, chat…)" },
-  { "R", "rename them everywhere" },
+  { "R", "rename them everywhere (on `same as …?`: merge them into that person)" },
 }
 
 --- What involves each person: meetings (newest first), open to-dos, other mentions.
@@ -65,6 +65,30 @@ function M.involvement(root, people)
   return out
 end
 
+--- The one person a bare first name (`ana`, no page) probably is: the only other person whose
+--- full name starts with it (`Ana López`). A guess, so it's only offered, never applied.
+---@param p logpose.Person
+---@param known logpose.Person[]
+---@param you? logpose.Person
+---@return logpose.Person?
+local function same_as(p, known, you)
+  local text = require("logpose.util.text")
+  if p.name:find("%s") then
+    return nil
+  end
+  local match
+  for _, q in ipairs(known) do
+    local first = q.name:match("^(%S+)%s")
+    if q ~= p and q ~= you and first and text.plain(first) == text.plain(p.name) then
+      if match then
+        return nil -- two Anas: can't tell
+      end
+      match = q
+    end
+  end
+  return match
+end
+
 ---@param s logpose.ListState
 ---@return logpose.ListEntry[]
 function M.collect(s)
@@ -92,6 +116,7 @@ function M.collect(s)
     end
     table.sort(projects)
     local i = inv[p]
+    local same = not p.page and same_as(p, known, you)
     local slugs = vim.tbl_keys(p.slugs)
     table.insert(out, {
       key = p.slug,
@@ -101,6 +126,7 @@ function M.collect(s)
       project_list = projects,
       inv = i,
       when = i.last or "",
+      same_as = same,
       item = {
         kind = "person",
         file = p.page or "",
@@ -264,6 +290,9 @@ function M.row(e, ctx)
   end
   if not p.page then
     table.insert(meta, { ("%d mention%s"):format(p.count, p.count == 1 and "" or "s"), "LogposeListMeta" })
+  end
+  if e.same_as then
+    table.insert(meta, { ("same as %s? R merges"):format(e.same_as.name), "LogposeListTodos" })
   end
   if ctx.all_projects and ctx.group ~= "project" and #e.project_list > 0 then
     table.insert(meta, { "◆ " .. table.concat(e.project_list, ", "), "LogposeListMeta" })
@@ -431,12 +460,14 @@ function M.keys(s, map, h)
     end
   end, "Open a way to reach them")
   map("R", function()
-    local p = person()
+    local e = h.entry_at(s)
+    local p = e and e.person
     if not p then
       return
     end
+    -- renaming `ana` to `Ana López` makes them one person: offer that when it's the likely one
     vim.ui.input(
-      { prompt = ("New name for %s: "):format(p.name), default = p.name },
+      { prompt = ("New name for %s: "):format(p.name), default = e.same_as and e.same_as.name or p.name },
       ui.safely(function(input)
         if input and vim.trim(input) ~= "" and vim.trim(input) ~= p.name then
           require("logpose.people.rename").rename(p.slug, input, {

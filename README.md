@@ -426,6 +426,10 @@ cheat sheet; `:Logpose find` completes filter values on the command line too.
 
 The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `1` (start a 1:1)
 and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
+When a bare first name (`ana`) is probably someone with a fuller name (`Ana López`), the people
+list says `same as Ana López? R merges`, and `R` offers that name. You (`me`) aren't listed.
+Rows leave out what their group heading already says (the project, the meeting type), and a
+meeting whose title is its type shows it once.
 `f` on a project in `:Logpose projects` opens its notes.
 
 ## The today screen

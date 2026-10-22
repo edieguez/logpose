@@ -512,6 +512,10 @@ keys:
   y       copy a way to reach them    o   open it (mail, chat…)
   R       rename them everywhere (|:Logpose-rename-person|)
 
+A bare first name with no page (`ana`) that only one fuller name starts with
+(`Ana López`) says `same as Ana López? R merges`: `R` then offers that name,
+and renaming makes them one person. You (`me`) aren't in the list.
+
 `/` filters with any field too: `role:lead`, `slack:*`, `date>=-30d` (met
 in the last 30 days).
 
