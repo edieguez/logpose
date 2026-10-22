@@ -346,7 +346,7 @@ end
 function M.at(bufnr, row, col)
   local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
   local c = col + 1
-  for s, handle, e in line:gmatch("()@([%w_][%w_%.%-]*)()") do
+  for s, handle, e in line:gmatch("()@(" .. text.HANDLE .. ")()") do
     if c >= s and c < e and (s == 1 or line:sub(s - 1, s - 1):match("[%s%(%[,;]")) then
       return (handle:gsub("[%.%-]+$", ""))
     end

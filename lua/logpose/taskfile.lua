@@ -408,7 +408,7 @@ function M.from_text(s)
       due = iso
       return lead
     end)
-    :gsub("([%s%(%[,;])#[%w_][%w_%-/]*", "%1")
+    :gsub("([%s%(%[,;])#" .. text.TAG, "%1")
     :gsub("%s+", " ")
   title = vim.trim(title)
   if title == "" then

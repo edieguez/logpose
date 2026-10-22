@@ -53,7 +53,7 @@ local M = {}
 ---@return string[]
 function M.tags_in(line)
   local tags = {}
-  for tag in (" " .. line):gmatch("[%s%(%[,;]#([%w_][%w_%-/]*)") do
+  for tag in (" " .. line):gmatch("[%s%(%[,;]#(" .. require("logpose.util.text").TAG .. ")") do
     tag = tag:gsub("[%-/]+$", "")
     if tag ~= "" and not tag:match("^%d+$") then
       table.insert(tags, tag:lower())
@@ -67,7 +67,7 @@ end
 ---@return { slug: string, name: string }[]
 function M.mentions_in(line)
   local out = {}
-  for name in (" " .. line):gmatch("[%s%(%[,;]@([%w_][%w_%.%-]*)") do
+  for name in (" " .. line):gmatch("[%s%(%[,;]@(" .. require("logpose.util.text").HANDLE .. ")") do
     name = name:gsub("[%.%-]+$", "")
     local slug = require("logpose.util.text").slugify(name)
     if slug ~= "" then
