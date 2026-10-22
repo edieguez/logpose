@@ -56,13 +56,18 @@ local function create(path, tpl, vars, fm, root, no_open, body)
   return path, cursor, false
 end
 
---- Where the topic note titled `title` lives (nil when the title makes no filename).
+--- Where the topic note titled `title` lives: `notes/<slug>.md`, or `<slug>-2.md`… when another
+--- title already has that name.
 ---@param root string
 ---@param title string
----@return string?
+---@return string
 function M.note_path(root, title)
   local slug = text.slugify(title)
-  return slug ~= "" and fs.join(config.path("notes", root), slug .. ".md") or nil
+  slug = slug ~= "" and slug or "note"
+  local dir = config.path("notes", root)
+  return fs.titled_path(title, function(n)
+    return fs.join(dir, (n and (slug .. "-" .. n) or slug) .. ".md")
+  end)
 end
 
 --- Topic note `notes/<slug>.md`: created (or, if it exists, just opened). `opts.project` (default:
@@ -75,9 +80,6 @@ end
 function M.note(root, title, opts)
   opts = opts or {}
   local path = M.note_path(root, title)
-  if not path then
-    error(("logpose: can't make a filename from %q"):format(title), 0)
-  end
   local project = opts.project
   if project == nil then
     project = require("logpose.project").resolve(root)
