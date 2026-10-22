@@ -17,6 +17,13 @@ function M.read()
   end
   local ok, data = pcall(vim.json.decode, content)
   if not ok or type(data) ~= "table" then
+    -- set it aside, so the next `set` doesn't silently replace what it held
+    local bad = M.path() .. ".bad"
+    os.rename(M.path(), bad)
+    require("logpose.util.ui").notify(
+      ("logpose: %s couldn't be read; moved it to %s"):format(vim.fn.fnamemodify(M.path(), ":~"), bad),
+      vim.log.levels.WARN
+    )
     return {}
   end
   return data
