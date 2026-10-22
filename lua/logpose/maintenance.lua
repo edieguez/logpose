@@ -95,17 +95,46 @@ function M.plan_tag(root, old, new)
   return changes
 end
 
---- Plan a project rename: frontmatter `project:`, #tags, the meeting folder, the project page,
---- and links pointing into them.
+--- What to rewrite when the note or folder `old` moves to `new` (absolute paths; a folder ends
+--- with "/"): journal-relative paths for markdown links, `link_base`-relative ones for wiki links,
+--- and, for a note whose name is unique in the journal, short `[[name]]` links.
 ---@param root string
 ---@param old string
 ---@param new string
----@return logpose.Change[]
---- Point links at moved notes and folders. `pairs` are journal-relative { old, new }: a folder
---- ends with "/", a note has no ".md" (it must end there, so projects/acme doesn't match
---- projects/acme-api). Wiki links and relative markdown links are understood.
+---@return logpose.LinkPair
+function M.link_pair(root, old, new)
+  local link = require("logpose.link")
+  local is_dir = old:sub(-1) == "/"
+  local function rel(from, path)
+    local r = link.relpath(from, is_dir and path:sub(1, -2) or path):gsub("%.md$", "")
+    return is_dir and (r .. "/") or r
+  end
+  local base = fs.join(root, config.get().link_base)
+  local pair = { rel(root, old), rel(root, new), wiki = { rel(base, old), rel(base, new) } }
+  if not is_dir then
+    local stem = vim.fn.fnamemodify(old, ":t:r")
+    local same = 0
+    for _, f in ipairs(index.files(root)) do
+      same = same + (vim.fn.fnamemodify(f, ":t:r"):lower() == stem:lower() and 1 or 0)
+    end
+    if same == 1 then
+      pair.short = { stem, vim.fn.fnamemodify(new, ":t:r") }
+    end
+  end
+  return pair
+end
+
+---@class logpose.LinkPair
+---@field [1] string old, journal-relative (no ".md"; a folder ends with "/")
+---@field [2] string new
+---@field wiki? string[] { old, new } relative to `link_base`
+---@field short? string[] { old, new } file names, for `[[name]]` links
+
+--- Point links at moved notes and folders (pairs from `link_pair`). A note's path must end
+--- there, so projects/acme doesn't match projects/acme-api. Wiki links and relative markdown
+--- links are understood.
 ---@param line string
----@param pairs string[][]
+---@param pairs logpose.LinkPair[]
 ---@return string line, integer changed number of pairs that matched
 function M.rewrite_links(line, pairs)
   local n = 0
@@ -113,14 +142,21 @@ function M.rewrite_links(line, pairs)
     local o, nw = pair[1], pair[2]
     local is_dir = o:sub(-1) == "/"
     local tail = is_dir and "()" or "([|%]%.#)>])"
+    local function wiki(from, to)
+      return function(s)
+        return s:gsub("%[%[" .. vim.pesc(from) .. tail, function(t)
+          return "[[" .. to .. (type(t) == "string" and t or "")
+        end)
+      end
+    end
     local before = line
-    line = line
-      :gsub("%[%[" .. vim.pesc(o) .. tail, function(t)
-        return "[[" .. nw .. (type(t) == "string" and t or "")
-      end)
-      :gsub("(%]%(<?[%./]*)" .. vim.pesc(o) .. tail, function(pre, t)
-        return pre .. nw .. (type(t) == "string" and t or "")
-      end)
+    line = wiki((pair.wiki or pair)[1], (pair.wiki or pair)[2])(line)
+    if pair.short then
+      line = wiki(pair.short[1], pair.short[2])(line)
+    end
+    line = line:gsub("(%]%(<?[%./]*)" .. vim.pesc(o) .. tail, function(pre, t)
+      return pre .. nw .. (type(t) == "string" and t or "")
+    end)
     if is_dir then
       -- markdown links from sibling folders (../acme/x.md)
       local o_base, n_base = vim.fs.basename(o:sub(1, -2)), vim.fs.basename(nw:sub(1, -2))
@@ -133,6 +169,12 @@ function M.rewrite_links(line, pairs)
   return line, n
 end
 
+--- Plan a project rename: frontmatter `project:`, #tags, the meeting folder, the project page,
+--- and links pointing into them.
+---@param root string
+---@param old string
+---@param new string
+---@return logpose.Change[]
 ---@param opts? { merge?: boolean } merge into an existing project instead of renaming
 function M.plan_project(root, old, new, opts)
   local merge = opts and opts.merge
@@ -176,7 +218,7 @@ function M.plan_project(root, old, new, opts)
     else
       moves[meetings_old] = meetings_new
     end
-    table.insert(rel_prefixes, { link.relpath(root, meetings_old) .. "/", link.relpath(root, meetings_new) .. "/" })
+    table.insert(rel_prefixes, M.link_pair(root, meetings_old .. "/", meetings_new .. "/"))
   end
   if fs.exists(page_old) and not keep_page then
     if fs.exists(page_new) then
@@ -186,8 +228,7 @@ function M.plan_project(root, old, new, opts)
       )
     end
     moves[page_old] = page_new
-    local o, n = link.relpath(root, page_old):gsub("%.md$", ""), link.relpath(root, page_new):gsub("%.md$", "")
-    table.insert(rel_prefixes, { o, n })
+    table.insert(rel_prefixes, M.link_pair(root, page_old, page_new))
   end
 
   local changes = {}
