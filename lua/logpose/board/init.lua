@@ -72,16 +72,8 @@ end
 function M.open_board(root, opts)
   opts = opts or {}
   local project = opts.project or require("logpose.project").resolve(root)
-  local name = "logpose://board"
-  local existing = vim.fn.bufnr(name)
-  if existing > 0 then
-    pcall(vim.api.nvim_buf_delete, existing, { force = true })
-  end
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.bo[buf].bufhidden = "hide"
+  local buf = ui.screen_buf("logpose://board", "logpose-board", "hide")
   vim.bo[buf].swapfile = false
-  vim.bo[buf].filetype = "logpose-board"
   local tab, win
   if config.get().board.open == "tab" then
     vim.cmd("tabnew")

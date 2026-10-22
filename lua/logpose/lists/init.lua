@@ -339,15 +339,7 @@ end
 ---@return integer buf
 function M.open(root, view, opts)
   opts = opts or {}
-  local name = "logpose://" .. view.name
-  local existing = vim.fn.bufnr(name)
-  if existing > 0 then
-    pcall(vim.api.nvim_buf_delete, existing, { force = true })
-  end
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = view.filetype or ("logpose-" .. view.name)
+  local buf = ui.screen_buf("logpose://" .. view.name, view.filetype or ("logpose-" .. view.name))
   local win = ui.show(buf)
   vim.wo[win].wrap = false
   vim.wo[win].cursorline = true
@@ -385,9 +377,7 @@ function M.open(root, view, opts)
     end
   end
 
-  local function map(lhs, fn, desc)
-    vim.keymap.set("n", lhs, ui.safely(fn), { buffer = buf, nowait = true, silent = true, desc = desc })
-  end
+  local map = ui.mapper(buf)
   local function keep()
     local e = M.entry_at(s)
     return e and e.key

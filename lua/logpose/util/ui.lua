@@ -57,6 +57,33 @@ local function special(win)
 end
 
 --- Show `buf` (a logpose screen) in the current window, or in a regular one when the current
+--- A new scratch buffer named `name` for a screen (the board, a list…); an old one by that
+--- name is deleted first.
+---@param name string
+---@param filetype string
+---@param bufhidden? string default "wipe"
+---@return integer buf
+function M.screen_buf(name, filetype, bufhidden)
+  local existing = vim.fn.bufnr(name)
+  if existing > 0 then
+    pcall(vim.api.nvim_buf_delete, existing, { force = true })
+  end
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, name)
+  vim.bo[buf].bufhidden = bufhidden or "wipe"
+  vim.bo[buf].filetype = filetype
+  return buf
+end
+
+--- `map(lhs, fn, desc)`: a normal-mode key in `buf`, errors in `fn` shown as notifications.
+---@param buf integer
+---@return fun(lhs: string, fn: function, desc?: string)
+function M.mapper(buf)
+  return function(lhs, fn, desc)
+    vim.keymap.set("n", lhs, M.safely(fn), { buffer = buf, nowait = true, silent = true, desc = desc })
+  end
+end
+
 --- `lines` in a scratch buffer, in a split at the bottom; `q` closes it. Returns its window.
 ---@param lines string[]
 ---@param opts { name?: string, height?: integer, filetype?: string, locked?: boolean }
