@@ -381,7 +381,8 @@ local function atom(arg, today)
       error(("logpose: %s: needs a range of dates, like 2026-10-01..2026-10-15"):format(key), 0)
     end
     want_date = { from = f, to = t }
-  elseif DATE_FIELDS[key] ~= nil or is_date(value, today) then
+  -- outside date fields, a bare number (score>=2000) is a number, not a year
+  elseif DATE_FIELDS[key] ~= nil or (is_date(value, today) and not value:match("^%d+$")) then
     local first, last = day_range(value, today)
     if not first then
       error(("logpose: %s: needs a date (YYYY-MM-DD, 2026-10, today, -7d…), got %q"):format(key, value), 0)
