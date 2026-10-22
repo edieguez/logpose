@@ -250,9 +250,10 @@ function M.index_lines(path, lines, root)
   if file_type == "person" and type(fm.name) == "string" and fm.name ~= "" then
     title = fm.name
   end
+  local code = markdown.code_rows(lines, body) -- `#include`, `@Override`, `- [ ]` in code are code
   if not title then
     for i = body, #lines do
-      local h = lines[i]:match("^#%s+(.+)$")
+      local h = not code[i] and lines[i]:match("^#%s+(.+)$")
       if h then
         title = vim.trim(h)
         break
@@ -334,7 +335,7 @@ function M.index_lines(path, lines, root)
   local section_date, section, section_title
   local note_tags = vim.list_extend({}, note.tags)
   for i = body, #lines do
-    local line = lines[i]
+    local line = code[i] and "" or lines[i]
     local is_heading = line:match("^#+%s") ~= nil
     if line:match("^##%s") then
       section_date = markdown.heading_date(line)

@@ -54,6 +54,11 @@ T["blank lines around headings, lists, tables and fences"] = function()
   )
 end
 
+T["a longer fence holds a shorter one"] = function()
+  local block = { "````md", "```", "# inner", "- x", "```", "````" }
+  eq(tidy(unpack(block)), block)
+end
+
 T["runs of blank lines collapse; trailing ones go; frontmatter is kept"] = function()
   eq(tidy("---", "title: x", "", "---", "", "", "## A", "", "", "", "text", "", ""), {
     "---",
