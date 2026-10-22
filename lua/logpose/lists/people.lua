@@ -77,8 +77,12 @@ function M.collect(s)
       fields[it.file] = it.fields
     end
   end
+  local me = require("logpose.config").get().me
+  local you = me and people.find(known, me) -- `me`: not one of the people you work with
   local out = {}
-  for _, p in ipairs(known) do
+  for _, p in ipairs(vim.tbl_filter(function(p)
+    return p ~= you
+  end, known)) do
     local projects, set = {}, {}
     for name, n in pairs(p.projects) do
       if n > 0 then
