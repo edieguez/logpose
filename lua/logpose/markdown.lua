@@ -212,13 +212,11 @@ function M.wrap(line, width)
     table.insert(words, cur)
   end
   local out, buf = {}, marker
-  local first = true
   for _, w in ipairs(words) do
     local candidate = (buf == marker or buf == indent) and (buf .. w) or (buf .. " " .. w)
     if vim.fn.strdisplaywidth(candidate) > width and buf ~= marker and buf ~= indent then
       table.insert(out, buf)
       buf = indent .. w
-      first = false
     else
       buf = candidate
     end

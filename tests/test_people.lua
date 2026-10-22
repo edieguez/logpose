@@ -52,11 +52,17 @@ local function select_picks(...)
 end
 
 T["index collects people from attendees, with: and mentions"] = function()
-  local people = child.lua_get(("require('logpose.index').people(require('logpose.index').build(%q))"):format(root))
-  eq(people, {
-    { slug = "ana", name = "Ana", count = 5 },
-    { slug = "bob-smith", name = "Bob Smith", count = 2 },
-  })
+  local people = child.lua(([[
+    local counts, names = {}, {}
+    for _, it in ipairs(require('logpose.index').build(%q)) do
+      for _, slug in ipairs(it.people or {}) do
+        counts[slug] = (counts[slug] or 0) + 1
+      end
+      names = vim.tbl_extend("keep", names, it.names or {})
+    end
+    return { counts, names }
+  ]]):format(root))
+  eq(people, { { ana = 5, ["bob-smith"] = 2 }, { ana = "Ana", ["bob-smith"] = "Bob Smith" } })
   eq(
     child.lua_get(
       "vim.tbl_map(function(m) return m.slug end, require('logpose.index').mentions_in('x @Ana, mail a@b.com (@bob.smith.)'))"

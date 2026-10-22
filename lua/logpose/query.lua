@@ -574,11 +574,4 @@ function M.filter(items, q)
   end, items)
 end
 
---- Does the query filter anything?
----@param q logpose.Query
----@return boolean
-function M.is_empty(q)
-  return q.expr.op == "true"
-end
-
 return M

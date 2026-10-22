@@ -1284,7 +1284,7 @@ anything in their frontmatter (with `and`, `or`, `not`), and changed by moving t
   their names (`people.expand`) or part of one. `type:` also matches the kind of note
   (`daily`, `meeting`, `topic`, `project`, `task`, `person`).
 - Items carry `fields` (the file's frontmatter; a to-do or line, its note's), so fields work in
-  every scope. `q` is `{ expr }`; `match`, `filter`, `is_empty`.
+  every scope. `q` is `{ expr }`; `match`, `filter`.
 
 **Design: lists** (`lists/init.lua`, views `lists/meetings.lua`, `lists/notes.lua`,
 `lists/people.lua`; `lists/common.lua` for shared pieces)
