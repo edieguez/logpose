@@ -374,15 +374,22 @@ function M.render(b, width, height)
   -- The focused card gets a background (under its colours), so it reads as selected anywhere.
   local at = b.cards_at[b.focus.col] and b.cards_at[b.focus.col][b.focus.row]
   if at then
-    for row = at.first, at.last do
+    -- A boxed card: only inside its border, or the border cells' background frames it twice.
+    local boxed = at.last > at.first
+    for row = boxed and at.first + 1 or at.first, boxed and at.last - 1 or at.last do
       local starts = b.segments[row] or {}
       local start = b.stacked and 0 or starts[b.focus.col]
       local len = #(lines[row] or "")
-      local stop = (not b.stacked and starts[b.focus.col + 1]) and (starts[b.focus.col + 1] - 1) or len
+      local stop = math.min((not b.stacked and starts[b.focus.col + 1]) and (starts[b.focus.col + 1] - 1) or len, len)
+      local seg = start and start < len and lines[row]:sub(start + 1, stop):match("^(.-)%s*$") or ""
+      if boxed then
+        -- the edge glyphs, left (`┃`, or a blocked card's red edge) and right
+        start, stop = start and start + #seg:match("^%S*"), (start or 0) + #seg - #seg:match("%S*$")
+      end
       -- only the card's own rows, not the gap below it
-      if start and start < len and (lines[row]:sub(start + 1, math.min(stop, len)):match("%S")) then
+      if seg:match("%S") and start < stop then
         pcall(vim.api.nvim_buf_set_extmark, b.buf, ns, row - 1, start, {
-          end_col = math.min(stop, len),
+          end_col = stop,
           hl_group = "LogposeBoardFocusBg",
           priority = 100,
         })
