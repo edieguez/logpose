@@ -49,6 +49,15 @@ T["write_file"]["keeps the old file when the flush fails"] = function()
   eq(vim.fn.readdir(dir), { "note.md" })
 end
 
+T["write_file"]["writes through a symlink"] = function()
+  local dir = H.tmpdir()
+  H.write(dir .. "/real.md", "old\n")
+  vim.uv.fs_symlink(dir .. "/real.md", dir .. "/link.md")
+  eq(write(dir .. "/link.md", "new\n"), { true })
+  eq(vim.uv.fs_readlink(dir .. "/link.md"), dir .. "/real.md")
+  eq(H.read(dir .. "/real.md"), "new\n")
+end
+
 T["write_file"]["keeps file permissions"] = function()
   local dir = H.tmpdir()
   local path = dir .. "/script.sh"
