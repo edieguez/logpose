@@ -158,28 +158,15 @@ function M.related(root, items)
   return out
 end
 
---- The link at byte column `col` (0-based) of `line`: a wiki link (`[[target|label]]`, the
---- target relative to `link_base`, spaces and all) or a markdown link to a file (`[label](path)`
---- or `[label](<path with spaces>)`, relative to the note). URLs aren't links here (nil).
+--- The link at byte column `col` (0-based) of `line` (see `index.links_in`). URLs and
+--- headings in this note aren't links here (nil).
 ---@param line string
 ---@param col integer
 ---@return { target: string, style: "wiki"|"markdown" }?
 function M.at(line, col)
-  local c = col + 1
-  for s, inner, e in line:gmatch("()%[%[(.-)%]%]()") do
-    if c >= s and c < e then
-      local target = vim.trim(inner:match("^([^|#]*)") or "")
-      return target ~= "" and { target = target, style = "wiki" } or nil
-    end
-  end
-  for s, dest, e in line:gmatch("()%[[^%]]*%]%((.-)%)()") do
-    if c >= s and c < e then
-      dest = vim.trim(dest)
-      dest = dest:match("^<(.*)>$") or dest:match("^(%S+)") or ""
-      if dest == "" or dest:match("^%a[%w+.-]*:") or dest:match("^#") then
-        return nil -- a URL, or a heading in this note
-      end
-      return { target = (dest:gsub("#.*$", "")), style = "markdown" }
+  for _, l in ipairs(index.links_in(line)) do
+    if col + 1 >= l.s and col + 1 < l.e then
+      return { target = l.target, style = l.style }
     end
   end
   return nil

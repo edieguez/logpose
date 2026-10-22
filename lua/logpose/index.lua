@@ -77,22 +77,27 @@ function M.mentions_in(line)
   return out
 end
 
---- Links in a line: wiki `[[target|label]]` and markdown `[label](target)` (local files only).
+--- Links in a line: wiki `[[target|label]]` (the target relative to `link_base`, spaces and
+--- all) and markdown `[label](path)`, `[label](<path>)` or `[label](path "title")` to local
+--- files (`%20` decoded). `s`/`e`: where the link starts and ends (1-based, end exclusive).
 ---@param line string
----@return { target: string, style: "wiki"|"markdown" }[]
+---@return { target: string, style: "wiki"|"markdown", s: integer, e: integer }[]
 function M.links_in(line)
   local out = {}
-  for inner in line:gmatch("%[%[(.-)%]%]") do
-    local target = vim.trim(inner:match("^([^|]*)") or "")
-    target = target:gsub("#.*$", "")
+  for s, inner, e in line:gmatch("()%[%[(.-)%]%]()") do
+    local target = vim.trim(inner:match("^([^|#]*)") or "")
     if target ~= "" then
-      table.insert(out, { target = target, style = "wiki" })
+      table.insert(out, { target = target, style = "wiki", s = s, e = e })
     end
   end
-  for target in line:gmatch("%]%((.-)%)") do
-    target = vim.trim(target):gsub("^<(.*)>$", "%1"):gsub("#.*$", "")
-    if target ~= "" and not target:match("^%a[%w+.-]*:") then
-      table.insert(out, { target = target, style = "markdown" })
+  for s, dest, e in line:gmatch("()%[[^%]]*%]%((.-)%)()") do
+    dest = vim.trim(dest)
+    dest = (dest:match("^<(.*)>$") or dest:match("^(%S+)") or ""):gsub("#.*$", "")
+    if dest ~= "" and not dest:match("^%a[%w+.-]*:") then
+      dest = dest:gsub("%%(%x%x)", function(h)
+        return string.char(tonumber(h, 16))
+      end)
+      table.insert(out, { target = dest, style = "markdown", s = s, e = e })
     end
   end
   return out
