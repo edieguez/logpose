@@ -439,7 +439,11 @@ T["moving a meeting to another project moves the note and fixes links"] = functi
   H.contains(text, "project: web")
   H.contains(text, "series: web/retro")
   H.contains(text, "attendees: [Ana, Maria]")
-  H.contains(H.read(root .. "/daily/daily-2026-10-14.md"), "- web: [[meetings/web/2026-10-14 - retro|Retro]]")
+  eq(
+    H.read(root .. "/daily/daily-2026-10-14.md"),
+    "# 2026-10-14 daily notes\n\n## Meetings\n\n- web: [[meetings/web/2026-10-14 - retro|Retro]]\n"
+  )
+  eq(text:match("\n\n$"), nil) -- no blank line added at the end
   eq(child.api.nvim_buf_get_name(0), new)
 end
 
