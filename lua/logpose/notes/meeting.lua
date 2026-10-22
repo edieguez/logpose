@@ -191,7 +191,10 @@ function M.build(root, key, input, iso, project, attendees, extra)
   vim.list_extend(frontmatter, require("logpose.timestamps").lines())
   table.insert(frontmatter, "---")
 
-  local path = fs.join(M.dir(root, project), M.filename(iso, slug, key))
+  local dir = M.dir(root, project)
+  local path = fs.titled_path(title, function(n)
+    return fs.join(dir, M.filename(iso, n and (slug .. "-" .. n) or slug, key))
+  end)
   local body = vim.split(rendered.text, "\n", { plain = true })
   local cursor = { rendered.cursor[1], rendered.cursor[2] }
   local previous, carried = M.previous(root, series, iso, path)

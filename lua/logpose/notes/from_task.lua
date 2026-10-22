@@ -147,9 +147,6 @@ function M.apply(root, info, v)
   local topic = require("logpose.notes.topic")
   local title = vim.trim(v.title)
   local note = topic.note_path(root, title)
-  if not note then
-    error(("logpose: can't make a filename from %q"):format(title), 0)
-  end
   local task_lines = require("logpose.edit.fields").note_lines(info.path)
   local rows = M.rows(task_lines, info.line1, info.line2)
   local body = { "From: " .. link.make(note, info.path, info.title, root), "" }

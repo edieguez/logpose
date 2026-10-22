@@ -87,6 +87,17 @@ T["adhoc: prompts, transliterates the filename, keeps the title"] = function()
   H.contains(H.read(path), "series: adhoc-reunion-con-qa")
 end
 
+T["adhoc: titles with the same slug get their own files"] = function()
+  answer_input("周会")
+  child.cmd("Logpose meeting adhoc")
+  answer_input("Обзор")
+  child.cmd("Logpose meeting adhoc")
+  local path = meeting("2026-10-14 - adhoc-2.md")
+  eq(child.api.nvim_buf_get_name(0), path)
+  H.contains(H.read(path), 'title: "Обзор"')
+  H.contains(H.read(meeting("2026-10-14 - adhoc.md")), 'title: "周会"')
+end
+
 T["filename and header format for ASCII titles"] = function()
   answer_input("Sprint Planning")
   child.cmd("Logpose meeting adhoc")
