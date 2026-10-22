@@ -258,10 +258,16 @@ end
 --- Apply a plan: content changes first (atomic writes), then moves.
 ---@param changes logpose.Change[]
 function M.apply(changes)
-  local paths = {}
+  local paths, followers = {}, {}
   for _, c in ipairs(changes) do
     if c.content then
       table.insert(paths, c.path)
+    end
+    if c.move_to then
+      for _, b in ipairs(fs.bufs_under(c.path)) do
+        table.insert(paths, vim.api.nvim_buf_get_name(b.buf))
+        table.insert(followers, { buf = b.buf, to = c.move_to .. b.rest })
+      end
     end
   end
   local ok, err = fs.check_writable(paths)
@@ -284,6 +290,13 @@ function M.apply(changes)
         error(("logpose: cannot move %s: %s"):format(c.path, merr), 0)
       end
     end
+  end
+  -- Buffers showing moved files follow them, so a later `:w` doesn't bring the old file back.
+  for _, f in ipairs(followers) do
+    vim.api.nvim_buf_call(f.buf, function()
+      vim.cmd("silent! file " .. vim.fn.fnameescape(f.to))
+      vim.cmd("silent! edit!")
+    end)
   end
   for _, c in ipairs(changes) do
     if c.rmdir then
