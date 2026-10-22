@@ -35,6 +35,12 @@ T["ticket at the cursor"] = function()
   eq(at("proj-123", 2), vim.NIL)
 end
 
+T["a pattern that can match nothing doesn't hang"] = function()
+  child.lua("require('logpose').setup({ tickets = { pattern = '#?%d*' } })")
+  eq(child.lua_get("require('logpose.tickets').at('see #42 now', 5)"), "#42")
+  eq(child.lua_get("require('logpose.tickets').at('no ticket', 3)"), vim.NIL)
+end
+
 T["gx opens the ticket, or falls back"] = function()
   child.cmd("edit " .. root .. "/INBOX.md")
   child.bo.filetype = "markdown"
