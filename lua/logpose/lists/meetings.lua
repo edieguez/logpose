@@ -3,6 +3,7 @@
 --- type or project changes the note (another project moves it to that project's folder).
 local common = require("logpose.lists.common")
 local lists = require("logpose.lists")
+local text = require("logpose.util.text")
 
 local M = {}
 
@@ -125,7 +126,7 @@ function M.layout(ctx)
   ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + ctx.day_w + 2 + 30, 40)
   local labels = type_labels()
   local w = 0
-  for _, e in ipairs(ctx.entries) do
+  for _, e in ipairs(ctx.group ~= "type" and ctx.entries or {}) do
     w = math.max(w, vim.fn.strdisplaywidth(labels[e.item.type] or e.item.type or ""))
   end
   ctx.type_w = math.min(w, 16)
@@ -139,7 +140,11 @@ function M.row(e, ctx)
   local it = e.item
   local chunks = { { lists.fit(common.day(it.date), ctx.day_w), "LogposeListDate" }, { "  " } }
   if ctx.type_w > 0 then
-    table.insert(chunks, { lists.fit(ctx.labels[it.type] or it.type or "", ctx.type_w), "LogposeListMeta" })
+    local label = ctx.labels[it.type] or it.type or ""
+    if text.plain(label) == text.plain(it.title or "") then
+      label = "" -- "Sprint planning  Sprint planning": once is enough
+    end
+    table.insert(chunks, { lists.fit(label, ctx.type_w), "LogposeListMeta" })
     table.insert(chunks, { "  " })
   end
   table.insert(chunks, { lists.fit(it.title or "", ctx.title_w) })
@@ -156,7 +161,7 @@ function M.row(e, ctx)
       { ("→ %d task%s"):format(#e.info.tasks, #e.info.tasks == 1 and "" or "s"), "LogposeListTasks" }
     )
   end
-  if ctx.all_projects and it.project then
+  if ctx.all_projects and ctx.group ~= "project" and it.project then
     table.insert(meta, { "◆ " .. it.project, ctx.hl(it.project) })
   end
   return common.with_meta(chunks, meta)

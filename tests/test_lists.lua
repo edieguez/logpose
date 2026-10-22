@@ -154,6 +154,23 @@ T["meetings"]["g groups by type, project, series; moving changes the note"] = fu
   H.contains(child.notifications()[#child.notifications()].msg, "grouped by week, which comes from the note itself")
 end
 
+T["meetings"]["rows leave out what their heading or title already says"] = function()
+  H.write(
+    root .. "/meetings/acme/2026-10-12 - sprint-review.md",
+    '---\ntype: review\ndate: 2026-10-12\ntitle: "Sprint review"\nproject: acme\n---\n'
+  )
+  local function row(title)
+    return child.api.nvim_buf_get_lines(0, line_with(title) - 1, line_with(title), false)[1]
+  end
+  child.cmd("Logpose meetings")
+  eq(select(2, row("Sprint review"):gsub("Sprint review", "")), 1) -- the type matches the title: once
+  H.contains(row("  Retro"), "Retrospective    Retro") -- a different title keeps its type
+  child.type_keys("g") -- by type: the heading says it
+  eq(row("  Retro"):find("Retrospective", 1, true), nil)
+  child.type_keys("g") -- by project: the heading says it
+  eq(row("  Retro"):find("◆", 1, true), nil)
+end
+
 T["meetings"]["a starts a meeting of the group's type"] = function()
   child.cmd("Logpose meetings")
   child.type_keys("g")
