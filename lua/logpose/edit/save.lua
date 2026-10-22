@@ -36,8 +36,7 @@ function M.move_meeting(root, path, from, to)
   if buf and vim.bo[buf].modified then
     error("logpose: the note has unsaved changes; save it first", 0)
   end
-  local rel_old = link.relpath(root, path):gsub("%.md$", "")
-  local rel_new = link.relpath(root, dest):gsub("%.md$", "")
+  local pair = maintenance.link_pair(root, path, dest)
   local changes = {}
   -- the note itself: series follows the project
   local lines = fs.read_lines(path) or {}
@@ -54,7 +53,7 @@ function M.move_meeting(root, path, from, to)
       local flines = fs.read_lines(file) or {}
       local n = 0
       for i, l in ipairs(flines) do
-        local nl, moved = maintenance.rewrite_links(l, { { rel_old, rel_new } })
+        local nl, moved = maintenance.rewrite_links(l, { pair })
         if moved > 0 then
           -- the daily note's "- acme: [[…]]" label
           if from then

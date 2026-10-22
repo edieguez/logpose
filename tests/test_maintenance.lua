@@ -148,6 +148,15 @@ T["rename-project: open buffers follow their files"] = function()
   eq(vim.fn.filereadable(p("projects/web.md")), 1)
 end
 
+T["rename-project fixes short links and links relative to link_base"] = function()
+  setup("{ link_base = 'daily' }")
+  H.write(p("projects/acme.md"), "# Acme\n")
+  H.write(p("meetings/acme/a.md"), "# a\n")
+  H.write(p("daily/d.md"), "# d\n[[../projects/acme|Acme]] [[acme]] [[../meetings/acme/a]] [[acme-api]]\n")
+  child.cmd("Logpose rename-project! acme web")
+  eq(H.read(p("daily/d.md")), "# d\n[[../projects/web|Acme]] [[web]] [[../meetings/web/a]] [[acme-api]]\n")
+end
+
 T["rename-project refuses to overwrite"] = function()
   H.write(p("meetings/acme/a.md"), "# a\n")
   H.write(p("meetings/web/b.md"), "# b\n")
