@@ -168,6 +168,7 @@ T["any frontmatter field"] = function()
   eq(m(meeting, { "no:room" }), false)
   eq(m(meeting, { "no:due" }), true)
   eq(m(meeting, { "score>=7" }), true)
+  eq(m({ kind = "note", text = "x", tags = {}, fields = { score = "2500" } }, { "score>=2000" }), true)
   eq(m(meeting, { "score>7" }), false)
   eq(m(meeting, { "score<10" }), true) -- numbers compare as numbers
 end
