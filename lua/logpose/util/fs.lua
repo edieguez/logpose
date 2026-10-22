@@ -171,7 +171,8 @@ function M.write_file(path, content, opts)
     return false, ("logpose: cannot write %s: %s"):format(path, open_err)
   end
   local wrote, write_err = f:write(content)
-  f:close()
+  local closed, close_err = f:close() -- a full disk often only fails here, when the buffer flushes
+  wrote, write_err = wrote and closed, write_err or close_err
   if not wrote then
     os.remove(tmp)
     return false, ("logpose: cannot write %s: %s"):format(path, write_err)
