@@ -76,6 +76,7 @@ function M.plan_tag(root, old, new)
   for _, path in ipairs(index.files(root)) do
     local lines = fs.read_lines(path) or {}
     local total, in_fm = 0, lines[1] == "---"
+    local code = require("logpose.markdown").code_rows(lines) -- `#tags` in code are code
     for i, line in ipairs(lines) do
       local n
       if in_fm and i > 1 and line == "---" then
@@ -83,7 +84,7 @@ function M.plan_tag(root, old, new)
       elseif in_fm and line:match("^tags:") then
         lines[i], n = replace_fm_tags(line, old, new)
         total = total + n
-      elseif not in_fm then
+      elseif not in_fm and not code[i] then
         lines[i], n = M.replace_tag(line, old, new)
         total = total + n
       end
@@ -235,6 +236,7 @@ function M.plan_project(root, old, new, opts)
   for _, path in ipairs(index.files(root)) do
     local lines = fs.read_lines(path) or {}
     local total, in_fm = 0, lines[1] == "---"
+    local code = require("logpose.markdown").code_rows(lines) -- `#tags` in code are code
     local kept = path == keep_page
     if kept and in_fm then
       -- the old page: archived and pointing at the project it was merged into
@@ -271,7 +273,7 @@ function M.plan_project(root, old, new, opts)
         lines[i], n = replace_fm_tags(line, old, new)
       elseif in_fm and line:match("^series:%s*" .. vim.pesc(old) .. "/") then
         lines[i], n = line:gsub("^(series:%s*)" .. vim.pesc(old) .. "/", "%1" .. new .. "/"), 1
-      elseif not in_fm then
+      elseif not in_fm and not code[i] then
         lines[i], n = M.replace_tag(line, old, new)
         -- Links into the moved folder / page (wiki paths and markdown relative paths).
         local moved

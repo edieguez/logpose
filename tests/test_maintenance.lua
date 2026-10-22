@@ -81,6 +81,12 @@ T["rename-tag"]["renames inline and frontmatter tags only"] = function()
   H.contains(child.notifications()[1].msg, "updated 2 files")
 end
 
+T["rename-tag"]["leaves code blocks alone"] = function()
+  H.write(p("log.md"), "# Log\n- a #perf\n```sh\necho #perf\n```\n")
+  child.cmd("Logpose rename-tag! perf speed")
+  eq(H.read(p("log.md")), "# Log\n- a #speed\n```sh\necho #perf\n```\n")
+end
+
 T["rename-tag"]["cancel, bang, unsaved buffers, invalid names"] = function()
   H.write(p("log.md"), "# Log\n- [ ] a #perf\n")
   stub_apply("Cancel")
