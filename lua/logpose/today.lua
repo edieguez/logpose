@@ -189,20 +189,10 @@ end
 ---@param root string
 ---@return integer buf
 function M.open(root)
-  local name = "logpose://today"
-  local existing = vim.fn.bufnr(name)
-  if existing > 0 then
-    pcall(vim.api.nvim_buf_delete, existing, { force = true })
-  end
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "markdown"
+  local buf = ui.screen_buf("logpose://today", "markdown")
   require("logpose.util.ui").show(buf)
   render(buf, root)
-  local function map(lhs, fn, desc)
-    vim.keymap.set("n", lhs, ui.safely(fn), { buffer = buf, nowait = true, silent = true, desc = desc })
-  end
+  local map = ui.mapper(buf)
   map("<CR>", function()
     local loc = (vim.b[buf].logpose_today or {})[vim.api.nvim_win_get_cursor(0)[1]]
     if loc then
