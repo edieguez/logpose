@@ -5,12 +5,6 @@ local view = require("logpose.board.view")
 
 local M = {}
 
----@param b logpose.Board
----@param name string
-local function count(b, name)
-  require("logpose.telemetry").record("board", { name }, true)
-end
-
 --- Contents of every live task file (path -> text), read from disk.
 ---@param b logpose.Board
 ---@return table<string, string>
@@ -118,7 +112,7 @@ function M.undo(b)
     return
   end
   table.insert(b.redo, step)
-  count(b, "undo")
+  require("logpose.telemetry").record("board", { "undo" }, true)
   require("logpose.util.ui").notify(("logpose: undid %s"):format(step.label), vim.log.levels.INFO)
   view.refresh(b, focus)
 end
@@ -140,7 +134,7 @@ function M.redo(b)
     return
   end
   table.insert(b.undo, step)
-  count(b, "redo")
+  require("logpose.telemetry").record("board", { "redo" }, true)
   require("logpose.util.ui").notify(("logpose: redid %s"):format(step.label), vim.log.levels.INFO)
   view.refresh(b, focus)
 end

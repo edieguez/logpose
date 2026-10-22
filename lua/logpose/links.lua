@@ -42,9 +42,10 @@ function M.resolve(root, from, link, by_name)
   return nil
 end
 
+--- Journal files by lowercased name, for short wiki links (`resolve`'s `by_name`).
 ---@param items logpose.Item[]
 ---@return table<string, string[]>
-local function names(items)
+function M.names(items)
   local by_name = {}
   for _, it in ipairs(items) do
     if index.is_file(it) then
@@ -70,7 +71,7 @@ end
 ---@return logpose.Link[]
 function M.all(root, items)
   items = items or index.build(root)
-  local by_name = names(items)
+  local by_name = M.names(items)
   local out = {}
   for _, it in ipairs(items) do
     if index.is_file(it) then
@@ -134,7 +135,7 @@ function M.related(root, items)
     local from_task = tasks[file]
     for _, l in ipairs(it.links or {}) do
       if from_task or stems[stem(l.target)] then
-        by_name = by_name or names(items)
+        by_name = by_name or M.names(items)
         local target = M.resolve(root, file, l, by_name)
         if target and target ~= file then
           if from_task and notes[target] and not tasks[target] then
@@ -195,7 +196,7 @@ function M.follow(root, file, line, col)
   if not l then
     return nil
   end
-  return M.resolve(root, file, l, names(index.build(root))), l
+  return M.resolve(root, file, l, M.names(index.build(root))), l
 end
 
 --- Links pointing at `file`.

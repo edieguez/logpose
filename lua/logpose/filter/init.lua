@@ -36,24 +36,7 @@ M.CHEATSHEET = {
 --- The cheat sheet as text lines (for `?` windows).
 ---@return { [1]: string, [2]?: string }[] lines and their highlight
 function M.cheatsheet_lines()
-  local out = {}
-  local w = 0
-  for _, row in ipairs(M.CHEATSHEET) do
-    if row[2] then
-      w = math.max(w, vim.fn.strdisplaywidth(row[1]))
-    end
-  end
-  for _, row in ipairs(M.CHEATSHEET) do
-    if row[2] then
-      table.insert(out, { ("  %s%s  %s"):format(row[1], string.rep(" ", w - vim.fn.strdisplaywidth(row[1])), row[2]) })
-    else
-      if #out > 0 then
-        table.insert(out, { "" })
-      end
-      table.insert(out, { row[1], "Title" })
-    end
-  end
-  return out
+  return require("logpose.util.help").keys(M.CHEATSHEET)
 end
 
 --- Filters you can start a word with, and what they do.
