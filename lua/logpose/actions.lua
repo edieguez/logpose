@@ -15,7 +15,7 @@ M.MODES = { "open", "mine", "overdue", "all" }
 ---@return string[] owners, string? due
 function M.meta(text)
   local owners = {}
-  for name in (" " .. text):gmatch("%s@([%w_][%w_%.%-]*)") do
+  for name in (" " .. text):gmatch("%s@(" .. require("logpose.util.text").HANDLE .. ")") do
     table.insert(owners, (name:gsub("[%.%-]+$", "")):lower())
   end
   local due = text:match("due:(%d%d%d%d%-%d%d%-%d%d)")

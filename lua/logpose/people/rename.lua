@@ -111,7 +111,7 @@ function M.plan(root, old, new)
       local line = lines[k]
       local n = 0
       line = (" " .. line)
-        :gsub("([%s%(%[,;])@([%w_][%w_%.%-]*)", function(pre, handle)
+        :gsub("([%s%(%[,;])@(" .. text.HANDLE .. ")", function(pre, handle)
           local trail = handle:match("[%.%-]+$") or ""
           local name = handle:sub(1, #handle - #trail)
           if replaced[text.slugify(name)] then

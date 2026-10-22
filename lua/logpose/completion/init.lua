@@ -107,7 +107,7 @@ function M.items(line, col, row, bufnr)
     return out
   end
   -- @mentions in the text
-  local at, handle = before:match("()@([%w_%.%-]*)$")
+  local at, handle = before:match("()@(" .. require("logpose.util.text").HANDLE_CHARS .. "*)$")
   if not at or (at > 1 and not before:sub(at - 1, at - 1):match("[%s%(%[,;]")) then
     return {}
   end

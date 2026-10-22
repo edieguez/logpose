@@ -188,7 +188,7 @@ local function at_cursor(f)
   if fields.LISTS[key] then
     if key == "tags" and f.model.bulk and vim.trim(before):match("^[+-]") then
       -- "+a -b": complete the tag after the last sign
-      local s, word = before:match("()[+-]#?([%w_%-/]*)$")
+      local s, word = before:match("()[+-]#?(" .. require("logpose.util.text").TAG_CHARS .. "*)$")
       if not s then
         return nil
       end

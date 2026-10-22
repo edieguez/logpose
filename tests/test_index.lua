@@ -29,6 +29,14 @@ T["tags_in"]["finds inline tags, lowercased"] = function()
   eq(tags("fix #Perf and #acme-api, (#ux) [#a/b]"), { "perf", "acme-api", "ux", "a/b" })
 end
 
+T["tags_in"]["keeps accented tags whole"] = function()
+  eq(tags("#reunión y #año-2026"), { "reunión", "año-2026" })
+  eq(
+    child.lua_get("vim.tbl_map(function(m) return m.slug end, require('logpose.index').mentions_in('con @José y @Ana'))"),
+    { "jose", "ana" }
+  )
+end
+
 T["tags_in"]["ignores headings, URL fragments, numbers and mid-word #"] = function()
   eq(tags("# Heading"), {})
   eq(tags("## 2026-10-14"), {})

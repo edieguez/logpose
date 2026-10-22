@@ -1,6 +1,14 @@
 --- Text helpers.
 local M = {}
 
+-- What #tags and @mentions are made of: letters, digits, `_` and any non-ASCII byte, so
+-- accented words (`#reunión`, `@José`) count whole. Patterns for `gmatch`/`gsub`.
+local W = "%w_\128-\255"
+M.TAG = "[" .. W .. "][" .. W .. "%-/]*"
+M.HANDLE = "[" .. W .. "][" .. W .. "%.%-]*"
+M.TAG_CHARS = "[" .. W .. "%-/]"
+M.HANDLE_CHARS = "[" .. W .. "%.%-]"
+
 -- Latin accented letters -> ASCII. Keys are UTF-8 byte sequences.
 local TRANSLIT = {}
 do
