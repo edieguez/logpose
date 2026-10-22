@@ -88,6 +88,14 @@ function M.canonical(path)
 end
 local canonical = M.canonical
 
+--- Is `path` inside the folder `dir` (symlinks resolved on both)?
+---@param path string
+---@param dir string
+---@return boolean
+function M.inside(path, dir)
+  return vim.startswith(canonical(path), canonical(dir) .. "/")
+end
+
 --- Loaded buffer showing `path`, if any.
 ---@param path string
 ---@return integer?

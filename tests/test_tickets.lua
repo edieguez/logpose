@@ -59,6 +59,16 @@ T["gx is only mapped in the journal"] = function()
   eq(child.lua_get("vim.fn.maparg('gx', 'n', false, true).buffer == 1"), true) -- for note links
 end
 
+T["gx is mapped in a journal reached through a symlink"] = function()
+  local link = H.tmpdir() .. "/journal"
+  vim.uv.fs_symlink(root, link)
+  child.lua(("require('logpose').setup({ root = %q })"):format(link))
+  child.cmd("edit " .. root .. "/INBOX.md")
+  child.bo.filetype = "markdown"
+  child.lua("vim.wait(50)")
+  eq(child.lua_get("vim.fn.maparg('gx', 'n', false, true).buffer == 1"), true)
+end
+
 T["gx follows note links, spaces and all, and hands the rest to your gx"] = function()
   child.lua("vim.keymap.set('n', 'gx', function() _G.mine = vim.fn.expand('<cfile>') end)") -- e.g. a markdown plugin's
   H.write(root .. "/meetings/acme/2026-10-15 - retro.md", "# Retro\n")

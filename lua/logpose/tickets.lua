@@ -153,13 +153,9 @@ end
 --- Buffer-local setup for markdown buffers inside the journal: `gx` (tickets and note links).
 ---@param buf integer
 function M.attach(buf)
-  local root = config.resolve_root()
+  local root = config.resolve_root(buf)
   local name = vim.api.nvim_buf_get_name(buf)
-  if not root or name == "" then
-    return
-  end
-  local abs = fs.normalize(name)
-  if not vim.startswith(abs, fs.normalize(root) .. "/") then
+  if not root or name == "" or not fs.inside(name, root) then
     return
   end
   -- After every FileType handler has run, so a markdown plugin mapping gx for the buffer (in any

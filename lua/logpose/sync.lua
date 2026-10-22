@@ -215,12 +215,12 @@ end
 ---@param buf integer
 function M.on_write(buf)
   local path = vim.api.nvim_buf_get_name(buf)
-  local root = config.resolve_root()
+  local root = config.resolve_root(buf)
   if not root or path == "" or not vim.bo[buf].modified then
     return
   end
   path = fs.normalize(path)
-  if not vim.startswith(path, fs.normalize(root) .. "/") or not fs.exists(path) then
+  if not fs.inside(path, root) or not fs.exists(path) then
     return
   end
   local old = fs.read_lines(path) or {}
