@@ -80,11 +80,7 @@ function M.is_task_file(path, root)
   return vim.startswith(path, dir .. "/") and path:sub(-3) == ".md"
 end
 
----@param s any
----@return string?
-local function str(s)
-  return type(s) == "string" and s ~= "" and s or nil
-end
+local str = text.nonempty
 
 --- Parse a task from its lines.
 ---@param path string

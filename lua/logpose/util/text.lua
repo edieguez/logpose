@@ -16,23 +16,32 @@ do
     a = "áàäâãå",
     e = "éèëê",
     i = "íìïî",
-    o = "óòöôõ",
+    o = "óòöôõø",
     u = "úùüû",
     n = "ñ",
     c = "ç",
+    y = "ýÿ",
     A = "ÁÀÄÂÃÅ",
     E = "ÉÈËÊ",
     I = "ÍÌÏÎ",
-    O = "ÓÒÖÔÕ",
+    O = "ÓÒÖÔÕØ",
     U = "ÚÙÜÛ",
     N = "Ñ",
     C = "Ç",
+    Y = "Ý",
   }
   for ascii, chars in pairs(groups) do
     for ch in chars:gmatch("[\192-\244][\128-\191]*") do
       TRANSLIT[ch] = ascii
     end
   end
+end
+
+--- Lowercase, without accents: what matching compares. Other non-ASCII stays as it is.
+---@param s string
+---@return string
+function M.plain(s)
+  return (s:gsub("[\192-\244][\128-\191]*", TRANSLIT):lower())
 end
 
 ---@param s string
@@ -48,6 +57,13 @@ function M.transliterate(s)
   return (s:gsub("[\192-\244][\128-\191]*", function(ch)
     return TRANSLIT[ch] or " "
   end))
+end
+
+--- `s` when it's a non-empty string, else nil (form and frontmatter values).
+---@param s any
+---@return string?
+function M.nonempty(s)
+  return type(s) == "string" and s ~= "" and s or nil
 end
 
 --- Filename-safe slug: `"Reunión de planeación"` -> `"reunion-de-planeacion"`.

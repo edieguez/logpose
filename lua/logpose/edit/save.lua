@@ -91,9 +91,7 @@ end
 ---@return string path
 function M.create(root, v)
   local taskfile = require("logpose.taskfile")
-  local function str(x)
-    return type(x) == "string" and x ~= "" and x or nil
-  end
+  local str = require("logpose.util.text").nonempty
   local new_project = str(v.project) and not vim.tbl_contains(require("logpose.project").known(root), v.project)
   local path = taskfile.create(root, {
     title = v.title,
@@ -137,9 +135,7 @@ function M.create_note(root, kind, r, ctx, model)
     local path, cursor, message = require("logpose.notes.from_task").apply(root, model.from_task, v)
     return path, cursor, false, message
   end
-  local function str(x)
-    return type(x) == "string" and x ~= "" and x or nil
-  end
+  local str = require("logpose.util.text").nonempty
   local tags = type(v.tags) == "table" and v.tags or {}
   local project = str(v.project)
   local new_project = project and not vim.tbl_contains(require("logpose.project").known(root), project)
