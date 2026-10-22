@@ -356,13 +356,15 @@ function M.path_for(root, title)
   end
   slug = slug:sub(1, 60):gsub("%-+$", "")
   local dir = M.dir(root)
-  local path = fs.join(dir, slug .. ".md")
-  local n = 2
-  while fs.exists(path) or fs.exists(fs.join(dir, "archive", slug .. ".md")) do
-    path = fs.join(dir, ("%s-%d.md"):format(slug, n))
-    n = n + 1
+  -- archived tasks live in `archive/<period>/`, and keep their names
+  local taken = function(name)
+    return fs.exists(fs.join(dir, name)) or #vim.fn.glob(fs.join(dir, "archive", "*", name), true, true) > 0
   end
-  return path
+  local name, n = slug .. ".md", 2
+  while taken(name) do
+    name, n = ("%s-%d.md"):format(slug, n), n + 1
+  end
+  return fs.join(dir, name)
 end
 
 --- Take a project out of a task text: `+name` or `project:name` (the last one wins; `+none`
