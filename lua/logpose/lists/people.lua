@@ -16,7 +16,7 @@ M.footer = "<CR> page · <Tab> details · e edit · a add · 1 1:1 · y/o contac
 M.noun = "people"
 M.one = "person"
 M.help = {
-  { "a", "add a person (on someone without a page: theirs)" },
+  { "a", "add a person (on someone without a page: theirs); you stay here" },
   { "1", "start a 1:1 with them" },
   { "y  o", "copy a way to reach them · open it (mail, chat…)" },
   { "R", "rename them everywhere (on `same as …?`: merge them into that person)" },
@@ -336,7 +336,8 @@ function M.details(e)
   return out
 end
 
---- Add or edit a person: the form, then back to the list.
+--- Add or edit a person: the form, then back to the list, on them (a new page isn't opened, so
+--- you can add the next one; <CR> opens it).
 ---@param s logpose.ListState
 ---@param p? logpose.Person
 ---@param done fun(key?: string)
@@ -352,7 +353,7 @@ local function form(s, p, done, defaults)
       s.root,
       "person",
       vim.tbl_extend("force", { name = p and p.name, project = s.project }, defaults or {}),
-      { on_save = back }
+      { on_save = back, open = false }
     )
   end
 end

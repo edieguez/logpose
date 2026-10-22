@@ -507,7 +507,8 @@ then the people your notes mention who have no page yet. Besides the lists'
 keys:
 
   <CR>    open their page (no page yet: the form to add one)
-  a       add a person (on someone without a page: theirs)
+  a       add a person (on someone without a page: theirs); you stay
+          on the list, on them, to add the next one
   1       start a 1:1 with them (the first meeting type with `person`)
   y       copy a way to reach them    o   open it (mail, chat…)
   R       rename them everywhere (|:Logpose-rename-person|)
