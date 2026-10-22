@@ -82,6 +82,15 @@ T["writes at most once per throttle window"] = function()
   eq(usage().days["2026-10-14"].daily.ok, 2) -- explicit flush (also runs on VimLeavePre)
 end
 
+T["two Neovims add up instead of overwriting each other"] = function()
+  setup("{ telemetry = { enabled = true } }")
+  child.cmd("Logpose daily")
+  -- another Neovim writes its counts in between
+  H.write(usage_path(), vim.json.encode({ version = 1, days = { ["2026-10-14"] = { daily = { ok = 5, err = 0 } } } }))
+  child.cmd("Logpose daily")
+  eq(usage().days["2026-10-14"].daily.ok, 6)
+end
+
 T["old days are pruned"] = function()
   H.write(usage_path(), vim.json.encode({ version = 1, days = { ["2025-01-01"] = { daily = { ok = 9, err = 0 } } } }))
   setup("{ telemetry = { enabled = true, retention_days = 30 } }")
