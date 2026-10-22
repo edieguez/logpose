@@ -206,6 +206,9 @@ function M.lane_at_cursor(b)
   return lane
 end
 
+-- The everyday keys, in the top bar when it has room (else just `? help`).
+local HINTS = "H L move · x done · a add · e edit · / filter · ? help "
+
 --- Render into the board buffer and remember where each card is.
 ---@param b logpose.Board
 ---@param width integer window width
@@ -271,7 +274,8 @@ function M.render(b, width, height)
     .. esc(scope)
     .. (b.filter ~= "" and ("%#LogposeBoardHint# · " .. esc(b.filter)) or "")
     .. (#modes > 0 and ("%#LogposeBoardHint# · " .. table.concat(modes, ", ")) or "")
-    .. "%=%#LogposeBoardHint#? help "
+    .. "%=%#LogposeBoardHint#"
+    .. (vim.fn.strdisplaywidth(b.title .. HINTS) + 4 <= width and HINTS or "? help ")
   local bar_win = vim.fn.bufwinid(b.buf)
   if bar_win ~= -1 then
     vim.wo[bar_win].winbar = bar
