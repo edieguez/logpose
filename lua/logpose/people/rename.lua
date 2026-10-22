@@ -45,10 +45,7 @@ function M.plan(root, old, new)
       error(("logpose: %s already exists"):format(link.relpath(root, page_new)), 0)
     end
     moves[p.page] = page_new
-    table.insert(link_pairs, {
-      (link.relpath(root, p.page):gsub("%.md$", "")),
-      (link.relpath(root, page_new):gsub("%.md$", "")),
-    })
+    table.insert(link_pairs, maintenance.link_pair(root, p.page, page_new))
   end
 
   local changes = {}
