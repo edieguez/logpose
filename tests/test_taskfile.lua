@@ -144,6 +144,17 @@ T["set_status edits an unsaved buffer instead of the file"] = function()
   H.contains(buf, "my unsaved context")
 end
 
+T["list reads tasks with unsaved changes from their buffer"] = function()
+  local path = create("{ title = 'Open' }")
+  create("{ title = 'Other' }")
+  child.cmd("edit " .. path)
+  child.cmd("%s/^status: backlog$/status: todo/")
+  local statuses = child.lua_get(
+    ("vim.tbl_map(function(t) return t.status end, require('logpose.taskfile').list(%q))"):format(root)
+  )
+  eq(statuses, { "todo", "backlog" })
+end
+
 T["set_field adds missing keys in order and leaves absent keys alone when clearing"] = function()
   local lines = child.lua_get(
     [[require('logpose.taskfile').set_field({ '---', 'title: "x"', 'created: 2026-10-01', '---' }, 'status', 'todo')]]

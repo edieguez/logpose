@@ -164,12 +164,13 @@ function M.list(root, opts)
   local skip = not opts.archived and function(d)
     return d ~= "archive"
   end or nil
+  local dirty = fs.modified_bufs()
   for name, kind in vim.fs.dir(dir, { depth = 4, skip = skip }) do
     if kind == "file" and name:sub(-3) == ".md" then
       local path = fs.join(dir, name)
-      local buf = fs.find_buf(path)
+      local buf = next(dirty) and dirty[fs.canonical(path)]
       local task
-      if buf and vim.bo[buf].modified then
+      if buf then
         -- unsaved edits: the buffer is the truth, and it isn't cached
         task = M.parse(path, vim.api.nvim_buf_get_lines(buf, 0, -1, false), root)
       else

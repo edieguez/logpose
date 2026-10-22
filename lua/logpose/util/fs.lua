@@ -79,10 +79,14 @@ function M.titled_path(title, name)
   return path
 end
 
-local function canonical(path)
+--- Absolute path with symlinks resolved, for comparing paths.
+---@param path string
+---@return string
+function M.canonical(path)
   local abs = M.normalize(path)
   return uv.fs_realpath(abs) or abs
 end
+local canonical = M.canonical
 
 --- Loaded buffer showing `path`, if any.
 ---@param path string
@@ -98,6 +102,20 @@ function M.find_buf(path)
     end
   end
   return nil
+end
+
+--- Buffers with unsaved changes, by canonical path (look one up with `M.canonical(path)`). One
+--- scan for many lookups: `find_buf` scans every buffer each time.
+---@return table<string, integer>
+function M.modified_bufs()
+  local out = {}
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(buf)
+    if name ~= "" and vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].modified then
+      out[canonical(name)] = buf
+    end
+  end
+  return out
 end
 
 --- Loaded buffers showing `path` or a file under it: list of { buf, rest }, where `rest` is
