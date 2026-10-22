@@ -15,7 +15,11 @@ function M.at(line, col)
   local pattern = config.get().tickets.pattern
   local init = 1
   while true do
-    local s, e = line:find(pattern, init)
+    -- (LuaJIT clamps an `init` past the end, so a pattern matching "" would match there forever)
+    local s, e
+    if init <= #line + 1 then
+      s, e = line:find(pattern, init)
+    end
     if not s then
       return nil
     end
@@ -25,7 +29,7 @@ function M.at(line, col)
     if whole and col + 1 >= s and col + 1 <= e then
       return line:sub(s, e)
     end
-    init = e + 1
+    init = math.max(e, s) + 1 -- past an empty match too
   end
 end
 
