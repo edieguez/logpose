@@ -266,7 +266,7 @@ above the limit.
 ### Working on the board
 
 The essentials (the [full list](#board-keys) is in the reference, and `?` shows it on the
-board):
+board; the top bar shows the everyday ones when it has room):
 
 | Key | Does |
 |---|---|
