@@ -38,6 +38,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim) (LazyVim included):
 ```lua
 {
   "edieguez/logpose",
+  event = "VeryLazy", -- right after startup, so the keymaps are there before the first :Logpose
   cmd = "Logpose",
   ft = "markdown", -- enables `gx` on links and tickets, and `[[` completion, in journal notes
   opts = {
