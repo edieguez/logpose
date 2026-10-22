@@ -20,7 +20,7 @@ end
 ---@return string line, integer count
 function M.replace_tag(line, old, new)
   local count = 0
-  local out = (" " .. line):gsub("([%s%(%[,;])#([%w_][%w_%-/]*)", function(pre, tag)
+  local out = (" " .. line):gsub("([%s%(%[,;])#(" .. require("logpose.util.text").TAG .. ")", function(pre, tag)
     local core, tail = tag:match("^(.-)([%-/]*)$")
     if core:lower() == old then
       count = count + 1
@@ -375,7 +375,7 @@ end
 ---@param opts logpose.CommandOpts
 function M.rename_tag_command(opts)
   local old, new = two_args(opts, "rename-tag[!] old new")
-  if not new:gsub("^#", ""):match("^[%w_][%w_%-/]*$") then
+  if not new:gsub("^#", ""):match("^" .. require("logpose.util.text").TAG .. "$") then
     error(("logpose: invalid tag %q"):format(new), 0)
   end
   config.with_root(ui.safely(function(root)

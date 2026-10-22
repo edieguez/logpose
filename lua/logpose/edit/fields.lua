@@ -467,7 +467,7 @@ function M.collect(model, texts, ctx)
       elseif key == "tags" and trimmed:match("^[+-]") then
         local delta, ok = { add = {}, remove = {} }, true
         for item in trimmed:gmatch("%S+") do
-          local sign, tag = item:match("^([+-])#?([%w_][%w_%-/]*),?$")
+          local sign, tag = item:match("^([+-])#?(" .. require("logpose.util.text").TAG .. "),?$")
           if not sign then
             ok = false
           elseif sign == "+" then
