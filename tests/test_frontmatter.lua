@@ -47,6 +47,13 @@ T["read lists keys in order with their values"] = function()
   eq(entries, { { key = "title", value = "A: b" }, { key = "tags", value = { "x", "y" } } })
 end
 
+T["lists with commas and quotes read back as written"] = function()
+  local items = { "Lopez, Ana", 'Ana "Ani"', [[back\slash]], "plain" }
+  local lines = { "---", fm.line("aliases", items), "---" }
+  eq(fm.read(lines), { { key = "aliases", value = items } })
+  eq(fm.read({ "---", "tags: [a, 'b, c', , d ]", "---" }), { { key = "tags", value = { "a", "b, c", "d" } } })
+end
+
 T["block lists: read as lists, replaced whole"] = function()
   local lines = { "---", "tags:", "  - perf", '  - "ci"', "due:", "---", "- body" }
   eq(fm.read(lines), { { key = "tags", value = { "perf", "ci" } }, { key = "due", value = "" } })

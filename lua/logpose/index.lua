@@ -98,6 +98,42 @@ function M.links_in(line)
   return out
 end
 
+--- Items of a flow list's inside (`a, "b, c", 'd'`): commas in quotes don't split, and
+--- double-quoted items are unescaped (`frontmatter.quote` in reverse).
+---@param s string
+---@return string[]
+local function list_items(s)
+  local items, i = {}, 1
+  while true do
+    i = s:find("%S", i)
+    if not i then
+      return items
+    end
+    local c, v = s:sub(i, i), nil
+    if c == '"' then
+      local chars, j = {}, i + 1
+      while j <= #s and s:sub(j, j) ~= '"' do
+        if s:sub(j, j) == "\\" then
+          j = j + 1
+        end
+        table.insert(chars, s:sub(j, j))
+        j = j + 1
+      end
+      v, i = table.concat(chars), j + 1
+    elseif c == "'" then
+      local j = s:find("'", i + 1, true) or #s + 1
+      v, i = s:sub(i + 1, j - 1), j + 1
+    else
+      local j = s:find(",", i, true) or #s + 1
+      v, i = vim.trim(s:sub(i, j - 1)), j
+    end
+    if v ~= "" then
+      table.insert(items, v)
+    end
+    i = (s:find(",", i, true) or #s) + 1
+  end
+end
+
 --- Minimal YAML frontmatter: `key: value` scalars and `[a, b]` lists.
 ---@param lines string[]
 ---@return table<string, string|string[]> fm, integer body_start (first line after frontmatter)
@@ -122,14 +158,7 @@ function M.frontmatter(lines)
     elseif key then
       local list = value:match("^%[(.*)%]$")
       if list then
-        local items = {}
-        for v in list:gmatch("[^,]+") do
-          v = vim.trim(v):gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
-          if v ~= "" then
-            table.insert(items, v)
-          end
-        end
-        fm[key] = items
+        fm[key] = list_items(list)
       else
         local unquoted = value:match('^"(.*)"$')
         if unquoted then
