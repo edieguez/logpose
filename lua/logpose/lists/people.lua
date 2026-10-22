@@ -261,7 +261,7 @@ function M.row(e, ctx)
   if not p.page then
     table.insert(meta, { ("%d mention%s"):format(p.count, p.count == 1 and "" or "s"), "LogposeListMeta" })
   end
-  if ctx.all_projects and #e.project_list > 0 then
+  if ctx.all_projects and ctx.group ~= "project" and #e.project_list > 0 then
     table.insert(meta, { "◆ " .. table.concat(e.project_list, ", "), "LogposeListMeta" })
   end
   return common.with_meta(chunks, meta)

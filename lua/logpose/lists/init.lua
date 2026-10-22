@@ -155,7 +155,8 @@ function M.build(s, width)
     .. (s.filter ~= "" and ("%#LogposeListFilter#  " .. esc(s.filter)) or "")
     .. "%=%#LogposeListHint#"
     .. esc(("%d %s · by %s · %s · ? help "):format(#entries, noun, g.label, sort.label))
-  local ctx = { s = s, width = width, all_projects = not s.project, entries = entries, project_hl = {} }
+  -- `group`: rows leave out what their heading already says (the project, the type)
+  local ctx = { s = s, width = width, all_projects = not s.project, group = g.key, entries = entries, project_hl = {} }
   local pages = project.pages(s.root)
   ctx.hl = function(name)
     ctx.project_hl[name] = ctx.project_hl[name] or project.hl(s.root, name, pages) or "LogposeBoardProject"
