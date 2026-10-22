@@ -44,6 +44,17 @@ T["tags_in"]["ignores headings, URL fragments, numbers and mid-word #"] = functi
   eq(tags("trailing #tag- and #tag/"), { "tag", "tag" })
 end
 
+T["code blocks aren't notes: no tags, people, to-dos or title"] = function()
+  H.write(
+    root .. "/notes/c.md",
+    "```c\n# comment\n#include x\n@Override\n- [ ] not a task\n```\n# Real\n- [ ] real #t\n"
+  )
+  local items = build()
+  eq(#items, 2)
+  eq({ items[1].title, items[1].tags, items[1].people }, { "Real", { "t" }, {} })
+  eq(items[2].text, "real #t")
+end
+
 T["frontmatter"] = function()
   local fm = child.lua_get(
     [[{ require('logpose.index').frontmatter({ "---", "type: retro", 'title: "Say \"hi\""', "tags: [a, 'b', \"c\"]", "attendees: []", "---", "# x" }) }]]

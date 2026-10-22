@@ -14,6 +14,39 @@ function M.heading_date(line)
   return nil
 end
 
+--- The code fence a line opens (```` ``` ```` or `~~~`, any length), if it does.
+---@param line string
+---@return string?
+function M.opens_fence(line)
+  return line:match("^%s*(```+)") or line:match("^%s*(~~~+)")
+end
+
+--- Does `line` close the code block `fence` opened? Only the same character, at least as many.
+---@param line string
+---@param fence string
+---@return boolean
+function M.closes_fence(line, fence)
+  return line:match("^%s*" .. vim.pesc(fence) .. vim.pesc(fence:sub(1, 1)) .. "*%s*$") ~= nil
+end
+
+--- Rows inside fenced code blocks, the fence lines included, from row `from` on.
+---@param lines string[]
+---@param from? integer
+---@return table<integer, boolean>
+function M.code_rows(lines, from)
+  local rows, fence = {}, nil
+  for i = from or 1, #lines do
+    if fence then
+      rows[i] = true
+      fence = not M.closes_fence(lines[i], fence) and fence or nil
+    else
+      fence = M.opens_fence(lines[i])
+      rows[i] = fence ~= nil
+    end
+  end
+  return rows
+end
+
 --- Lines with leading and/or trailing blank lines removed.
 ---@param lines string[]
 ---@param leading? boolean
@@ -74,7 +107,7 @@ function M.tidy(lines, row)
     local line = lines[i]
     if fence then
       table.insert(out, line)
-      if line:match("^%s*" .. fence .. "%s*$") then
+      if M.closes_fence(line, fence) then
         fence = nil
         after_block = true
       end
@@ -84,7 +117,7 @@ function M.tidy(lines, row)
         trimmed = trimmed .. "  " -- a hard line break
       end
       local is_blank = trimmed == ""
-      local open = trimmed:match("^%s*(```+)") or trimmed:match("^%s*(~~~+)")
+      local open = M.opens_fence(trimmed)
       local is_heading = trimmed:match("^#+%s") ~= nil or trimmed:match("^#+$") ~= nil
       local is_item = trimmed:match("^%s*[-*+]%s") ~= nil
         or trimmed:match("^%s*[-*+]$") ~= nil
@@ -96,7 +129,7 @@ function M.tidy(lines, row)
       elseif open then
         need_blank()
         table.insert(out, trimmed)
-        fence = open:sub(1, 3)
+        fence = open
         in_list, in_table, after_block = false, false, false
       elseif is_heading then
         need_blank()
