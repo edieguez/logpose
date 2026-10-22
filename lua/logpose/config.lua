@@ -465,10 +465,11 @@ end
 
 M.NOT_FOUND = "logpose: journal root not found; run :Logpose init or set `root` in setup()"
 
---- Resolve the journal root: configured `root` -> marker above the current buffer ->
---- marker above cwd -> the root saved by `:Logpose init`.
+--- Resolve the journal root: configured `root` -> marker above the buffer (`buf`, default the
+--- current one) -> marker above cwd -> the root saved by `:Logpose init`.
+---@param buf? integer
 ---@return string? root, logpose.RootSource|string source_or_err
-function M.resolve_root()
+function M.resolve_root(buf)
   local opts = M.get()
   if opts.root then
     local root = fs.normalize(opts.root):gsub("/$", "")
@@ -479,10 +480,11 @@ function M.resolve_root()
   end
   local markers = opts.root_markers
   if #markers > 0 then
-    local name = vim.api.nvim_buf_get_name(0)
+    buf = buf or vim.api.nvim_get_current_buf()
+    local name = vim.api.nvim_buf_get_name(buf)
     -- Only real files: skip unnamed, special (help, terminal…) and URI buffers (health://, oil://…).
-    if name ~= "" and vim.bo.buftype == "" and not name:match("^%a[%w+.-]*://") then
-      local root = vim.fs.root(0, markers)
+    if name ~= "" and vim.bo[buf].buftype == "" and not name:match("^%a[%w+.-]*://") then
+      local root = vim.fs.root(buf, markers)
       if root then
         return root, "buffer"
       end

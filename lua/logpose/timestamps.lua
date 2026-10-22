@@ -67,14 +67,8 @@ function M.on_write(buf)
     return
   end
   local path = vim.api.nvim_buf_get_name(buf)
-  local root = require("logpose.config").resolve_root()
-  if not root or path == "" then
-    return
-  end
-  local fs = require("logpose.util.fs")
-  local real = vim.uv.fs_realpath(path) or fs.normalize(path)
-  local real_root = vim.uv.fs_realpath(root) or fs.normalize(root)
-  if not vim.startswith(real, real_root .. "/") then
+  local root = require("logpose.config").resolve_root(buf)
+  if not root or path == "" or not require("logpose.util.fs").inside(path, root) then
     return
   end
   local head = vim.api.nvim_buf_get_lines(buf, 0, 100, false)
