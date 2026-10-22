@@ -152,7 +152,10 @@ function M.known(root)
   local names = {}
   for _, item in ipairs(items) do
     for slug, name in pairs(item.names or {}) do
-      names[slug] = names[slug] or name
+      -- a written name (`Bob Smith`, `Ana`) beats a handle (`@bob-smith`, `@ana`)
+      if not names[slug] or (names[slug] == slug and name ~= slug) then
+        names[slug] = name
+      end
     end
   end
   for _, item in ipairs(items) do

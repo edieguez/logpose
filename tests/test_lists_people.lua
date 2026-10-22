@@ -73,6 +73,23 @@ T["lists people with a page, then the ones your notes mention"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], line_with("Ana López"))
 end
 
+T["a bare first name that's probably someone else: hinted, R merges"] = function()
+  H.write(root .. "/daily/daily-2026-10-14.md", "# d\n- [ ] ask @bob\n")
+  child.cmd("Logpose people")
+  local bob = child.api.nvim_buf_get_lines(0, line_with(" bob ") - 1, line_with(" bob "), false)[1]
+  H.contains(bob, "same as Bob Smith? R merges")
+  child.api.nvim_win_set_cursor(0, { line_with(" bob "), 2 })
+  child.lua([[
+    vim.ui.input = function(o, cb) _G.default = o.default; cb(o.default) end
+    vim.ui.select = function(items, _, cb) cb("Apply") end
+  ]])
+  child.type_keys("R")
+  eq(child.lua_get("_G.default"), "Bob Smith")
+  H.contains(H.read(root .. "/daily/daily-2026-10-14.md"), "@bob-smith")
+  eq(line_with(" bob "), nil) -- one person now
+  H.contains(screen(), "Bob Smith")
+end
+
 T["you (`me`) aren't in your own people list"] = function()
   H.write(root .. "/daily/daily-2026-10-14.md", "# d\n- [ ] review @emmanuel\n")
   child.lua("require('logpose.config').get().me = '@Emmanuel'")
