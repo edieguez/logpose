@@ -73,6 +73,14 @@ T["lists people with a page, then the ones your notes mention"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], line_with("Ana López"))
 end
 
+T["you (`me`) aren't in your own people list"] = function()
+  H.write(root .. "/daily/daily-2026-10-14.md", "# d\n- [ ] review @emmanuel\n")
+  child.lua("require('logpose.config').get().me = '@Emmanuel'")
+  child.cmd("Logpose people")
+  eq(line_with("emmanuel"), nil)
+  H.contains(screen(), "Bob Smith")
+end
+
 T["<Tab> shows what involves them; <CR> opens it"] = function()
   child.cmd("Logpose people")
   child.type_keys("<Tab>")
