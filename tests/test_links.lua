@@ -62,6 +62,18 @@ T[":Logpose note creates a topic note"] = function()
   eq(H.read(path), "# mine\n")
 end
 
+T[":Logpose note: titles with the same slug get their own files"] = function()
+  child.cmd("Logpose note C++ tips")
+  child.cmd("Logpose note C# tips")
+  eq(child.api.nvim_buf_get_name(0), root .. "/notes/c-tips-2.md")
+  H.contains(H.read(root .. "/notes/c-tips.md"), 'title: "C++ tips"')
+  H.contains(H.read(root .. "/notes/c-tips-2.md"), 'title: "C# tips"')
+  child.cmd("Logpose note C# tips")
+  eq(child.api.nvim_buf_get_name(0), root .. "/notes/c-tips-2.md")
+  child.cmd("Logpose note 会议记录")
+  H.contains(H.read(root .. "/notes/note.md"), 'title: "会议记录"')
+end
+
 T[":Logpose note without a title opens the new-note form"] = function()
   child.cmd("Logpose note")
   eq(child.bo.filetype, "logpose-edit")

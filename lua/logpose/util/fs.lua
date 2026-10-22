@@ -62,6 +62,23 @@ function M.read_lines(path)
   return vim.split(content, "\n", { plain = true })
 end
 
+--- The first of `name()`, `name(2)`, `name(3)`… that is free or already holds the note titled
+--- `title` (or one without a title), so two titles with the same slug get two files.
+---@param title string
+---@param name fun(n?: integer): string
+---@return string
+function M.titled_path(title, name)
+  local path, n = name(), 2
+  while M.exists(path) do
+    local fm = require("logpose.index").frontmatter(M.read_lines(path) or {})
+    if type(fm.title) ~= "string" or vim.trim(fm.title):lower() == vim.trim(title):lower() then
+      return path
+    end
+    path, n = name(n), n + 1
+  end
+  return path
+end
+
 local function canonical(path)
   local abs = M.normalize(path)
   return uv.fs_realpath(abs) or abs
