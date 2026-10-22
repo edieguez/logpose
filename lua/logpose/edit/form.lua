@@ -719,9 +719,11 @@ function M.save(f)
     end
     vim.cmd("stopinsert")
     close(f)
-    vim.cmd.edit(vim.fn.fnameescape(path))
-    if cursor then
-      pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+    if f.open ~= false then
+      vim.cmd.edit(vim.fn.fnameescape(path))
+      if cursor then
+        pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+      end
     end
     ui.notify(
       message
@@ -789,7 +791,7 @@ end
 
 --- Show the form for a model. `opts.on_save(path_or_paths, keys)` runs after a save.
 ---@param model logpose.EditModel
----@param opts? { on_save?: fun(path: string|string[], keys: string[]) }
+---@param opts? { on_save?: fun(path: string|string[], keys: string[]), open?: boolean }
 ---@return integer win
 function M.show(model, opts)
   opts = opts or {}
@@ -864,6 +866,7 @@ function M.show(model, opts)
     marks = {},
     help = false,
     on_save = opts.on_save,
+    open = opts.open,
   }
   M.forms[buf] = f
   M.render(f)

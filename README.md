@@ -637,7 +637,8 @@ Prefers async reviews. Back from leave on the 21st.
 (`person:ana` finds the notes that say Ana López too), the people list. `projects` puts her
 first in that project's meetings before you've met her there. Add a person from the people list
 (`a`), with `:Logpose person`, or with `:Logpose edit` on their page; the form has a field for
-each way to reach people.
+each way to reach people. Adding from the list keeps you on the list, on the person you just
+added, so you can add several in a row; `<CR>` opens their page.
 
 **The people list** (`:Logpose people`, see [the lists](#meetings-notes-and-people-lists)) shows
 people with a page, then the people your notes mention who have no page yet. `<Tab>` shows what

@@ -224,6 +224,23 @@ T["by project or role; moving changes their page"] = function()
   H.contains(child.notifications()[#child.notifications()].msg, "Bob Smith has no page yet")
 end
 
+T["a adds people one after another, staying on the list"] = function()
+  child.cmd("Logpose people")
+  for _, name in ipairs({ "Dana Ortiz", "Eli Park" }) do
+    child.type_keys("a")
+    eq(child.bo.filetype, "logpose-edit")
+    child.type_keys(name)
+    child.lua("require('logpose.edit.form').save(require('logpose.edit.form').forms[vim.api.nvim_get_current_buf()])")
+    -- back on the list, on the person just added; their page isn't opened
+    eq(child.bo.filetype, "logpose-people")
+    H.contains(child.api.nvim_get_current_line(), name)
+    eq(vim.fn.filereadable(root .. "/people/" .. name:lower():gsub(" ", "-") .. ".md"), 1)
+  end
+  -- <CR> opens it
+  child.type_keys("<CR>")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "eli-park.md")
+end
+
 T["1 starts a 1:1 with them"] = function()
   child.cmd("Logpose people")
   child.type_keys("1")
