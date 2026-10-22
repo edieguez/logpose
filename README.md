@@ -565,7 +565,7 @@ separate scopes: `notes` never lists tasks. Everything after it is a
 | `blocked` | blocked tasks |
 | `sprint:current`, `sprint:-1`, `since:-7d` | a time range |
 | `attendees:ana`, `date>=-30d`, `role:lead` | any frontmatter field |
-| `a or b`, `not a`, `-a`, `( … )` | either, neither, grouping |
+| `a or b`, `not a`, `-a`, `( … )`, `-( … )` | either, neither, grouping |
 | any other word | must appear in the text |
 
 All filters are in the [reference](#search-filters). On the board and the lists, `/` opens the
@@ -720,15 +720,17 @@ tasks and run `:'<,'>Logpose edit` (see [Working on the board](#working-on-the-b
 
 | Command | Does |
 |---|---|
-| `:Logpose note Queue design` | Creates or opens `notes/queue-design.md`, for how-tos, decision records and references. |
+| `:Logpose note Queue design` | Creates or opens `notes/queue-design.md`, for how-tos, decision records and references. A different title with the same file name (`C++ tips`, `C# tips`) gets its own file, `c-tips-2.md`. |
 | `:Logpose note` | The new-note form: title, project and tags, then the note opens. |
 | `:Logpose project-page` | Creates or opens `projects/<project>.md`, the hub for a project. |
 | `:Logpose backlinks` | Notes linking to the current one. |
 | `:Logpose links` | Links going out of it, with missing targets flagged. |
 
-Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown links both work.
+Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown links
+(`[label](x.md)`, `[label](<my note.md>)`, `[label](x.md "title")`, `my%20note.md`) all work.
 A wiki link's target is relative to the journal root (`link_base`), not to the note, and may
-contain spaces: `[[meetings/acme/2026-10-14 - retro|Retro]]`.
+contain spaces: `[[meetings/acme/2026-10-14 - retro|Retro]]`. Code blocks are left out: a
+`#include` or `[[x]]` inside ```` ``` ```` is code, not a tag or a link.
 
 **Following links.** `gx` on a wiki link in a journal note opens the note it points to, from
 anywhere on the link (the path or the label). Everything else goes to the `gx` you already have:
@@ -812,15 +814,18 @@ Then `:Logpose view acme`, or `:Logpose view` to pick one.
 ### Renaming tags and projects
 
 `:Logpose rename-tag perf performance` and `:Logpose rename-project acme acme-web` rename
-everywhere: tags, frontmatter, meeting folders, project pages and links. Both preview the
-changes and ask first.
+everywhere: tags, frontmatter, meeting folders, project pages and links (short `[[acme]]` ones
+too, when the name is unique). Code blocks are left alone. Both preview the changes and ask
+first, and refuse while a file they'd touch has unsaved changes. Open buffers follow the files
+they move.
 
 ### Usage stats
 
 On by default, and they never leave your machine: logpose counts which commands you use per
-day, in a file only you can read. Turn them off with `telemetry = { enabled = false }`. It records command names only, never note
-content or paths. `:Logpose stats` shows the counts and the commands you haven't tried. The
-`:Logpose` menu also uses them to list your most-used commands first.
+day, in a file only you can read. It records command names only, never note content or paths,
+and counts from several open Neovims add up. Turn them off with
+`telemetry = { enabled = false }`. `:Logpose stats` shows the counts and the commands you
+haven't tried. The `:Logpose` menu also uses them to list your most-used commands first.
 
 ---
 
@@ -926,21 +931,22 @@ With cards marked, `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` act on all of them 
 | `blocked` | blocked tasks |
 | `since:DATE`, `until:DATE` | `2026-10-14`, `today`, `yesterday`, `tomorrow`, `-7d`, `+2w` |
 | `week:current`, `sprint:-1`, `sprint:42` | a whole week or sprint |
-| `section:decisions` | lines under a matching `##` heading |
+| `section:decisions`, `section:follow-ups` | lines under a matching `##` heading |
 | `key:value` | any frontmatter field containing the value (case and accents ignored): `room:lisboa`, `role:lead` |
 | `attendees:ana`, `with:ana` | meetings with the person, by any of their names, or part of one |
 | `date:2026-10`, `date:2026`, `due:today` | a day, month or year (also `created:`, `started:`, `done:`, `modified:`) |
-| `date>=-7d`, `due<today`, `score>3` | comparisons: `>`, `>=`, `<`, `<=` (dates and numbers) |
+| `date>=-7d`, `due<today`, `score>3` | comparisons: `>`, `>=`, `<`, `<=` (dates and numbers; outside date fields, `score>=2000` is a number, not a year) |
 | `date:2026-10-01..2026-10-15`, `date:..2026-09` | a range of dates |
 | `slack:*`, `has:email`, `no:email` | has the field / doesn't |
 | `a or b` | either one (`and` is the default between filters; it binds tighter than `or`) |
-| `not a`, `-a` | the opposite: `-#draft`, `not type:daily` |
+| `not a`, `-a` | the opposite: `-#draft`, `not type:daily`, `-(type:daily or type:retro)` |
 | `( … )` | grouping: `(type:retro or type:review) @ana` |
 | `"two words"` | a value with spaces: `attendees:"Ana López"` |
 | any other word | must appear in the text (accents ignored) |
 
-Tags are inline `#words` (not headings, URL fragments or numbers like `#123`) and frontmatter
-`tags: [a, b]`, compared without case.
+Tags are inline `#words` (not headings, URL fragments, numbers like `#123` or anything in a
+code block) and frontmatter `tags: [a, b]` or a `tags:` block list, compared without case.
+Accented words count whole: `#reunión`, `@José`.
 
 ## Keymaps
 
@@ -1170,7 +1176,11 @@ To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]` carried to 
 - **"Wrong project" or "no tasks on the board":** check the active project in the health report.
   `:Logpose project auto` unpins a project (or `none`), and `p` on the board shows all projects.
 - **A file wasn't changed:** logpose never overwrites a file with unsaved changes. It edits the
-  open buffer instead, or refuses and tells you.
+  open buffer instead, or refuses and tells you. Writes are atomic: a failed save (a full disk)
+  leaves the old file as it was, and a symlinked note is written through to its target.
+- **"state.json couldn't be read":** logpose's saved state (the journal from `:Logpose init`,
+  recent projects) was corrupt. It was moved to `state.json.bad` next to it, so nothing is lost;
+  run `:Logpose init` again.
 - **Search has no preview:** install one of the [optional pickers](#install).
 
 ## Development
@@ -1192,8 +1202,8 @@ nvim --headless -u NONE -i NONE --cmd "set rtp^=$PWD" -l scripts/bench/bench.lua
 
 Tests use [mini.test](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-test.md).
 Each case runs in a fresh child Neovim, with `TZ=America/New_York` so date math crosses real
-daylight-saving changes. The suite takes seconds. CI runs Neovim 0.10, stable and nightly. `scripts/screenshots.sh`
-regenerates the images in this README from a demo journal.
+daylight-saving changes. The suite takes seconds. CI runs Neovim 0.10, stable and nightly.
+`scripts/screenshots.sh` regenerates the images in this README from a demo journal.
 
 The design and roadmap are in [`docs/SPEC.md`](docs/SPEC.md). Releases are tagged
 `MAJOR.MINOR.PATCH`; `git tag -n` lists what each one added.

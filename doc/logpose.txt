@@ -865,14 +865,16 @@ Sprints and maintenance ~
                                                          *:Logpose-rename-tag*
 :Logpose rename-tag[!] {old} {new}
     Rename inline `#old` tags and frontmatter `tags:` entries everywhere
-    (whole tags only: not `#oldest`). Shows a preview and asks first; [!]
-    skips it. Files with unsaved changes are never touched.
+    (whole tags only: not `#oldest`; code blocks are left alone). Shows a
+    preview and asks first; [!] skips it. Files with unsaved changes are
+    never touched.
 
                                                      *:Logpose-rename-project*
 :Logpose rename-project[!] {old} {new}
     Rename a project: `project:` frontmatter, `#old` tags, series names,
-    `meetings/{old}/` and `projects/{old}.md` (moved), and links into them.
-    Preview and [!] as for |:Logpose-rename-tag|.
+    `meetings/{old}/` and `projects/{old}.md` (moved), and links into them,
+    short `[[{old}]]` ones too when the name is unique. Open buffers follow
+    the files they move. Preview and [!] as for |:Logpose-rename-tag|.
 
                                                       *:Logpose-rename-person*
 :Logpose rename-person[!] {handle} [{new name}]
@@ -942,7 +944,7 @@ Sprints and maintenance ~
 Used by |:Logpose-find|, |:Logpose-board|, the lists (|logpose-lists|),
 |:Logpose-actions| and |:Logpose-report|. Filters next to each other must all
 match; `or` gives either one (`and` binds tighter), `not` or a leading `-`
-the opposite, and parentheses group: >
+the opposite (also of a group: `-(a or b)`), and parentheses group: >
   (type:retro or type:review) @ana -#draft
 <
   project:{name}          the item's project, or a `#{name}` tag
@@ -966,15 +968,18 @@ the opposite, and parentheses group: >
   date:{when}             a day, month (2026-10) or year; also `due:`,
                           `created:`, `started:`, `done:`, `modified:`
   {key}>={v}  {key}>{v}   comparisons, for dates (`date>=-7d`, `due<today`)
-  {key}<={v}  {key}<{v}   and numbers
+  {key}<={v}  {key}<{v}   and numbers (outside date fields, `score>=2000`
+                          is a number, not a year)
   date:{a}..{b}           a range of dates (`date:..2026-09` from the start)
   {key}:*  has:{key}      has the field
   no:{key}                doesn't
   "two words"             a value with spaces: `attendees:"Ana López"`
   other words             must all appear in the text (accents ignored)
 
-Tags are inline `#words` (not headings, URL fragments or numbers such as
-`#123`) and frontmatter `tags:`, compared without case.
+Tags are inline `#words` (not headings, URL fragments, numbers such as
+`#123` or anything in a code block) and frontmatter `tags:` (a `[a, b]` list
+or a block list), compared without case. Accented words count whole:
+`#reunión`, `@José`.
 
 ==============================================================================
 7. KEYMAPS                                                   *logpose-keymaps*
@@ -1204,6 +1209,12 @@ folders exist, the picker in use and whether usage stats are on.
   shows all projects.
 
   A file wasn't changed: logpose never overwrites a file with unsaved
-  changes. It edits the open buffer instead, or refuses and says so.
+  changes. It edits the open buffer instead, or refuses and says so. Writes
+  are atomic: a failed save (a full disk) leaves the old file as it was, and
+  a symlinked note is written through to its target.
+
+  "state.json couldn't be read": the saved state (the journal from
+  |:Logpose-init|, recent projects) was corrupt. It was moved to
+  `state.json.bad` next to it; run |:Logpose-init| again.
 
  vim:tw=78:ts=8:ft=help:norl:
