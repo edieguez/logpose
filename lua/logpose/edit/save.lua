@@ -48,7 +48,7 @@ function M.move_meeting(root, path, from, to)
       lines = require("logpose.frontmatter").set(lines, { series = series })
     end
   end
-  table.insert(changes, { path = path, content = table.concat(lines, "\n") .. "\n", count = 1 })
+  table.insert(changes, { path = path, content = table.concat(lines, "\n"), count = 1 }) -- lines end in ""
   for _, file in ipairs(require("logpose.index").files(root)) do
     if file ~= path then
       local flines = fs.read_lines(file) or {}
@@ -66,7 +66,7 @@ function M.move_meeting(root, path, from, to)
         end
       end
       if n > 0 then
-        table.insert(changes, { path = file, content = table.concat(flines, "\n") .. "\n", count = n })
+        table.insert(changes, { path = file, content = table.concat(flines, "\n"), count = n })
       end
     end
   end
