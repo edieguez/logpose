@@ -492,16 +492,21 @@ T["the focused card has a background; a one-project board leaves the project off
   eq(s:find("◆ acme", 1, true), nil)
   H.contains(s, "overdue 1d  #perf ")
   child.type_keys("l") -- Backlog is empty on this board: go to a card
-  local bg_rows = child.lua_get([[(function()
-    local rows = {}
+  -- inside the card's border only: the border cells' background would frame it twice
+  local bg = child.lua_get([[(function()
+    local out = {}
     for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })) do
       if m[4].hl_group == "LogposeBoardFocusBg" then
-        rows[#rows + 1] = m[2]
+        local line = vim.api.nvim_buf_get_lines(0, m[2], m[2] + 1, false)[1]
+        out[#out + 1] = { line:sub(m[3], m[3]), line:sub(m[4].end_col + 1, m[4].end_col + 1) }
       end
     end
-    return rows
+    return out
   end)()]])
-  eq(#bg_rows >= 3, true) -- the whole card: borders, title, details
+  eq(#bg >= 2, true) -- title and details
+  for _, edges in ipairs(bg) do
+    eq(edges, { "\x83", "\xe2" }) -- just after the left `┃`, ends right before the right one
+  end
   child.type_keys("p") -- all projects: the project is back
   H.contains(screen(), "◆ acme")
 end
