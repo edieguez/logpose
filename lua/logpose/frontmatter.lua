@@ -132,7 +132,8 @@ function M.set(lines, changes, opts)
     return vim.list_extend(fm, lines)
   end
   local out, done = { lines[1] }, {}
-  for i = 2, close - 1 do
+  local i = 2
+  while i < close do
     local key = lines[i]:match("^([%w_%-]+):")
     local v = key and changes[key]
     if v == nil or done[key] then
@@ -142,7 +143,11 @@ function M.set(lines, changes, opts)
       if v ~= false then
         table.insert(out, M.line(key, v))
       end
+      while i + 1 < close and lines[i + 1]:match("^%s+%-") do
+        i = i + 1 -- the old value's block-list items go with it
+      end
     end
+    i = i + 1
   end
   -- new keys
   local rank = {}
