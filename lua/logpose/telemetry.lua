@@ -242,14 +242,10 @@ function M.command(opts)
     error("logpose: usage :Logpose stats[!] [days]", 0)
   end
   local lines = M.render(math.floor(days))
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "markdown"
-  pcall(vim.api.nvim_buf_set_name, buf, "logpose://stats")
-  vim.cmd(("botright %dsplit"):format(math.min(#lines + 1, 25)))
-  vim.api.nvim_win_set_buf(0, buf)
-  vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
+  require("logpose.util.ui").scratch(
+    lines,
+    { name = "logpose://stats", filetype = "markdown", height = math.min(#lines + 1, 25) }
+  )
 end
 
 function M.setup_autocmd()
