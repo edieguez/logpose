@@ -74,6 +74,18 @@ T["open (default): meetings only, by due date, overdue flagged"] = function()
   eq(child.fn.getqflist()[1].lnum, 9)
 end
 
+T["leaves the index's items alone"] = function()
+  local count = ("#vim.tbl_filter(function(it) return it.due ~= nil end, require('logpose.index').build(%q))"):format(
+    root
+  )
+  for _, f in ipairs(vim.fn.globpath(root, "**/*.md", true, true)) do
+    vim.uv.fs_utime(f, os.time() - 60, os.time() - 60) -- old enough for the index to cache
+  end
+  eq(child.lua_get(count), 0)
+  child.cmd("Logpose actions")
+  eq(child.lua_get(count), 0)
+end
+
 T["overdue"] = function()
   child.cmd("Logpose actions overdue")
   eq(#qf(), 1)
