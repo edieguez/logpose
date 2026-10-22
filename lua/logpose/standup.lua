@@ -179,7 +179,7 @@ function M.prepare(root, iso, text, cursor)
   if not prev_path then
     return text, cursor
   end
-  local prev_lines = fs.read_lines(prev_path)
+  local prev_lines = fs.current_lines(prev_path) -- an unsaved buffer's, the lines marked later
   if not prev_lines then
     return text, cursor
   end

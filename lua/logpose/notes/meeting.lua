@@ -296,13 +296,14 @@ function M.mark_carried(note)
   end
   local rows = {}
   for _, it in ipairs(note.carried) do
-    rows[it.lnum] = true
+    rows[it.lnum] = it.text
   end
   local ok, err, changed = fs.update_lines(note.previous.file, function(lines)
     local touched = false
-    for lnum in pairs(rows) do
+    for lnum, text in pairs(rows) do
       local line = lines[lnum]
-      if line and line:match("^%s*[-*+]%s+%[ %]") then
+      -- the rows come from the saved file: skip a line an unsaved edit moved
+      if line and line:match("^%s*[-*+]%s+%[ %]") and line:find(text, 1, true) then
         lines[lnum] = line:gsub("%[ %]", "[>]", 1)
         touched = true
       end
