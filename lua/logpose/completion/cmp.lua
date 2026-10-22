@@ -11,6 +11,11 @@ function M:is_available()
   return vim.bo.filetype == "markdown" and require("logpose.config").resolve_root() ~= nil
 end
 
+-- Item ranges are byte columns; nvim-cmp reads them as UTF-16 unless told.
+function M:get_position_encoding_kind()
+  return "utf-8"
+end
+
 function M:get_trigger_characters()
   return require("logpose.completion").TRIGGERS
 end
