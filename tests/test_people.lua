@@ -233,6 +233,8 @@ T["in a note: attendees, with: and @mentions complete people"] = function()
   eq(items(6, 16), { { "Bob Smith", "@bob-smith", 12 } })
   eq(items(6, 4), {}) -- not after an @
   eq(items(1, 8), {}) -- title: isn't a people field
+  -- ranges are byte columns: nvim-cmp must not read them as UTF-16 (wrong after an accent)
+  eq(child.lua_get("require('logpose.completion.cmp').new():get_position_encoding_kind()"), "utf-8")
 end
 
 T["completion offers person: filters"] = function()
