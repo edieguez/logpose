@@ -47,6 +47,9 @@ T["section filter"] = function()
   eq(query.match({ kind = "line", text = "x", tags = {}, section = "open questions" }, q), true)
   eq(query.match({ kind = "line", text = "x", tags = {}, section = "decisions" }, q), false)
   eq(query.match({ kind = "line", text = "x", tags = {} }, q), false)
+  local fu = { kind = "line", text = "x", tags = {}, section = "follow-ups" }
+  eq(query.match(fu, query.parse({ "section:follow-ups" })), true)
+  eq(query.match(fu, query.parse({ "section:follow" })), true)
 end
 
 local task = {
