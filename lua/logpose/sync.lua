@@ -24,16 +24,7 @@ end
 ---@param root string
 ---@return table<string, string[]>
 local function by_name(root)
-  local index = require("logpose.index")
-  local out = {}
-  for _, it in ipairs(index.build(root)) do
-    if index.is_file(it) then
-      local stem = vim.fn.fnamemodify(it.file, ":t:r"):lower()
-      out[stem] = out[stem] or {}
-      table.insert(out[stem], it.file)
-    end
-  end
-  return out
+  return require("logpose.links").names(require("logpose.index").build(root))
 end
 
 --- The task a linked to-do in `file` points at (nil when the link isn't to a task).

@@ -18,31 +18,8 @@ local M = {}
 ---@field page? string       path of their page
 ---@field slugs table<string, boolean>     every slug that means them (name, aliases, file)
 
--- Latin letters with accents, as plain ASCII.
-local PLAIN = {}
-for _, group in ipairs({
-  { "a", "áàâäãåÁÀÂÄÃÅ" },
-  { "e", "éèêëÉÈÊË" },
-  { "i", "íìîïÍÌÎÏ" },
-  { "o", "óòôöõøÓÒÔÖÕØ" },
-  { "u", "úùûüÚÙÛÜ" },
-  { "n", "ñÑ" },
-  { "c", "çÇ" },
-  { "y", "ýÿÝ" },
-}) do
-  for ch in group[2]:gmatch("[\192-\223][\128-\191]") do
-    PLAIN[ch] = group[1]
-  end
-end
-
 --- Lowercase, without accents: what matching compares.
----@param s string
----@return string
-function M.plain(s)
-  return (s:gsub("[\192-\223][\128-\191]", function(ch)
-    return PLAIN[ch]
-  end):lower())
-end
+M.plain = text.plain
 
 --- The keys of a person's page that are theirs (not ways to reach them).
 M.OWN = { "name", "aliases", "role", "projects" }
