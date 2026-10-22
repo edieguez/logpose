@@ -37,7 +37,8 @@ function M.mkdir_p(dir)
   end
 end
 
---- Read a whole file. Returns nil, err if it can't be read.
+--- Read a whole file, with CRLF line endings turned into "\n". Returns nil, err if it can't
+--- be read.
 ---@param path string
 ---@return string? content, string? err
 function M.read_file(path)
@@ -47,7 +48,7 @@ function M.read_file(path)
   end
   local content = f:read("*a")
   f:close()
-  return content
+  return (content:gsub("\r\n", "\n"))
 end
 
 --- Read a file as lines (split on "\n"; a trailing newline yields a final "").

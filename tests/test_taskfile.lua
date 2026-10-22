@@ -91,6 +91,16 @@ T["from_text takes a +project and relative due dates"] = function()
   eq(ft("Decide due:someday"), { "Decide due:someday", {} })
 end
 
+T["set_status on a CRLF file keeps one frontmatter block"] = function()
+  local path = root .. "/tasks/crlf.md"
+  H.write(path, '---\r\ntitle: "X"\r\nstatus: todo\r\n---\r\n# X\r\n')
+  eq(child.lua_get(("require('logpose.taskfile').set_status(%q, 'in-progress')"):format(path)), true)
+  local content = H.read(path)
+  eq(select(2, content:gsub("\n%-%-%-\n", "")), 1)
+  H.contains(content, 'title: "X"\nstatus: in-progress\n')
+  H.contains(content, "TODO → In progress")
+end
+
 T["set_status keeps started, done and the log in step"] = function()
   local path = create("{ title = 'Move me' }")
   local set = function(status)
