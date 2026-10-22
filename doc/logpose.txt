@@ -903,6 +903,9 @@ Sprints and maintenance ~
 ==============================================================================
 5. BOARD KEYS                                             *logpose-board-keys*
 
+The board's top bar shows the everyday ones (H L, x, a, e, /) when it has
+room, and `?` lists them all.
+
   h  l          previous / next column
   j  k          previous / next card (the cursor and mouse select too)
   H  L  <  >    move the card left / right

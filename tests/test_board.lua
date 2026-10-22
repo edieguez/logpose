@@ -70,6 +70,14 @@ local T = MiniTest.new_set({
   },
 })
 
+T["the top bar shows the everyday keys when it has room"] = function()
+  child.cmd("Logpose board")
+  H.contains(child.wo.winbar, "H L move · x done · a add · e edit · / filter · ? help")
+  child.o.columns = 60
+  child.cmd("Logpose board")
+  H.contains(child.wo.winbar, "%=%#LogposeBoardHint#? help") -- no room: just the way to all keys
+end
+
 T["shows columns side by side with cards, counts and meta"] = function()
   child.cmd("Logpose board")
   local s = screen()
