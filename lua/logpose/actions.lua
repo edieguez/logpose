@@ -54,7 +54,8 @@ function M.collect(root, mode, args, today)
     local from_note = it.file_type == "meeting" or (opts.actions.include_daily and it.file_type == "daily")
     if it.kind == "todo" and from_note and query.match(it, q) then
       local owners, due = M.meta(it.text)
-      it.owners, it.due = owners, due
+      -- a copy: the index's items are shared, and filters read `due`
+      it = vim.tbl_extend("force", {}, it, { owners = owners, due = due })
       it.overdue = not it.checked and due ~= nil and due < today
       local keep
       if mode == "all" then
