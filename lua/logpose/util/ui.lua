@@ -57,6 +57,28 @@ local function special(win)
 end
 
 --- Show `buf` (a logpose screen) in the current window, or in a regular one when the current
+--- `lines` in a scratch buffer, in a split at the bottom; `q` closes it. Returns its window.
+---@param lines string[]
+---@param opts { name?: string, height?: integer, filetype?: string, locked?: boolean }
+---@return integer win
+function M.scratch(lines, opts)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = not opts.locked
+  vim.bo[buf].bufhidden = "wipe"
+  if opts.filetype then
+    vim.bo[buf].filetype = opts.filetype
+  end
+  if opts.name then
+    pcall(vim.api.nvim_buf_set_name, buf, opts.name)
+  end
+  vim.cmd(opts.height and ("botright %dsplit"):format(opts.height) or "botright split")
+  local win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(win, buf)
+  vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
+  return win
+end
+
 --- window is a float or a plugin's side window. The buffer can't be wiped while it is being shown
 --- (a plugin moving it to another window hides it for a moment). Returns the window it's in.
 ---@param buf integer

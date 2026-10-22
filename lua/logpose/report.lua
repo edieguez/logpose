@@ -224,14 +224,7 @@ function M.command(opts)
       vim.cmd.edit(vim.fn.fnameescape(dest))
       return
     end
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.bo[buf].bufhidden = "wipe"
-    vim.bo[buf].filetype = "markdown"
-    pcall(vim.api.nvim_buf_set_name, buf, "logpose://report/" .. name)
-    vim.cmd("botright split")
-    vim.api.nvim_win_set_buf(0, buf)
-    vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
+    ui.scratch(lines, { name = "logpose://report/" .. name, filetype = "markdown" })
   end))
 end
 

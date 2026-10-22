@@ -382,12 +382,7 @@ function M.confirm_and_apply(root, changes, title, bang, after)
       table.insert(lines, ("  %s (%d change%s)"):format(rel(root, c.path), c.count, c.count == 1 and "" or "s"))
     end
   end
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].bufhidden = "wipe"
-  vim.cmd(("botright %dsplit"):format(math.min(#lines, 20)))
-  local win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(win, buf)
+  local win = ui.scratch(lines, { height = math.min(#lines, 20) })
   vim.ui.select(
     { "Apply", "Cancel" },
     { prompt = title .. "?" },

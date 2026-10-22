@@ -99,16 +99,10 @@ end
 function M.preview(plan, root)
   local lines = M.describe(plan, root)
   table.insert(lines, "q: close")
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].modifiable = false
-  vim.bo[buf].bufhidden = "wipe"
-  vim.api.nvim_buf_set_name(buf, "logpose://archive-preview")
-  vim.cmd(("botright %dsplit"):format(math.min(#lines, 20)))
-  local win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(win, buf)
-  vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
-  return win
+  return require("logpose.util.ui").scratch(
+    lines,
+    { name = "logpose://archive-preview", height = math.min(#lines, 20), locked = true }
+  )
 end
 
 ---@param plan logpose.ArchivePlan
