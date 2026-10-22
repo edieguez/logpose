@@ -153,6 +153,15 @@ T["set_field adds missing keys in order and leaves absent keys alone when cleari
   eq(lines, { "---", 'title: "x"', "---" })
 end
 
+T["path_for skips names used by archived tasks"] = function()
+  H.write(root .. "/tasks/archive/week-2026-10-05/fix-login.md", "# old\n")
+  H.write(root .. "/tasks/archive/week-2026-10-12/fix-login-2.md", "# older\n")
+  eq(
+    child.lua_get(("require('logpose.taskfile').path_for(%q, 'Fix login')"):format(root)),
+    root .. "/tasks/fix-login-3.md"
+  )
+end
+
 T["list skips archived tasks unless asked"] = function()
   create("{ title = 'Live' }")
   H.write(root .. "/tasks/archive/week-2026-10-05/old.md", "---\ntitle: Old\nstatus: done\ndone: 2026-10-06\n---\n")
