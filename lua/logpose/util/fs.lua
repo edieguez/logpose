@@ -163,6 +163,7 @@ function M.write_file(path, content, opts)
   if not ok then
     return false, err
   end
+  path = uv.fs_realpath(path) or path -- through a symlink: replace its target, not the link
   M.mkdir_p(vim.fs.dirname(path))
 
   local tmp = ("%s.logpose-%d-%d.tmp"):format(path, uv.os_getpid(), uv.hrtime())
