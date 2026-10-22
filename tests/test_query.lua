@@ -144,6 +144,9 @@ T["or, not and parentheses"] = function()
   eq(m(meeting, { "type:planning", "or", "type:retro", "project:thesis" }), false) -- and binds tighter
   eq(m(meeting, { "#team", "and", "@ana" }), true)
   eq(m(meeting, { "-7d" }), false) -- a word, not a negation
+  eq(m(meeting, { "-(type:planning", "or", "type:retro)" }), false)
+  eq(m(daily, { "-(type:daily", "or", "type:meeting)" }), false)
+  eq(m(daily, { "-(type:meeting)" }), true)
 end
 
 T["type: is the meeting type or the kind of note"] = function()

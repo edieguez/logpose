@@ -434,7 +434,7 @@ function M.parse(args, today, lenient)
     if t == nil then
       return nil
     end
-    if is_word(t, "not", "!") then
+    if is_word(t, "not", "!") or t == "-" and tokens[pos + 1] == "(" then -- `-(…)` too
       pos = pos + 1
       local f = factor()
       return f and { op = "not", arg = f } or nil
