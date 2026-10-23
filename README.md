@@ -403,7 +403,7 @@ date instead.
 
 | Key | Does |
 |---|---|
-| `<CR>` | Open it. On a heading, fold the group; on `… N more`, show the rest. |
+| `<CR>` | Open it. On a heading, fold the group. |
 | `<Tab>` | Details: the attendees, action items, linked tasks; for a person, their meetings, to-dos and mentions. `<CR>` opens any of them. |
 | `K` | Peek: the note in a floating window, to read and edit. |
 | `/` | The filter bar (below): the list follows as you type. `<BS>` clears the filter. |

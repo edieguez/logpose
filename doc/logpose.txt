@@ -288,8 +288,8 @@ The board is for tasks; the lists are for everything else:
                      page, project, role or when you last met.
 
 Each shows the active project, or every project when there's none (a filter
-given on the command line looks in every project). A group shows its first
-ten; `<CR>` on `… N more` shows the rest.
+given on the command line looks in every project). Every entry is listed:
+scroll, or fold the groups you don't need (`z`).
 
 Moving an entry to another group changes its note, so the list and the
 files agree: another project moves a meeting to that project's folder (links
@@ -297,7 +297,7 @@ follow), another type sets its `type:`, another tag swaps the note's tag,
 another project or role updates a person's page. Groups that come from the
 note itself (week, month, last met) can't be moved to.
 
-  <CR>    open (a heading: fold; `… N more`: show all; a detail: open it)
+  <CR>    open (a heading: fold the group; a detail: open it)
   <Tab>   details: attendees, action items, linked tasks; for a person,
           their meetings, to-dos and mentions
   K       peek: the note in a floating window, to read and edit
