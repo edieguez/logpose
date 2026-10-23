@@ -22,7 +22,7 @@ M.HELP = {
   "  R      rename                    M  merge into another project",
   "  D      archive (hide)            U  restore an archived one",
   "  A      show / hide archived",
-  "  0      no project (pick one per note)   c  detect it from the repo",
+  "  x      no project (pick one per note)   c  detect it from the repo",
   "  r      refresh                   q  close",
 }
 
@@ -317,7 +317,7 @@ function M.open(root)
     project.set(nil)
     render(buf, root)
   end, "Detect the project from the repo")
-  map("0", function()
+  map("x", function()
     project.set(false)
     render(buf, root)
   end, "No project")

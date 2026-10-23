@@ -114,7 +114,7 @@ T["stacks the columns when the window is narrow"] = function()
   eq(status(root .. "/tasks/fix-flaky.md"), "in-progress")
 end
 
-T["h/l/j/k move the focus; H/L, digits and x move the card"] = function()
+T["h/l/j/k move the focus; H/L, gm and x move the card; counts work"] = function()
   child.cmd("Logpose board")
   local flaky = root .. "/tasks/fix-flaky.md"
   child.type_keys("l") -- TODO column: Fix flaky test
@@ -125,8 +125,22 @@ T["h/l/j/k move the focus; H/L, digits and x move the card"] = function()
   eq(status(flaky), "follow-up")
   child.type_keys("H")
   eq(status(flaky), "in-progress")
-  child.type_keys("1")
+  child.type_keys("1", "g", "m")
   eq(status(flaky), "backlog")
+  child.type_keys("3", "L") -- a count: three columns on
+  eq(status(flaky), "follow-up")
+  child.type_keys("3", "H")
+  eq(status(flaky), "backlog")
+  -- counts move the focus too, and a digit alone doesn't move the card
+  local function focus_col()
+    return child.lua_get("require('logpose.board').boards[vim.api.nvim_get_current_buf()].focus.col")
+  end
+  eq(focus_col(), 1)
+  child.type_keys("2", "l")
+  eq(focus_col(), 3)
+  eq(status(flaky), "backlog")
+  child.type_keys("2", "h")
+  eq(focus_col(), 1)
   child.type_keys("x")
   eq(status(flaky), "done")
   H.contains(screen(), "Done (2)")

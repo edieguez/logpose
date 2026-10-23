@@ -14,7 +14,8 @@ M.HELP = {
   { "z", "fold / unfold the column" },
   { "Cards" },
   { "H L  < >", "move the card left / right" },
-  { "1-9", "move it to column N" },
+  { "{N}gm  gm", "move it to column N · pick the column" },
+  { "{N}j {N}L…", "a count repeats a move: 3j, 2L" },
   { "x", "done" },
   { "b", "block (asks why) / unblock" },
   { "<C-j> <C-k>", "move the card down / up" },
@@ -22,7 +23,7 @@ M.HELP = {
   { "D", "delete the card (asks)" },
   { "m", "move the card to another project" },
   { "e", "edit the card's fields" },
-  { "v  V <Esc>", "mark / unmark the card · unmark all (H L 1-9 x b m e act on all)" },
+  { "v  V <Esc>", "mark / unmark the card · unmark all (H L gm x b m e act on all)" },
   { "u  <C-r>", "undo / redo a board change" },
   { "Reading" },
   { "<CR>", "open the task file" },
@@ -58,10 +59,12 @@ end
 --- Map the board's keys in its buffer.
 function M.attach(b)
   local map = ui.mapper(b.buf)
+  -- a count repeats a move: 3j, 2l, 2L
   local function step(dc, dr)
     return function()
-      b.focus.col = b.focus.col + dc
-      b.focus.row = b.focus.row + dr
+      local n = vim.v.count1
+      b.focus.col = b.focus.col + dc * n
+      b.focus.row = b.focus.row + dr * n
       view.clamp(b)
       view.highlight_focus(b)
       view.place_cursor(b)
@@ -77,19 +80,30 @@ function M.attach(b)
   map("<Up>", step(0, -1), "Previous card")
   for _, lhs in ipairs({ "H", "<" }) do
     map(lhs, function()
-      actions.move(b, -1)
+      actions.move(b, -vim.v.count1)
     end, "Move card left")
   end
   for _, lhs in ipairs({ "L", ">" }) do
     map(lhs, function()
-      actions.move(b, 1)
+      actions.move(b, vim.v.count1)
     end, "Move card right")
   end
-  for i = 1, math.min(9, #taskfile.columns()) do
-    map(tostring(i), function()
-      actions.move_to(b, i)
-    end, "Move card to column " .. i)
-  end
+  -- digits stay counts (3j); {N}gm moves the card to column N, gm alone asks which
+  map("gm", function()
+    if vim.v.count > 0 then
+      return actions.move_to(b, vim.v.count)
+    end
+    vim.ui.select(taskfile.columns(), {
+      prompt = "Move to column",
+      format_item = function(c)
+        return c.label
+      end,
+    }, function(c)
+      if c then
+        actions.move_to(b, taskfile.column_index(c.key))
+      end
+    end)
+  end, "Move card to a column ({N}gm: column N)")
   map("x", function()
     actions.done(b)
   end, "Done")

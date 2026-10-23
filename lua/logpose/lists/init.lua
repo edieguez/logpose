@@ -516,7 +516,9 @@ function M.open(root, view, opts)
     end
     for i, grp in ipairs(s.groups) do
       if grp.key == from then
-        local to = s.groups[i + dir]
+        -- a count moves that many groups (3>), stopping at the last one
+        local j = math.max(1, math.min(#s.groups, i + dir * vim.v.count1))
+        local to = j ~= i and s.groups[j]
         if to then
           M.move(s, e, from, to.key)
         end
@@ -628,7 +630,7 @@ function M.help(view)
     { "g", "group by: " .. labels(view.groupings) },
     { "s", "order: " .. labels(view.sorts) },
     { "m", "move to another group: changes the note" },
-    { "< >", "move to the previous / next group" },
+    { "< >", "move to the previous / next group (3> three groups on)" },
     { "e", "edit" },
     { "a", "add one, in the group you're in" },
     { "p", "this project / all projects" },

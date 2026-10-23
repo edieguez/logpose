@@ -241,9 +241,18 @@ T["a adds people one after another, staying on the list"] = function()
   eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "eli-park.md")
 end
 
-T["1 starts a 1:1 with them"] = function()
+T["counts work: 12j moves twelve rows; t starts a 1:1"] = function()
+  for i = 1, 14 do
+    H.write(root .. ("/people/p%02d.md"):format(i), ('---\nname: "Person %02d"\n---\n'):format(i))
+  end
   child.cmd("Logpose people")
-  child.type_keys("1")
+  child.lua("vim.cmd('normal! gg')")
+  local start = child.api.nvim_win_get_cursor(0)[1]
+  child.type_keys("1", "2", "j")
+  eq(child.bo.filetype, "logpose-people") -- 1 isn't a key here: it's a count
+  eq(child.api.nvim_win_get_cursor(0)[1], start + 12)
+  child.cmd("Logpose people")
+  child.type_keys("t")
   local form = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   H.contains(form, "Ana López")
 end

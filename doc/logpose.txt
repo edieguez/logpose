@@ -320,7 +320,7 @@ completes, <CR> keeps the filter, <Esc> restores the old one, <F1> shows the
 cheat sheet. The lower edge counts the matches and names ignored words.
 
 The notes list adds `d` (today's daily note) and `b` (the board); the people
-list `y`, `o`, `1` and `R` (|logpose-people-screen|). `f` on a project in
+list `y`, `o`, `t` and `R` (|logpose-people-screen|). `f` on a project in
 |:Logpose-projects| opens its notes.
 
 Highlights: `LogposeListHeading`, `LogposeListGroup`, `LogposeListDate`,
@@ -353,7 +353,7 @@ the project again. Switching brings back the board on that project, as you
 left it, and takes effect everywhere else at once. `projects.open_board =
 false` stays where you are.
 
-`:Logpose project none` (or `0` on the screen) means no project at all:
+`:Logpose project none` (or `x` on the screen) means no project at all:
 nothing is pinned or detected, and new meetings and topic notes open their
 form with the project empty so you pick it per note (`:Logpose meeting
 retro` opens the form with the type chosen). Every screen shows all
@@ -391,7 +391,7 @@ The active project is marked with `●`.
   p      link another repo folder      R  rename it everywhere
   e      edit its name, description, repo folders and colour
   M      merge it into another one     c  detect the project (auto)
-  0      no project (pick one per note)
+  x      no project (pick one per note)
   D      archive it                    U  restore an archived one
   A      show / hide archived          r  refresh
   q      close                         ?  help
@@ -509,7 +509,8 @@ keys:
   <CR>    open their page (no page yet: the form to add one)
   a       add a person (on someone without a page: theirs); you stay
           on the list, on them, to add the next one
-  1       start a 1:1 with them (the first meeting type with `person`)
+  t       talk: start a 1:1 with them (the first meeting type with
+          `person`)
   y       copy a way to reach them    o   open it (mail, chat…)
   R       rename them everywhere (|:Logpose-rename-person|)
 
@@ -913,8 +914,9 @@ room, and `?` lists them all.
 
   h  l          previous / next column
   j  k          previous / next card (the cursor and mouse select too)
-  H  L  <  >    move the card left / right
-  1 … 9         move the card to column N
+  H  L  <  >    move the card left / right (a count moves it that far: 2L;
+                h j k l take counts too: 3j)
+  {N}gm  gm     move the card to column N; without a count, pick one
   <C-j> <C-k>   move the card down / up within its column
   x             done
   b             block (asks for the reason) / unblock
@@ -939,7 +941,7 @@ room, and `?` lists them all.
   P             the projects screen: switch there (|logpose-projects|)
   m             move the card to another project
   e             edit the card's fields (|logpose-edit|)
-  v             mark / unmark the card; with cards marked, H L 1-9 x b m e
+  v             mark / unmark the card; with cards marked, H L gm x b m e
                 act on all of them, as one undo step
   V  <Esc>      unmark all
   r             refresh

@@ -272,7 +272,7 @@ board; the top bar shows the everyday ones when it has room):
 | Key | Does |
 |---|---|
 | `h` `j` `k` `l` | Move between cards and columns. The mouse works too. |
-| `H` `L` | Move the card to the previous / next column. `1`–`9` jump to column N. |
+| `H` `L` | Move the card to the previous / next column (`2L`: two on). `3gm` moves it to column 3. |
 | `x` | Done. |
 | `b` | Block (asks for the reason) or unblock. |
 | `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
@@ -425,7 +425,7 @@ back and `<F1>` shows the cheat sheet. The bar's lower edge counts what matches 
 word it ignored (a half-typed `since:2026-1`, say). `?` on a list shows its keys and the same
 cheat sheet; `:Logpose find` completes filter values on the command line too.
 
-The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `1` (start a 1:1)
+The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `t` (talk: start a 1:1)
 and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
 When a bare first name (`ana`) is probably someone with a fuller name (`Ana López`), the people
 list says `same as Ana López? R merges`, and `R` offers that name. You (`me`) aren't listed.
@@ -459,7 +459,7 @@ switches without leaving where you are.
 ```vim
 :Logpose project          " the projects screen
 :Logpose project acme     " switch directly
-:Logpose project none     " no project: pick one for each note as you create it (0 on the screen)
+:Logpose project none     " no project: pick one for each note as you create it (x on the screen)
 :Logpose project auto     " work it out from where you are (c on the projects screen)
 ```
 
@@ -506,7 +506,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `M` | Merge it into another project. |
 | `D` / `U` | Archive it / restore it (`A` shows archived projects). |
 | `c` | Go back to automatic detection. |
-| `0` | No project: pick one per note. |
+| `x` | No project: pick one per note. |
 
 **The project page** (`projects/acme.md`) is where a project lives. Its frontmatter is what the
 projects screen shows, and you can edit it by hand (or with `e` there):
@@ -643,7 +643,7 @@ added, so you can add several in a row; `<CR>` opens their page.
 **The people list** (`:Logpose people`, see [the lists](#meetings-notes-and-people-lists)) shows
 people with a page, then the people your notes mention who have no page yet. `<Tab>` shows what
 involves someone (their meetings, the open to-dos they own, tasks and notes mentioning them).
-`<CR>` opens their page, or the form to add one. `e` edits it, `1` starts a 1:1, `y` copies a way
+`<CR>` opens their page, or the form to add one. `e` edits it, `t` starts a 1:1, `y` copies a way
 to reach them and `o` opens it (a mail, a chat). `R` renames them everywhere, and `/` filters with
 any field: `role:lead`, `slack:*`, `project:acme`.
 
@@ -907,7 +907,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `h` `l` | previous / next column | `j` `k` | previous / next card |
-| `H` `L` (`<` `>`) | move the card left / right | `1`–`9` | move it to column N |
+| `H` `L` (`<` `>`) | move the card left / right | `{N}gm` | move it to column N (`gm`: pick one) |
 | `x` | done | `b` | block (asks why) / unblock |
 | `<C-j>` `<C-k>` | move the card down / up | `a` | add a card to this column |
 | `K` | peek in a floating window | `D` | delete the card (asks first) |
@@ -921,6 +921,9 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `v` | mark / unmark the card | `V` `<Esc>` | unmark all |
 | `r` | refresh | `q` | close |
 | `?` | the keys and the filter cheat sheet | | |
+
+A count repeats a move, as in Vim: `3j` goes three cards down, `2L` moves the card two columns
+right. The same holds on the lists (`5j`, `2>` moves an entry two groups on).
 
 With cards marked, `H` `L`, `1`–`9`, `x`, `b`, `m` and `e` act on all of them as one undo step.
 

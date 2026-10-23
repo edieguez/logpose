@@ -171,6 +171,16 @@ T["meetings"]["rows leave out what their heading or title already says"] = funct
   eq(row("  Retro"):find("◆", 1, true), nil)
 end
 
+T["meetings"]["a count moves that many groups: 2<"] = function()
+  child.cmd("Logpose meetings")
+  child.type_keys("g") -- by type: 1:1, Retrospective, Sprint planning
+  child.api.nvim_win_set_cursor(0, { line_with("Planning      Carla"), 2 })
+  child.type_keys("2", "<")
+  H.contains(H.read(root .. "/meetings/acme/2026-10-05 - planning.md"), "type: 1on1")
+  child.type_keys("9", ">") -- past the last group: stops there
+  H.contains(H.read(root .. "/meetings/acme/2026-10-05 - planning.md"), "type: retro") -- the last group now
+end
+
 T["meetings"]["a starts a meeting of the group's type"] = function()
   child.cmd("Logpose meetings")
   child.type_keys("g")
