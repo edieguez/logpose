@@ -18,13 +18,13 @@ function M.open(title, lines)
   width = math.min(width, vim.o.columns - 4)
   local height = math.min(#texts, vim.o.lines - 6)
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, texts)
-  for i, l in ipairs(lines) do
-    if l[2] then
-      vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, { end_col = #l[1], hl_group = l[2] })
-    end
-  end
-  vim.bo[buf].modifiable = false
+  require("logpose.util.screen").draw(
+    buf,
+    ns,
+    vim.tbl_map(function(l)
+      return { l }
+    end, lines)
+  )
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "logpose-help"
   local win = vim.api.nvim_open_win(buf, true, {

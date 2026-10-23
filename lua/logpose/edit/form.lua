@@ -32,16 +32,14 @@ local track = vim.api.nvim_create_namespace("logpose.edit.track")
 M.forms = {}
 
 local function define_highlights()
-  for name, link in pairs({
+  require("logpose.util.screen").links({
     LogposeEditLabel = "Identifier",
     LogposeEditHint = "Comment",
     LogposeEditNote = "Comment",
     LogposeEditError = "DiagnosticError",
     LogposeEditEffect = "DiagnosticInfo",
     LogposeEditInfo = "NonText",
-  }) do
-    vim.api.nvim_set_hl(0, name, { link = link, default = true })
-  end
+  })
 end
 
 M.HELP = {

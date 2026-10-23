@@ -210,9 +210,8 @@ function M.render(s, keep)
   if not vim.api.nvim_buf_is_valid(s.buf) then
     return
   end
-  for name, link in pairs(M.HL) do
-    vim.api.nvim_set_hl(0, name, { link = link, default = true })
-  end
+  local screen = require("logpose.util.screen")
+  screen.links(M.HL)
   local win = vim.fn.bufwinid(s.buf)
   local width = win ~= -1 and vim.api.nvim_win_get_width(win) or vim.o.columns
   local lines, rows = M.build(s, width)
@@ -220,27 +219,7 @@ function M.render(s, keep)
   if win ~= -1 then
     vim.wo[win].winbar = s.winbar
   end
-  local texts = vim.tbl_map(function(chunks)
-    local line = table.concat(vim.tbl_map(function(c)
-      return c[1]
-    end, chunks))
-    return (line:gsub("%s+$", ""))
-  end, lines)
-  vim.bo[s.buf].modifiable = true
-  vim.api.nvim_buf_set_lines(s.buf, 0, -1, false, texts)
-  vim.bo[s.buf].modifiable = false
-  vim.bo[s.buf].modified = false
-  vim.api.nvim_buf_clear_namespace(s.buf, ns, 0, -1)
-  for i, chunks in ipairs(lines) do
-    local col = 0
-    for _, c in ipairs(chunks) do
-      local end_col = math.min(col + #c[1], #texts[i])
-      if c[2] and end_col > col then
-        vim.api.nvim_buf_set_extmark(s.buf, ns, i - 1, col, { end_col = end_col, hl_group = c[2] })
-      end
-      col = col + #c[1]
-    end
-  end
+  local texts = screen.draw(s.buf, ns, lines)
   if keep and win ~= -1 then
     for i = 1, #texts do
       local r = rows[i]
@@ -555,12 +534,7 @@ function M.open(root, view, opts)
     require("logpose.util.help").with_filters(view.title, M.help(view))
   end, "Help")
   map("q", function()
-    local alt = vim.fn.bufnr("#")
-    if alt > 0 and alt ~= buf and vim.api.nvim_buf_is_valid(alt) and vim.bo[alt].buflisted then
-      vim.cmd.buffer(alt)
-    else
-      vim.cmd.enew()
-    end
+    require("logpose.util.screen").leave(buf)
   end, "Close")
   if view.keys then
     view.keys(s, map, { refresh = refresh, entry_at = M.entry_at })
