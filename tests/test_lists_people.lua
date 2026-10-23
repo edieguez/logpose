@@ -257,4 +257,60 @@ T["counts work: 12j moves twelve rows; t starts a 1:1"] = function()
   H.contains(form, "Ana López")
 end
 
+T["n notes something for the next 1:1; t brings it into the 1:1"] = function()
+  child.cmd("Logpose people")
+  child.lua("vim.ui.input = function(o, cb) cb('ask about the offsite') end")
+  child.type_keys("n")
+  H.contains(H.read(root .. "/people/ana-lopez.md"), "## Next 1:1\n\n- ask about the offsite\n")
+  H.contains(child.api.nvim_get_current_line(), "✎ 1 for the next 1:1")
+  child.lua("vim.ui.input = function(o, cb) cb('- [ ] feedback on the RFC') end")
+  child.type_keys("n")
+  H.contains(H.read(root .. "/people/ana-lopez.md"), "- ask about the offsite\n- [ ] feedback on the RFC\n")
+  -- a 1:1 with her takes them along, and her page's list starts empty again
+  local note = child.lua_get(([[(function()
+    local m = require("logpose.notes.meeting")
+    local n = m.build(%q, "1on1", "Ana", "2026-10-15")
+    m.write(%q, n, true)
+    return n
+  end)()]]):format(root, root))
+  local text = H.read(note.path)
+  H.contains(text, "## Topics\n\n- ask about the offsite\n- [ ] feedback on the RFC\n")
+  local page = H.read(root .. "/people/ana-lopez.md")
+  H.contains(page, "## Next 1:1")
+  eq(page:find("offsite", 1, true), nil)
+  H.contains(child.notifications()[#child.notifications()].msg, "brought 2 items from Ana López's page")
+end
+
+T["t then saving the form brings them too"] = function()
+  H.write(root .. "/people/carla.md", '---\nname: "Carla"\nrole: PM\n---\n## Next 1:1\n\n- roadmap\n')
+  child.cmd("Logpose people")
+  child.api.nvim_win_set_cursor(0, {
+    (function()
+      for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
+        if l:find("Carla", 1, true) then
+          return i
+        end
+      end
+    end)(),
+    2,
+  })
+  child.type_keys("t")
+  eq(child.bo.filetype, "logpose-edit")
+  child.lua("require('logpose.edit.form').save(require('logpose.edit.form').forms[vim.api.nvim_get_current_buf()])")
+  H.contains(table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n"), "## Topics\n\n- roadmap")
+  eq(H.read(root .. "/people/carla.md"):find("roadmap", 1, true), nil)
+end
+
+T["a template without ## Topics gets an ## Agenda"] = function()
+  H.write(root .. "/templates/1on1.md", "## Notes\n\n{cursor}\n")
+  H.write(root .. "/people/carla.md", '---\nname: "Carla"\n---\n## Next 1:1\n\n- budget\n')
+  local note = child.lua_get(([[(function()
+    local m = require("logpose.notes.meeting")
+    local n = m.build(%q, "1on1", "Carla", "2026-10-15")
+    m.write(%q, n, true)
+    return n
+  end)()]]):format(root, root))
+  H.contains(H.read(note.path), "## Agenda\n\n- budget\n\n## Notes")
+end
+
 return T

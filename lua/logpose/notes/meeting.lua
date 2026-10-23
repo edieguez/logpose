@@ -69,6 +69,7 @@ end
 ---@field cursor integer[]
 ---@field previous? logpose.Item  previous note in the series
 ---@field carried logpose.Item[]   open to-dos carried over from it
+---@field agenda? { page: string, items: string[], name: string }  a 1:1's items from the person's page
 
 --- The title a type gives a note, from the answer to its prompt (if it has one).
 ---@param spec table
@@ -216,6 +217,18 @@ function M.build(root, key, input, iso, project, attendees, extra)
     end
   end
 
+  -- a 1:1: what you noted on their page for it comes along
+  local agenda
+  if with then
+    local people = require("logpose.people")
+    local p = people.find(people.known(root), with)
+    local items = p and p.page and require("logpose.people.agenda").items(p.page) or {}
+    if #items > 0 then
+      cursor[1] = cursor[1] + require("logpose.people.agenda").insert(body, items, cursor[1])
+      agenda = { page = p.page, items = items, name = p.name }
+    end
+  end
+
   local content, final_cursor = require("logpose.markdown").tidy_text(
     table.concat(frontmatter, "\n") .. "\n" .. table.concat(body, "\n"),
     { cursor[1] + #frontmatter, cursor[2] }
@@ -232,6 +245,7 @@ function M.build(root, key, input, iso, project, attendees, extra)
     cursor = final_cursor,
     previous = previous,
     carried = carried,
+    agenda = agenda,
   }
 end
 
@@ -468,6 +482,20 @@ function M.write(root, note, no_open)
     require("logpose.util.ui").notify(
       "logpose: couldn't mark carried items in the previous note: " .. tostring(mark_err),
       vim.log.levels.WARN
+    )
+  end
+  if note.agenda then
+    -- moved, not copied: the page's `## Next 1:1` starts empty again
+    local cleared, clear_err = pcall(require("logpose.people.agenda").clear, note.agenda.page, note.agenda.items)
+    require("logpose.util.ui").notify(
+      cleared
+          and ("logpose: brought %d item%s from %s's page"):format(
+            #note.agenda.items,
+            #note.agenda.items == 1 and "" or "s",
+            note.agenda.name
+          )
+        or ("logpose: couldn't clear %s's Next 1:1: %s"):format(note.agenda.name, tostring(clear_err)),
+      cleared and vim.log.levels.INFO or vim.log.levels.WARN
     )
   end
   local linked, link_err = pcall(M.link_in_daily, root, note)
