@@ -1,7 +1,7 @@
 # logpose.nvim
 
-**A sprint journal in Neovim.** Daily notes that prepare your standup, meeting notes that
-remember last time's action items, and a Kanban board where every task is a markdown file.
+**A sprint journal in Neovim.** A standup that writes itself from what you did, meeting notes
+that remember last time's action items, and a Kanban board where every task is a markdown file.
 
 ![The logpose board: five columns of task cards with projects, tags, due dates and a blocked card](docs/images/board.png)
 
@@ -18,9 +18,8 @@ Requires Neovim 0.10 or later.
 
 - **Start:** [Install](#install) · [Quick start](#quick-start) ·
   [Tasks, notes and to-dos](#tasks-notes-and-to-dos) · [How it fits a sprint](#how-it-fits-a-sprint)
-- **Guide:** [Daily notes and standup](#daily-notes-and-standup) · [Meetings](#meetings) ·
+- **Guide:** [Today, standup and daily notes](#today-standup-and-daily-notes) · [Meetings](#meetings) ·
   [Tasks and the board](#tasks-and-the-board) · [Lists](#meetings-notes-and-people-lists) ·
-  [Today screen](#the-today-screen) ·
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
   [People](#people) ·
   [Editing details](#editing-details) · [Links](#topic-notes-and-links) ·
@@ -70,7 +69,7 @@ Optional, and used automatically when present:
    }
    ```
 
-3. **Start your day.** Run `:Logpose daily`, then `:Logpose board`.
+3. **Start your day.** Run `:Logpose today` for your standup, then `:Logpose board`.
 
 Not sure what a command is called? Run `:Logpose` on its own for a menu of every command, with
 what it does and the key you mapped to it. `:checkhealth logpose` shows which journal, project
@@ -100,9 +99,9 @@ The board shows how many notes are linked with each task (`✎ 2`); `n` opens th
 
 | When | Run | What you get |
 |---|---|---|
-| Start of the day | `:Logpose today` | Tasks in progress, blocked and due; today's meetings, to-dos and recent notes. |
-| | `:Logpose daily` | Today's note, with yesterday's finished and unfinished items already in place. |
-| Before the standup | `:Logpose standup` | Yesterday / Today / Blockers, grouped by project, ready to read out. |
+| Start of the day | `:Logpose today` | Your standup (Yesterday / Today / Blockers, from what you did), then what's due and recent notes. |
+| Before the standup | `y` on the today screen | The standup copied as markdown, grouped by project, to paste or read out. |
+| | `:Logpose daily` | Today's scratchpad, with yesterday's open to-dos and blockers carried over. |
 | Something comes up | `:Logpose capture Fix flaky test #ci` | A task in Backlog, without leaving what you're doing. |
 | During the day | `:Logpose board` | Move cards with `H`/`L`, finish them with `x`, block them with `b`. |
 | In a meeting | `:Logpose meeting retro` | A retro note with the last retro's open action items carried over. |
@@ -112,54 +111,43 @@ The board shows how many notes are linked with each task (`✎ 2`); `n` opens th
 
 ---
 
-## Daily notes and standup
+## Today, standup and daily notes
 
-**One note per workday, and a standup that writes itself.**
+**Your day on one screen, with a standup that writes itself.**
 
 ```vim
-:Logpose daily          " today's note
-:Logpose daily prev     " the previous workday's (also: next, or a date like 2026-10-14)
-:Logpose standup        " Yesterday / Today / Blockers for the standup
+:Logpose today          " the standup, then what's coming up
+:Logpose standup        " the same screen, on the standup (standup! copies it)
+:Logpose daily          " today's note: a scratchpad (also prev, next, or a date)
 ```
 
-When logpose creates today's note, it starts from your most recent note (Friday's on a
-Monday):
+![The today screen: the standup (yesterday, today, blockers), then what's due, overdue action items and recently edited notes](docs/images/today.png)
 
-- To-dos you checked off under `## Today` move to `## Yesterday`.
-- Unfinished to-dos move to the new `## Today`. In the old note they're marked `- [>]`, so each
-  to-do lives in one place.
-- Existing notes are never rewritten; only that marker changes.
+**The standup is worked out from what happened**, not from sections you fill in:
 
-`:Logpose standup` combines the daily note with the board:
+- **Yesterday** (since the previous workday, so Friday on a Monday): tasks you moved or finished,
+  read from their logs (`TODO → In progress`, `In progress → Done`), the meetings you had, and the
+  to-dos you checked off in your daily note.
+- **Today**: tasks in progress or due, today's meetings, and the open to-dos in today's daily
+  note.
+- **Blockers**: blocked tasks with their reasons, and anything under `## Blockers` in your daily
+  note.
 
-```markdown
-# Standup 2026-10-15
+`y` on the today screen copies it as markdown, grouped by project, to paste in Slack or read out
+(`:Logpose standup!` copies it without opening anything; `:Logpose standup 2026-10-14` shows
+another day's). Below it, **Coming up** lists tasks due in the next three days, overdue action
+items and the notes you edited lately. `<CR>` opens anything; `d` opens the daily note, `b` the
+board.
 
-## Yesterday
+**The daily note is a scratchpad** for the day: write whatever you like. Meetings link themselves
+under `## Meetings`. A new note starts with what's still open from the last one:
 
-### acme
+- open to-dos, from anywhere in that note, under `## To-dos` (marked `- [>]` in the old note, so
+  each lives in one place);
+- the lines under `## Blockers`, which hold until you delete them.
 
-- Review Ana's PR on the cache layer #acme
-
-## Today
-
-### acme
-
-- [ ] Reproduce flaky checkout test #acme
-- [ ] Speed up search indexing #acme
-
-## Blockers
-
-### acme
-
-- Vendor SSO integration: waiting on Ana #acme
-```
-
-Tasks finished since the previous workday go under Yesterday, tasks in progress under Today,
-and blocked tasks (with the reason) under Blockers. Items are grouped by their project tag.
-
-> **Configure:** rename the sections with
-> `standup = { sections = { yesterday = "Ayer", today = "Hoy", blockers = "Bloqueos" } }`.
+> **Configure:** `daily = { carry_over = false }` starts each note empty; `mark_carried = false`
+> leaves the old note alone; `standup = { group_by_project = false }` copies a flat list.
 
 ## Meetings
 
@@ -432,18 +420,6 @@ list says `same as Ana López? R merges`, and `R` offers that name. You (`me`) a
 Rows leave out what their group heading already says (the project, the meeting type), and a
 meeting whose title is its type shows it once.
 `f` on a project in `:Logpose projects` opens its notes.
-
-## The today screen
-
-**Your day on one screen.**
-
-![The today screen: meetings, work in progress, blocked tasks, what's due, overdue action items and recently edited notes](docs/images/today.png)
-
-`:Logpose today` has two parts. **Tasks**: what's in progress, blocked, and due within three days.
-**Notes**: today's meetings, the to-dos left under Today in your daily note, overdue action
-items, and the notes you edited lately (the last five from the past week, newest first). Press
-`<CR>` on an item to open it. `d` opens the daily note, `b` the board, `r` refreshes and `q`
-closes.
 
 ## Projects
 
@@ -844,9 +820,9 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 
 | Command | Does |
 |---|---|
-| `today` | The day at a glance: tasks, then notes. |
+| `today` | The day at a glance: the standup, then what's coming up. |
 | `daily [today\|prev\|next\|DATE]` | Open (and create) a daily note. `prev`/`next` step by workday. |
-| `standup [DATE]` | Yesterday / Today / Blockers in a scratch buffer. |
+| `standup[!] [DATE]` | The today screen on the standup; `!` copies it; a date shows that day's. |
 | `meeting [TYPE] [DATE]` | New meeting note. Without a type, the new-meeting form. |
 
 ### Tasks
@@ -1052,9 +1028,10 @@ Colours come from highlight groups linked to your colour scheme. Override
 `LogposeBoardNotes` (the linked-notes count),
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`, `LogposeBoardStale`,
 `LogposeBoardDone`, `LogposeBoardMarked`, `LogposeBoardProject`, `LogposeBoardTag`,
-`LogposeBoardTitle` or `LogposeBoardHint` to change them. The lists use `LogposeListHeading`,
-`LogposeListGroup`, `LogposeListDate`, `LogposeListMeta`, `LogposeListTodos`, `LogposeListTasks`,
-`LogposeListPeople` and `LogposeListHint`.
+`LogposeBoardTitle` or `LogposeBoardHint` to change them. The lists use `LogposeListTitle`,
+`LogposeListScope`, `LogposeListFilter`, `LogposeListGroup`, `LogposeListCount`, `LogposeListTree`,
+`LogposeListDate`, `LogposeListMeta`, `LogposeListTodos`, `LogposeListTasks`, `LogposeListPeople`
+and `LogposeListHint`.
 
 </details>
 
@@ -1074,10 +1051,8 @@ meeting_types = {
   -- a type may also set ask_attendees = true; set a type to false to remove it
 },
 series = { carry_over = true, mark_carried = true },
-standup = {
-  sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
-  carry_forward = true, mark_carried = true, group_by_project = true,
-},
+daily = { carry_over = true, mark_carried = true },  -- open to-dos and blockers carry to the next note
+standup = { group_by_project = true },
 timestamps = { created = true, modified = true },  -- created:/modified: in frontmatter
 ```
 
