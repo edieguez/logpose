@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1339,6 +1339,36 @@ groupings, filters and moves, projects screen `f`.
 **Tests**: completion items (`test_lists.lua`), the bar (live list, menu, count, ignored words,
 `<Esc>` restores, `<BS>` clears), help windows, the board's bar.
 
+## C10 — The standup on the today screen (0.49.0)
+
+**Goal.** One place for the start of the day, and a standup that needs no upkeep: the old
+standup read Yesterday/Today/Blockers sections the daily note had to keep filled in (most notes
+stayed empty), lost blockers overnight and ignored meetings and work that didn't reach Done.
+
+**Design**
+- `standup.collect(root, iso)`: Yesterday covers `prev_workday(iso)`..`iso - 1`: tasks with
+  status moves in their `## Log` in that range (first from → last to; created ones "new · X";
+  moves that end where they started are dropped; done tasks without a log by `done:`), meetings
+  dated then, checked to-dos in daily notes dated then (not those checked because their task
+  is done). Today: tasks in the start column or due on or before `iso`, today's meetings, open
+  to-dos of today's daily note (or, before it exists, the previous note's, which it will carry).
+  Blockers: blocked tasks (reason), lines under `## Blockers` in that same note. Items carry a
+  project (a daily note's line: its first #tag that names a project), sorted by project.
+- `standup.markdown(s)` (grouped by project unless `standup.group_by_project = false`),
+  `standup.copy`. `:Logpose standup` opens the today screen on `## Standup`; `!` copies;
+  a date shows that day's in a scratch split.
+- Today screen: `## Standup` (Yesterday · since …, Today, Blockers), then `## Coming up` (due in
+  1–3 days, overdue action items, recently edited). `y` copies the standup.
+- Daily notes: template `# {date} daily notes` + `## Notes`. A new note gets the previous note's
+  open to-dos from any section (with their `→ [[task]]` lines) under `## To-dos`, marked `[>]`
+  there, and its `## Blockers` lines (`daily.carry_over`, `daily.mark_carried`). Opening a new
+  note puts the cursor a blank line below the last heading; saved untouched, those blank lines
+  are dropped.
+
+**Tests** (`test_standup.lua`): the collected standup (logs, meetings, to-dos, due, blockers,
+Monday → Friday), the today screen and copying, `:Logpose standup` forms, carrying to-dos and
+blockers, options.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1405,6 +1435,10 @@ years).
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.49.0: the standup is computed (task logs, meetings, checked to-dos) and shown on the today
+  screen; daily notes are scratchpads (`## Notes`; carried to-dos under `## To-dos`, blockers
+  under `## Blockers`); `standup.sections`, `standup.carry_forward` and `standup.mark_carried`
+  are gone (`daily = { carry_over, mark_carried }` replaces the last two).
 - 0.48.0: counts work everywhere (`3j`, `2L`, `2>`), so digits are no longer keys: on the
   board `{N}gm` moves a card to column N (was `1`–`9`); on the people list `t` starts a 1:1 (was
   `1`); on the projects screen `x` means no project (was `0`).

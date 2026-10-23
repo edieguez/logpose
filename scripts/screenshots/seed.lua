@@ -72,7 +72,7 @@ end
 vim.cmd("cd " .. root)
 at(14)
 vim.cmd("Logpose daily")
-insert_after("## Today", {
+insert_after("## Notes", {
   "",
   "- [x] Review Ana's PR on the cache layer #acme",
   "- [x] Send thesis outline to advisor #thesis",
