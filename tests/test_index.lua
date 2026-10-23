@@ -32,7 +32,9 @@ end
 T["tags_in"]["keeps accented tags whole"] = function()
   eq(tags("#reunión y #año-2026"), { "reunión", "año-2026" })
   eq(
-    child.lua_get("vim.tbl_map(function(m) return m.slug end, require('logpose.index').mentions_in('con @José y @Ana'))"),
+    child.lua_get(
+      "vim.tbl_map(function(m) return m.slug end, require('logpose.index').mentions_in('con @José y @Ana'))"
+    ),
     { "jose", "ana" }
   )
 end
