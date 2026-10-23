@@ -56,7 +56,6 @@ local function special(win)
   return vim.w[win].snacks_win ~= nil
 end
 
---- Show `buf` (a logpose screen) in the current window, or in a regular one when the current
 --- A new scratch buffer named `name` for a screen (the board, a list…); an old one by that
 --- name is deleted first.
 ---@param name string
@@ -106,6 +105,7 @@ function M.scratch(lines, opts)
   return win
 end
 
+--- Show `buf` (a logpose screen) in the current window, or in a regular one when the current
 --- window is a float or a plugin's side window. The buffer can't be wiped while it is being shown
 --- (a plugin moving it to another window hides it for a moment). Returns the window it's in.
 ---@param buf integer
