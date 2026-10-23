@@ -12,12 +12,14 @@ local M = {}
 M.name = "people"
 M.title = "People"
 M.empty = "Nobody yet: a adds a person"
-M.footer = "<CR> page · <Tab> details · e edit · a add · t 1:1 · y/o contact · / filter · ? help"
+M.footer =
+  "<CR> page · <Tab> details · e edit · a add · t 1:1 · n for next 1:1 · y/o contact · / filter · ? help"
 M.noun = "people"
 M.one = "person"
 M.help = {
   { "a", "add a person (on someone without a page: theirs); you stay here" },
-  { "t", "talk: start a 1:1 with them" },
+  { "t", "talk: start a 1:1 with them (brings what's under ## Next 1:1)" },
+  { "n", "note something for the next 1:1 with them" },
   { "y  o", "copy a way to reach them · open it (mail, chat…)" },
   { "R", "rename them everywhere (on `same as …?`: merge them into that person)" },
 }
@@ -127,6 +129,7 @@ function M.collect(s)
       projects = set,
       project_list = projects,
       inv = i,
+      next = p.page and require("logpose.people.agenda").items(p.page) or {},
       when = i.last or "",
       same_as = same,
       item = {
@@ -293,6 +296,9 @@ function M.row(e, ctx)
   if not p.page then
     table.insert(meta, { ("%d mention%s"):format(p.count, p.count == 1 and "" or "s"), "LogposeListMeta" })
   end
+  if #e.next > 0 then
+    table.insert(meta, { ("✎ %d for the next 1:1"):format(#e.next), "LogposeListTasks" })
+  end
   if e.same_as then
     table.insert(meta, { ("same as %s? R merges"):format(e.same_as.name), "LogposeListTodos" })
   end
@@ -305,6 +311,12 @@ end
 function M.details(e)
   local date = require("logpose.util.date")
   local i, out = e.inv, {}
+  for _, l in ipairs(e.next) do
+    table.insert(out, {
+      chunks = { { "✎ next 1:1: ", "LogposeListTasks" }, { (l:gsub("^%s*[-*+]%s+", "")) } },
+      file = e.person.page,
+    })
+  end
   for k = 1, math.min(5, #i.meetings) do
     local it = i.meetings[k]
     table.insert(out, {
@@ -444,6 +456,24 @@ function M.keys(s, map, h)
     end
     require("logpose.edit").open_new_note(s.root, "meeting", { type = key, title = p.name, project = s.project })
   end, "Start a 1:1")
+  map("n", function()
+    local p = person()
+    if not p then
+      return
+    end
+    if not p.page then
+      return ui.notify(("logpose: %s has no page yet (a adds one)"):format(p.name), vim.log.levels.INFO)
+    end
+    vim.ui.input(
+      { prompt = ("For the next 1:1 with %s: "):format(p.name) },
+      ui.safely(function(input)
+        if input and vim.trim(input) ~= "" then
+          require("logpose.people.agenda").add(p.page, input)
+          h.refresh(p.slug)
+        end
+      end)
+    )
+  end, "Note something for the next 1:1")
   map("y", function()
     local p = person()
     if p then
