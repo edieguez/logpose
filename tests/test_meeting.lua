@@ -74,7 +74,7 @@ T["planning: no prompt, frontmatter, cursor, daily link"] = function()
   eq(child.lua_get("_G.input_asked"), vim.NIL)
 
   local d = H.read(daily())
-  H.contains(d, "## Meetings\n\n- [[meetings/2026-10-14 - sprint-planning|Sprint planning]]\n\n## Notes")
+  H.contains(d, "## Meetings\n\n- [[meetings/2026-10-14 - sprint-planning|Sprint planning]]")
 end
 
 T["adhoc: prompts, transliterates the filename, keeps the title"] = function()

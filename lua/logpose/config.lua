@@ -95,14 +95,14 @@ M.defaults = {
     --- Mark carried items in the previous note as `- [>]` so they aren't listed twice.
     mark_carried = true,
   },
-  standup = {
-    --- Daily-note section names.
-    sections = { yesterday = "Yesterday", today = "Today", blockers = "Blockers" },
-    --- A new daily note gets the previous one's open Today to-dos.
-    carry_forward = true,
-    --- ...and marks them `- [>]` in the previous note so they're tracked once.
+  daily = {
+    --- A new daily note starts with the previous one's open to-dos (under `## To-dos`)...
+    carry_over = true,
+    --- ...and marks them `- [>]` in the previous note so each lives in one place.
     mark_carried = true,
-    --- Group :Logpose standup items by project (#project tags).
+  },
+  standup = {
+    --- Group the copied standup by project.
     group_by_project = true,
   },
   review = {
@@ -308,14 +308,11 @@ local function validate(opts)
   check("series", opts.series, "table")
   check("series.carry_over", opts.series.carry_over, "boolean")
   check("series.mark_carried", opts.series.mark_carried, "boolean")
+  check("daily", opts.daily, "table")
+  check("daily.carry_over", opts.daily.carry_over, "boolean")
+  check("daily.mark_carried", opts.daily.mark_carried, "boolean")
   check("standup", opts.standup, "table")
-  check("standup.sections", opts.standup.sections, "table")
-  for _, k in ipairs({ "yesterday", "today", "blockers" }) do
-    check("standup.sections." .. k, opts.standup.sections[k], "string")
-  end
-  for _, k in ipairs({ "carry_forward", "mark_carried", "group_by_project" }) do
-    check("standup." .. k, opts.standup[k], "boolean")
-  end
+  check("standup.group_by_project", opts.standup.group_by_project, "boolean")
   check("review", opts.review, "table")
   check("review.stale_days", opts.review.stale_days, "number")
   check("tickets", opts.tickets, "table")

@@ -24,14 +24,27 @@ local function bufname()
   return child.api.nvim_buf_get_name(0)
 end
 
-T["creates today's note and puts the cursor under ## Today"] = function()
+T["creates today's note and puts the cursor under ## Notes"] = function()
   child.cmd("Logpose daily")
   eq(bufname(), daily_path("2026-10-14"))
   eq(
     H.read(daily_path("2026-10-14")),
-    "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# 2026-10-14 daily notes\n\n## Yesterday\n\n## Today\n\n## Blockers\n\n## Meetings\n\n## Notes\n"
+    "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# 2026-10-14 daily notes\n\n## Notes\n"
   )
-  eq(child.api.nvim_win_get_cursor(0), { 10, 0 })
+  eq(child.api.nvim_win_get_cursor(0), { 9, 0 })
+  eq(child.bo.modified, false)
+end
+
+T["saving the new note untouched leaves no trailing blank lines"] = function()
+  child.cmd("Logpose daily")
+  child.type_keys("i", "a thought", "<Esc>")
+  child.cmd("write")
+  H.contains(H.read(daily_path("2026-10-14")), "## Notes\n\na thought\n")
+  child.cmd("bwipe!")
+  vim.fn.delete(daily_path("2026-10-14"))
+  child.cmd("Logpose daily")
+  child.cmd("write")
+  eq(H.read(daily_path("2026-10-14")):sub(-9), "## Notes\n")
 end
 
 T["header format"] = function()
@@ -84,12 +97,12 @@ end
 T["uses a template from the journal"] = function()
   H.write(root .. "/templates/daily.md", "# {weekday} {date}\n{cursor}\n")
   child.cmd("Logpose daily")
-  -- no trailing blank line (MD012): the cursor stays on the last line
+  -- no trailing blank line in the file (MD012); the buffer gets a line to write on, below
   eq(
     H.read(daily_path("2026-10-14")),
     "---\ncreated: 2026-10-14T10:30\nmodified: 2026-10-14T10:30\n---\n# Wednesday 2026-10-14\n"
   )
-  eq(child.api.nvim_win_get_cursor(0), { 5, 0 })
+  eq(child.api.nvim_win_get_cursor(0), { 7, 0 })
 end
 
 T["{sprint} names the current sprint when an anchor is set"] = function()
