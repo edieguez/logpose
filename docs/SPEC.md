@@ -1290,7 +1290,8 @@ anything in their frontmatter (with `and`, `or`, `not`), and changed by moving t
 `lists/people.lua`; `lists/common.lua` for shared pieces)
 - One engine renders a view: entries (`collect`), filtered by project scope and the filter,
   sorted (`sorts`), grouped (`groupings[i].of(e)` → groups; an entry may be in several),
-  `## Group (n)` headings with the first ten rows and `… N more`, `<Tab>` details, folding.
+  group headings with every row (0.47.2: no "… N more" rows to expand), `<Tab>` details,
+  folding.
 - Moving (`m`, `<`, `>`) calls the grouping's `move(s, e, from, to)`, which writes the note
   through `edit.save.note` (a meeting's project moves its file and fixes links; tags and
   `projects` lists swap `from` for `to`). Groupings without `move` (week, month, series, last

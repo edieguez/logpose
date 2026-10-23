@@ -22,9 +22,6 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("logpose.lists")
 
---- Rows a group shows before "… N more".
-M.SHOWN = 10
-
 M.HL = {
   LogposeListTitle = "Title",
   LogposeListScope = "Title",
@@ -54,7 +51,6 @@ M.HL = {
 ---@field group integer     index in view.groupings
 ---@field sort integer      index in view.sorts
 ---@field folded table<string, boolean>
----@field more table<string, boolean>
 ---@field expanded table<string, boolean>
 ---@field rows table<integer, table>
 ---@field groups { key: string, label: string }[]  as shown, in order
@@ -175,9 +171,7 @@ function M.build(s, width)
       { ("  %d"):format(#grp.entries), "LogposeListCount" },
     }, { heading = true, group = grp.key })
     if not folded then
-      local shown = s.more[grp.key] and #grp.entries or math.min(#grp.entries, M.SHOWN)
-      for i = 1, shown do
-        local e = grp.entries[i]
+      for _, e in ipairs(grp.entries) do
         local chunks = s.view.row(e, ctx)
         table.insert(chunks, 1, { "  " })
         add(chunks, { entry = e, group = grp.key })
@@ -192,12 +186,6 @@ function M.build(s, width)
             add(c, { entry = e, group = grp.key, file = d.file, lnum = d.lnum, detail = true })
           end
         end
-      end
-      if shown < #grp.entries then
-        add(
-          { { ("  … %d more  <CR>"):format(#grp.entries - shown), "LogposeListHint" } },
-          { more = true, group = grp.key }
-        )
       end
     end
   end
@@ -364,7 +352,6 @@ function M.open(root, view, opts)
     group = group,
     sort = 1,
     folded = {},
-    more = {},
     expanded = {},
     rows = {},
     groups = {},
@@ -397,9 +384,6 @@ function M.open(root, view, opts)
       pcall(vim.api.nvim_win_set_cursor, 0, { r.lnum or 1, 0 })
     elseif r.entry then
       view.open(r.entry, s)
-    elseif r.more then
-      s.more[r.group] = true
-      refresh()
     elseif r.heading then
       s.folded[r.group] = not s.folded[r.group] or nil
       refresh()
@@ -461,7 +445,7 @@ function M.open(root, view, opts)
   end, "Clear the filter")
   map("g", function()
     s.group = s.group % #view.groupings + 1
-    s.folded, s.more = {}, {}
+    s.folded = {}
     refresh()
     ui.notify(("logpose: grouped by %s"):format(grouping(s).label), vim.log.levels.INFO)
   end, "Change the grouping")
@@ -636,7 +620,7 @@ function M.help(view)
     )
   end
   vim.list_extend(rows, {
-    { "<CR>", "open (a heading: fold; … more: show all; a detail: open it)" },
+    { "<CR>", "open (a heading: fold the group; a detail: open it)" },
     { "<Tab>", "details" },
     { "K", "peek: read and edit in a floating window" },
     { "/", "filter: the list follows as you type; Tab completes" },
