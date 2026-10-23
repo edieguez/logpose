@@ -149,9 +149,8 @@ T["list reads tasks with unsaved changes from their buffer"] = function()
   create("{ title = 'Other' }")
   child.cmd("edit " .. path)
   child.cmd("%s/^status: backlog$/status: todo/")
-  local statuses = child.lua_get(
-    ("vim.tbl_map(function(t) return t.status end, require('logpose.taskfile').list(%q))"):format(root)
-  )
+  local statuses =
+    child.lua_get(("vim.tbl_map(function(t) return t.status end, require('logpose.taskfile').list(%q))"):format(root))
   eq(statuses, { "todo", "backlog" })
 end
 
