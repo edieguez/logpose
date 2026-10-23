@@ -154,7 +154,7 @@ end
 
 T["carried to-dos keep their task"] = function()
   local lines = child.lua_get(
-    "require('logpose.standup').prefill({ '## Today', '- [ ] fix CI', '  → [[tasks/fix-ci|task]]', '- [x] done', '  → [[tasks/x|task]]' }).today"
+    "require('logpose.notes.daily').open_todos({ '## Notes', '- [ ] fix CI', '  → [[tasks/fix-ci|task]]', '- [x] done', '  → [[tasks/x|task]]' })"
   )
   eq(lines, { "- [ ] fix CI", "  → [[tasks/fix-ci|task]]" })
   -- a meeting series carries the open to-do with its task line; the new copy is linked

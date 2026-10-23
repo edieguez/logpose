@@ -1,13 +1,5 @@
 # {date} daily notes
 
-## Yesterday
-
-## Today
+## Notes
 
 {cursor}
-
-## Blockers
-
-## Meetings
-
-## Notes

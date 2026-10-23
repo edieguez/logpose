@@ -74,15 +74,15 @@ vim.api.nvim_feedkeys("LL", "x", false)
 answers = { "waiting on ana" }
 vim.api.nvim_feedkeys("b", "x", false)
 run("Logpose daily")
--- Day 2: carried tasks, series, promote, done, standup prefill.
+-- Day 2: carried to-dos, series, promote, done, the standup.
 at(2026, 10, 14)
 local d1 = root .. "/daily/daily-2026-10-13.md"
 local l1 = vim.fn.readfile(d1)
 for i, l in ipairs(l1) do
-  if l == "## Today" then
+  if l == "## Notes" then
+    table.insert(l1, i + 1, "")
     table.insert(l1, i + 2, "- [x] shipped it #acme")
     table.insert(l1, i + 3, "- [ ] keep going #acme")
-    table.insert(l1, i + 4, "")
     break
   end
 end
