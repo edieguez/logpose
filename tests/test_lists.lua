@@ -310,19 +310,19 @@ T["notes"]["by project: moving sets the project; p for this project only"] = fun
   H.contains(bar(), "Notes · all projects")
 end
 
-T["notes"]["z folds, … more, ]] jumps, s orders, K peeks, e edits"] = function()
-  for d = 1, 12 do
+T["notes"]["every entry is listed; z folds, ]] jumps, s orders, K peeks, e edits"] = function()
+  for d = 1, 30 do
     H.write(root .. ("/notes/n%02d.md"):format(d), ('---\ntitle: "Note %02d"\n---\n'):format(d))
   end
   child.cmd("Logpose notes")
-  H.contains(screen(), "▾ Topic notes  14")
-  H.contains(screen(), "… 4 more  <CR>")
-  on("… 4 more")
-  child.type_keys("<CR>")
-  eq(screen():find("more  <CR>", 1, true), nil)
+  H.contains(screen(), "▾ Topic notes  32")
+  for d = 1, 30 do
+    H.contains(screen(), ("Note %02d"):format(d)) -- nothing to expand
+  end
+  eq(screen():find("more", 1, true), nil)
   on("▾ Topic notes")
   child.type_keys("z")
-  H.contains(screen(), "▸ Topic notes  14")
+  H.contains(screen(), "▸ Topic notes  32")
   child.type_keys("]]")
   eq(child.api.nvim_win_get_cursor(0)[1], line_with("▾ Project pages"))
   child.type_keys("s", "s")
