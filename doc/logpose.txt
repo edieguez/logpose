@@ -515,8 +515,15 @@ keys:
           on the list, on them, to add the next one
   t       talk: start a 1:1 with them (the first meeting type with
           `person`)
+  n       note something for the next 1:1 (|logpose-next-1on1|)
   y       copy a way to reach them    o   open it (mail, chat…)
   R       rename them everywhere (|:Logpose-rename-person|)
+
+                                                        *logpose-next-1on1*
+Lines under `## Next 1:1` on a person's page (add them there, or with `n`)
+wait for your next 1:1 with them: the list shows `✎ N for the next 1:1`,
+and starting the 1:1 moves them into the note's `## Topics` (or a new
+`## Agenda`), leaving the page's section empty.
 
 A bare first name with no page (`ana`) that only one fuller name starts with
 (`Ana López`) says `same as Ana López? R merges`: `R` then offers that name,

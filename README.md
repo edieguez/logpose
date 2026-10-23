@@ -413,8 +413,8 @@ back and `<F1>` shows the cheat sheet. The bar's lower edge counts what matches 
 word it ignored (a half-typed `since:2026-1`, say). `?` on a list shows its keys and the same
 cheat sheet; `:Logpose find` completes filter values on the command line too.
 
-The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `t` (talk: start a 1:1)
-and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
+The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `t` (talk: start a 1:1),
+`n` (note something for the next 1:1) and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
 When a bare first name (`ana`) is probably someone with a fuller name (`Ana López`), the people
 list says `same as Ana López? R merges`, and `R` offers that name. You (`me`) aren't listed.
 Rows leave out what their group heading already says (the project, the meeting type), and a
@@ -622,6 +622,11 @@ involves someone (their meetings, the open to-dos they own, tasks and notes ment
 `<CR>` opens their page, or the form to add one. `e` edits it, `t` starts a 1:1, `y` copies a way
 to reach them and `o` opens it (a mail, a chat). `R` renames them everywhere, and `/` filters with
 any field: `role:lead`, `slack:*`, `project:acme`.
+
+**Things to bring up at the next 1:1** go under `## Next 1:1` on their page: write them there, or
+press `n` on the people list. The list shows how many are waiting (`✎ 2 for the next 1:1`), and
+the next 1:1 with them (`t`, or any meeting type with `person = true`) takes them into its
+`## Topics` (or a new `## Agenda`) and empties the page's list, so each lives in one place.
 
 `gx` on an `@mention` or an attendee opens their page. `:Logpose rename-person ana Ana García`
 renames someone everywhere: the page (the old name stays as an alias), attendees and `@mentions`.
