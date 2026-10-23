@@ -12,12 +12,12 @@ local M = {}
 M.name = "people"
 M.title = "People"
 M.empty = "Nobody yet: a adds a person"
-M.footer = "<CR> page · <Tab> details · e edit · a add · 1 1:1 · y/o contact · / filter · ? help"
+M.footer = "<CR> page · <Tab> details · e edit · a add · t 1:1 · y/o contact · / filter · ? help"
 M.noun = "people"
 M.one = "person"
 M.help = {
   { "a", "add a person (on someone without a page: theirs); you stay here" },
-  { "1", "start a 1:1 with them" },
+  { "t", "talk: start a 1:1 with them" },
   { "y  o", "copy a way to reach them · open it (mail, chat…)" },
   { "R", "rename them everywhere (on `same as …?`: merge them into that person)" },
 }
@@ -431,7 +431,7 @@ function M.keys(s, map, h)
     local e = h.entry_at(s)
     return e and e.person
   end
-  map("1", function()
+  map("t", function()
     local p = person()
     if not p then
       return
