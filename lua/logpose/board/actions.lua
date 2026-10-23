@@ -523,14 +523,7 @@ function M.close(b)
     end
   end
   if win ~= -1 then
-    vim.api.nvim_win_call(win, function()
-      local alt = vim.fn.bufnr("#")
-      if alt > 0 and alt ~= b.buf and vim.api.nvim_buf_is_valid(alt) and vim.bo[alt].buflisted then
-        vim.cmd.buffer(alt)
-      else
-        vim.cmd.enew()
-      end
-    end)
+    require("logpose.util.screen").leave(b.buf, win)
   end
   pcall(vim.api.nvim_buf_delete, b.buf, { force = true })
 end

@@ -147,24 +147,13 @@ local function render(buf, root)
   vim.b[buf].logpose_today = vim.tbl_map(function(l)
     return l.file and { file = l.file, lnum = l.lnum } or false
   end, lines)
-  vim.bo[buf].modifiable = true
-  vim.api.nvim_buf_set_lines(
+  require("logpose.util.screen").draw(
     buf,
-    0,
-    -1,
-    false,
+    ns,
     vim.tbl_map(function(l)
-      return l.text
+      return { { l.text, l.hl } }
     end, lines)
   )
-  vim.bo[buf].modifiable = false
-  vim.bo[buf].modified = false
-  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-  for i, l in ipairs(lines) do
-    if l.hl and l.text ~= "" then
-      vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, { end_col = #l.text, hl_group = l.hl })
-    end
-  end
 end
 
 ---@param root string
@@ -203,12 +192,7 @@ function M.open(root, opts)
     vim.cmd("Logpose board")
   end, "Board")
   map("q", function()
-    local alt = vim.fn.bufnr("#")
-    if alt > 0 and alt ~= buf and vim.api.nvim_buf_is_valid(alt) and vim.bo[alt].buflisted then
-      vim.cmd.buffer(alt)
-    else
-      vim.cmd.enew()
-    end
+    require("logpose.util.screen").leave(buf)
   end, "Close")
   return buf
 end

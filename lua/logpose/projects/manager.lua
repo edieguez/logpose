@@ -130,23 +130,6 @@ function M.build(root, opts)
   return lines
 end
 
---- Join chunks into text, and highlight them in `buf` at `row`.
----@param buf? integer
----@param row integer 0-based
----@param chunks { [1]: string, [2]: string? }[]
----@return string
-local function put(buf, row, chunks)
-  local col, parts = 0, {}
-  for _, c in ipairs(chunks) do
-    if buf and c[2] and #c[1] > 0 then
-      vim.api.nvim_buf_set_extmark(buf, ns, row, col, { end_col = col + #c[1], hl_group = c[2] })
-    end
-    table.insert(parts, c[1])
-    col = col + #c[1]
-  end
-  return table.concat(parts)
-end
-
 ---@param buf integer
 ---@param root string
 ---@param focus? string project to put the cursor on
@@ -155,22 +138,20 @@ local function render(buf, root, focus)
     show_archived = vim.b[buf].logpose_show_archived,
     expanded = vim.b[buf].logpose_expanded or {},
   })
-  local texts, rows = {}, {}
+  local rows = {}
   for i, l in ipairs(lines) do
-    texts[i] = put(nil, 0, l.chunks)
     rows[i] = (l.project and { name = l.project, archived = l.archived })
       or (l.file and { file = l.file, lnum = l.lnum })
       or false
   end
   vim.b[buf].logpose_projects = rows
-  vim.bo[buf].modifiable = true
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, texts)
-  vim.bo[buf].modifiable = false
-  vim.bo[buf].modified = false
-  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-  for i, l in ipairs(lines) do
-    put(buf, i - 1, l.chunks)
-  end
+  require("logpose.util.screen").draw(
+    buf,
+    ns,
+    vim.tbl_map(function(l)
+      return l.chunks
+    end, lines)
+  )
   local win = vim.fn.bufwinid(buf)
   if win == -1 then
     return
@@ -487,12 +468,7 @@ function M.open(root)
     )
   end, "Help")
   map("q", function()
-    local alt = vim.fn.bufnr("#")
-    if alt > 0 and alt ~= buf and vim.api.nvim_buf_is_valid(alt) and vim.bo[alt].buflisted then
-      vim.cmd.buffer(alt)
-    else
-      vim.cmd.enew()
-    end
+    require("logpose.util.screen").leave(buf)
   end, "Close")
 
   local group = vim.api.nvim_create_augroup("logpose.projects", { clear = true })
