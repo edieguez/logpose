@@ -1,6 +1,6 @@
---- `:Logpose today`: the day at a glance, in two parts. Tasks: what's in progress, blocked and
---- due soon. Notes: today's meetings, the to-dos left in today's daily note, overdue action items
---- and the notes edited lately. <CR> opens an item.
+--- `:Logpose today`: the day at a glance. First the standup (Yesterday, Today, Blockers: see
+--- `standup.lua`), then what's coming up: tasks due soon, overdue action items, notes edited
+--- lately. <CR> opens an item, `y` copies the standup.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local ui = require("logpose.util.ui")
@@ -58,28 +58,25 @@ function M.build(root, today)
   end
   add(head, { hl = "Title" })
 
-  local meetings, doing, blocked, due = {}, {}, {}, {}
+  -- The standup: what happened since the previous workday, what's on today, what's stuck.
+  local standup = require("logpose.standup").collect(root, today)
+  local function entries(list)
+    return vim.tbl_map(function(e)
+      local text = (e.done and "- [x] " or "- ") .. e.text .. (e.note and ("  (" .. e.note .. ")") or "")
+      return { text = text .. proj(e), file = e.file, lnum = e.lnum or 1 }
+    end, list)
+  end
+
+  -- Due in the next few days (due today or before is in the standup's Today).
+  local due = {}
   for _, it in ipairs(items) do
-    if it.kind == "note" and it.file_type == "meeting" and it.date == today then
-      table.insert(meetings, { text = "- " .. it.text .. proj(it), file = it.file, lnum = 1 })
-    elseif it.kind == "task" and not it.archived and it.status ~= cfg.board.done then
-      local entry = { file = it.file, lnum = 1 }
-      if it.status == cfg.board.start then
-        table.insert(doing, vim.tbl_extend("force", entry, { text = "- " .. it.text .. proj(it) }))
-      end
-      if it.blocked then
-        local reason = it.blocked == "yes" and "" or (": " .. it.blocked)
-        table.insert(blocked, vim.tbl_extend("force", entry, { text = "- " .. it.text .. reason .. proj(it) }))
-      end
-      if it.due and date.diff_days(today, it.due) <= 3 then
-        local w, urgency = date.due(it.due, today)
+    if it.kind == "task" and not it.archived and it.status ~= cfg.board.done and it.due then
+      local days = date.diff_days(today, it.due)
+      if days > 0 and days <= 3 then
+        local w = date.due(it.due, today)
         table.insert(
           due,
-          vim.tbl_extend("force", entry, {
-            text = ("- %s  (%s)%s"):format(it.text, w, proj(it)),
-            hl = urgency == "overdue" and "DiagnosticError" or nil,
-            due = it.due,
-          })
+          { text = ("- %s  (%s)%s"):format(it.text, w, proj(it)), file = it.file, lnum = 1, due = it.due }
         )
       end
     end
@@ -94,22 +91,8 @@ function M.build(root, today)
       lnum = it.lnum,
     }
   end, require("logpose.actions").collect(root, "overdue", {}, today))
-
-  -- What's left in today's daily note.
-  local daily = require("logpose.notes.daily").path(today, root)
-  local left = {}
   local fs = require("logpose.util.fs")
-  local buf = fs.find_buf(daily)
-  local dlines = buf and vim.api.nvim_buf_get_lines(buf, 0, -1, false) or fs.read_lines(daily)
-  if dlines then
-    local first, last = require("logpose.standup").section_range(dlines, cfg.standup.sections.today)
-    for lnum = first or 1, first and last or 0 do
-      local t = require("logpose.todos").parse(dlines[lnum])
-      if t and not t.checked and vim.trim(t.text) ~= "" then
-        table.insert(left, { text = "- [ ] " .. t.text, file = daily, lnum = lnum })
-      end
-    end
-  end
+  local daily = require("logpose.notes.daily").path(today, root)
 
   -- Notes edited lately (not tasks: they're on the board), so a note is easy to get back to.
   local recent = {}
@@ -144,18 +127,16 @@ function M.build(root, today)
     })
   end
 
-  -- Tasks (the board) and notes (with the to-dos in them) are kept apart.
-  part("Tasks")
-  section(require("logpose.taskfile").label(cfg.board.start), doing)
-  section("Blocked", blocked)
+  part("Standup")
+  section(("Yesterday · since %s"):format(date.short(standup.since, today)), entries(standup.yesterday))
+  section("Today", entries(standup.today))
+  section("Blockers", entries(standup.blockers))
+  part("Coming up")
   section("Due soon", due)
-  part("Notes")
-  section("Meetings today", meetings)
-  section("To-dos left in today's note", left)
   section("Overdue action items", overdue)
   section("Recently edited", edited)
   add("")
-  add("<CR> open · d daily note · b board · r refresh · q close", { hl = "Comment" })
+  add("<CR> open · y copy the standup · d daily note · b board · r refresh · q close", { hl = "Comment" })
   return lines
 end
 
@@ -187,12 +168,24 @@ local function render(buf, root)
 end
 
 ---@param root string
+---@param opts? { focus?: "standup" }
 ---@return integer buf
-function M.open(root)
+function M.open(root, opts)
   local buf = ui.screen_buf("logpose://today", "markdown")
   require("logpose.util.ui").show(buf)
   render(buf, root)
+  if opts and opts.focus == "standup" then
+    for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+      if l == "## Standup" then
+        pcall(vim.api.nvim_win_set_cursor, 0, { i, 0 })
+        break
+      end
+    end
+  end
   local map = ui.mapper(buf)
+  map("y", function()
+    require("logpose.standup").copy(root)
+  end, "Copy the standup")
   map("<CR>", function()
     local loc = (vim.b[buf].logpose_today or {})[vim.api.nvim_win_get_cursor(0)[1]]
     if loc then

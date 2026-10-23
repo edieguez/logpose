@@ -1,329 +1,241 @@
---- Standup prep: new daily notes start from the previous one, and `:Logpose standup` shows
---- Yesterday / Today / Blockers ready to read out.
+--- The standup, worked out from what happened, not from sections you fill in:
+---   Yesterday  tasks you moved or finished (from their logs), meetings you had, to-dos checked
+---              in your daily notes, since the previous workday
+---   Today      tasks in progress or due, today's meetings, the open to-dos in today's daily
+---              note (or the ones it will carry over)
+---   Blockers   blocked tasks with their reasons, and lines under a `## Blockers` heading in the
+---              daily note
+--- The today screen shows it at the top (`y` copies it); `:Logpose standup` opens it there,
+--- `:Logpose standup!` copies it, `:Logpose standup DATE` shows another day's.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
-local markdown = require("logpose.markdown")
-local todos = require("logpose.todos")
 local ui = require("logpose.util.ui")
 
 local M = {}
 
---- Line range (first body line, last body line) of `## <name>` in `lines`, or nil.
+---@class logpose.StandupItem
+---@field text string
+---@field note? string     what happened ("TODO → Done", "meeting", "to-do")
+---@field project? string
+---@field file? string
+---@field lnum? integer
+---@field done? boolean    finished: shown checked
+
+---@class logpose.Standup
+---@field date string
+---@field since string     the previous workday: Yesterday covers since .. date - 1
+---@field yesterday logpose.StandupItem[]
+---@field today logpose.StandupItem[]
+---@field blockers logpose.StandupItem[]
+
+--- Status moves in a task's `## Log` between `from` and `to` (inclusive), oldest first.
 ---@param lines string[]
----@param name string
----@return integer? first, integer? last, integer? heading
-function M.section_range(lines, name)
-  local want = name:lower()
-  for i, line in ipairs(lines) do
-    local h = line:match("^##%s+(.-)%s*$")
-    if h and h:lower() == want then
-      local last = #lines
-      for j = i + 1, #lines do
-        if lines[j]:match("^##?%s") then
-          last = j - 1
-          break
+---@param from string
+---@param to string
+---@return { from?: string, to: string }[]
+local function moves(lines, from, to)
+  local out, in_log = {}, false
+  for _, l in ipairs(lines) do
+    if l:match("^##%s+[Ll]og%s*$") then
+      in_log = true
+    elseif l:match("^#+%s") then
+      in_log = false
+    elseif in_log then
+      local d, what = l:match("^%s*[-*]%s+(%d%d%d%d%-%d%d%-%d%d)[^:]*%d:%d%d:%s*(.-)%s*$")
+      if d and d >= from and d <= to then
+        local a, b = what:match("^(.-)%s*→%s*(.+)$")
+        local created = what:match("^created in (.+)$")
+        if created then
+          table.insert(out, { to = created })
+        elseif a and not a:match(":") then -- "project: a → b" isn't a move
+          table.insert(out, { from = a, to = b })
         end
       end
-      return i + 1, last, i
     end
   end
-  return nil
+  return out
 end
 
---- Body of `## <name>` without surrounding blank lines ({} if missing).
----@param lines string[]
----@param name string
----@return string[]
-function M.section(lines, name)
-  local first, last = M.section_range(lines, name)
-  if not first then
-    return {}
-  end
-  return markdown.trim_blank(vim.list_slice(lines, first, last))
-end
-
---- Most recent daily note before `iso`.
+--- The standup for `iso` (default today).
 ---@param root string
----@param iso string
----@return string? path, string? date
-function M.previous_daily(root, iso)
+---@param iso? string
+---@return logpose.Standup
+function M.collect(root, iso)
+  iso = iso or date.today()
+  local cfg = config.get()
+  local board = cfg.board
+  local taskfile = require("logpose.taskfile")
   local daily = require("logpose.notes.daily")
-  local dir = config.path("daily", root)
-  local best
-  if fs.is_dir(dir) then
-    for name, kind in vim.fs.dir(dir) do
-      if kind == "file" then
-        local d = daily.date_of(name)
-        if d and d < iso and (not best or d > best) then
-          best = d
-        end
-      end
-    end
-  end
-  if not best then
-    return nil
-  end
-  return daily.path(best, root), best
-end
+  local since = date.prev_workday(iso, cfg.workdays)
+  local until_ = date.add_days(iso, -1)
+  local items = require("logpose.index").build(root)
+  local s = { date = iso, since = since, yesterday = {}, today = {}, blockers = {} }
+  local done_label = taskfile.label(board.done)
 
----@class logpose.Prefill
----@field yesterday string[]  lines for ## Yesterday
----@field today string[]      open to-dos carried into ## Today
----@field carried integer[]   their line numbers in the previous note
+  local today_note = fs.normalize(daily.path(iso, root))
+  local has_today_note = fs.exists(today_note)
+  -- no daily note for today yet: the to-dos it would carry over are today's plan
+  local plan_note = today_note
+  if not has_today_note then
+    local prev = daily.previous(root, iso)
+    plan_note = prev and fs.normalize(prev) or nil
+  end
 
---- What a new daily note takes from the previous one.
----@param prev_lines string[]
----@return logpose.Prefill
-function M.prefill(prev_lines)
-  local opts = config.get().standup
-  local first, last = M.section_range(prev_lines, opts.sections.today)
-  local yesterday, today, carried = {}, {}, {}
-  -- the `→ [[task]]` line under a to-do made into a task goes where the to-do goes
-  local link_rows = {}
-  for _, t in ipairs(todos.linked(prev_lines)) do
-    link_rows[t.link_row] = t.row
-  end
-  local moved = {}
-  if first then
-    for lnum = first, last do
-      local line = prev_lines[lnum]
-      local todo = todos.parse(line)
-      if todo then
-        if todo.checked then
-          table.insert(yesterday, todo.indent .. "- " .. todo.text)
-        elseif vim.trim(todo.text) ~= "" and opts.carry_forward then
-          table.insert(today, todo.indent .. "- [ ] " .. todo.text)
-          table.insert(carried, lnum)
-          moved[lnum] = true
-        end
-      elseif link_rows[lnum] and moved[link_rows[lnum]] then
-        table.insert(today, line)
-      elseif vim.trim(line) ~= "" and not line:match("^%s*[-*+]%s+%[>%]") then
-        table.insert(yesterday, line) -- notes and plain bullets
-      end
-    end
-  end
-  return { yesterday = yesterday, today = today, carried = carried }
-end
-
---- Insert `items` right after the `## <name>` heading of `lines`. Returns the heading's line
---- number (or nil when the section is missing).
----@param lines string[]
----@param name string
----@param items string[]
----@return integer?
-local function insert_after_heading(lines, name, items)
-  local _, _, heading = M.section_range(lines, name)
-  if not heading or #items == 0 then
-    return heading
-  end
-  for i, item in ipairs(items) do
-    table.insert(lines, heading + i, item)
-  end
-  return heading
-end
-
---- Apply the prefill to a freshly rendered daily note.
----@param text string
----@param cursor integer[]
----@param fill logpose.Prefill
----@return string text, integer[] cursor
-function M.apply(text, cursor, fill)
-  local sections = config.get().standup.sections
-  local lines = vim.split(text, "\n", { plain = true })
-  cursor = { cursor[1], cursor[2] }
-  for _, part in ipairs({ { sections.yesterday, fill.yesterday }, { sections.today, fill.today } }) do
-    local heading = insert_after_heading(lines, part[1], part[2])
-    if heading and #part[2] > 0 and cursor[1] > heading then
-      cursor[1] = cursor[1] + #part[2]
-    end
-  end
-  return table.concat(lines, "\n"), cursor
-end
-
---- Mark carried tasks `- [>]` in the previous daily note.
----@param path string
----@param rows integer[]
-function M.mark_carried(path, rows)
-  if #rows == 0 or not config.get().standup.mark_carried then
-    return
-  end
-  local ok, err = fs.update_lines(path, function(lines)
-    local touched = false
-    for _, lnum in ipairs(rows) do
-      local line = lines[lnum]
-      if line and line:match("^%s*[-*+]%s+%[ %]") then
-        lines[lnum] = line:gsub("%[ %]", "[>]", 1)
-        touched = true
-      end
-    end
-    return touched and lines or nil
-  end)
-  if not ok then
-    require("logpose.util.ui").notify(
-      "logpose: couldn't mark carried to-dos in the previous daily note: " .. err,
-      vim.log.levels.WARN
-    )
-  end
-end
-
---- Prefill hook for a new daily note (called by notes/daily.lua before writing).
----@param root string
----@param iso string
----@param text string
----@param cursor integer[]
----@return string text, integer[] cursor, fun()? after_write
-function M.prepare(root, iso, text, cursor)
-  local prev_path = M.previous_daily(root, iso)
-  if not prev_path then
-    return text, cursor
-  end
-  local prev_lines = fs.current_lines(prev_path) -- an unsaved buffer's, the lines marked later
-  if not prev_lines then
-    return text, cursor
-  end
-  local fill = M.prefill(prev_lines)
-  local new_text, new_cursor = M.apply(text, cursor, fill)
-  return new_text, new_cursor, function()
-    M.mark_carried(prev_path, fill.carried)
-  end
-end
-
---- Group list items by project tag (#project); returns lines with `### project` headings.
----@param items string[]
----@param projects string[]
----@return string[]
-local function group(items, projects)
+  -- a daily note's line belongs to the project its #tag names
   local known = {}
-  for _, p in ipairs(projects) do
-    known[p] = true
+  for _, name in ipairs(require("logpose.search").projects(root, items)) do
+    known[name] = true
   end
-  local groups, order, other = {}, {}, {}
-  for _, line in ipairs(items) do
-    local proj
-    for _, tag in ipairs(require("logpose.index").tags_in(line)) do
-      if known[tag] then
-        proj = tag
-        break
+  local function project_of(it)
+    if it.project then
+      return it.project
+    end
+    for _, t in ipairs(it.tags or {}) do
+      if known[t] then
+        return t
       end
     end
-    if proj then
-      if not groups[proj] then
-        groups[proj] = {}
-        table.insert(order, proj)
+  end
+
+  for _, it in ipairs(items) do
+    local file = it.file and fs.normalize(it.file)
+    if it.kind == "task" then
+      local lines = fs.read_lines(it.file) or {}
+      local m = moves(lines, since, until_)
+      if #m > 0 then
+        local first, last = m[1], m[#m]
+        local from = first.from
+        local note = from and (from .. " → " .. last.to) or ("new · " .. last.to)
+        if from ~= last.to then
+          table.insert(s.yesterday, {
+            text = it.text,
+            note = note,
+            project = project_of(it),
+            file = it.file,
+            done = last.to == done_label,
+          })
+        end
+      elseif it.status == board.done and it.done_date and it.done_date >= since and it.done_date <= until_ then
+        table.insert(
+          s.yesterday,
+          { text = it.text, note = "→ " .. done_label, project = project_of(it), file = it.file, done = true }
+        )
       end
-      table.insert(groups[proj], line)
-    else
-      table.insert(other, line)
+      if not it.archived and it.status ~= board.done then
+        if it.status == board.start then
+          table.insert(
+            s.today,
+            { text = it.text, note = taskfile.label(board.start), project = project_of(it), file = it.file }
+          )
+        elseif it.due and it.due <= iso then
+          local w = date.due(it.due, iso)
+          table.insert(s.today, { text = it.text, note = w, project = project_of(it), file = it.file })
+        end
+        if it.blocked then
+          table.insert(s.blockers, {
+            text = it.text,
+            note = it.blocked ~= "yes" and it.blocked or nil,
+            project = project_of(it),
+            file = it.file,
+          })
+        end
+      end
+    elseif it.kind == "note" and it.file_type == "meeting" and it.date then
+      local e = { text = it.title or it.text, note = "meeting", project = project_of(it), file = it.file, lnum = 1 }
+      if it.date >= since and it.date <= until_ then
+        table.insert(s.yesterday, e)
+      elseif it.date == iso then
+        table.insert(s.today, e)
+      end
+    elseif it.kind == "todo" and it.file_type == "daily" then
+      if it.checked and it.date and it.date >= since and it.date <= until_ and not it.done_by_task then
+        table.insert(
+          s.yesterday,
+          { text = it.text, note = "to-do", project = project_of(it), file = it.file, lnum = it.lnum, done = true }
+        )
+      elseif not it.checked and file == plan_note then
+        table.insert(
+          s.today,
+          { text = it.text, note = "to-do", project = project_of(it), file = it.file, lnum = it.lnum }
+        )
+      end
+    elseif it.kind == "line" and it.file_type == "daily" and it.section == "blockers" and file == plan_note then
+      table.insert(
+        s.blockers,
+        { text = (it.text:gsub("^%[.%]%s*", "")), project = project_of(it), file = it.file, lnum = it.lnum }
+      )
     end
   end
-  if #order == 0 then
-    return items
+  for _, list in ipairs({ s.yesterday, s.today, s.blockers }) do
+    table.sort(list, function(a, b)
+      local pa, pb = a.project or "\255", b.project or "\255"
+      if pa ~= pb then
+        return pa < pb
+      end
+      return a.text:lower() < b.text:lower()
+    end)
   end
-  table.sort(order)
-  local out = {}
-  for _, proj in ipairs(order) do
-    table.insert(out, "### " .. proj)
-    vim.list_extend(out, groups[proj])
-  end
-  if #other > 0 then
-    table.insert(out, "### other")
-    vim.list_extend(out, other)
-  end
-  return out
+  return s
 end
 
---- Task lines for each standup section: done since the previous workday, in progress,
---- blocked. Each line carries `#project` so grouping works.
----@param root string
----@param iso string
----@return table<string, string[]>
-function M.board_items(root, iso)
-  local out = { yesterday = {}, today = {}, blockers = {} }
-  local cfg = config.get().board
-  local since = date.prev_workday(iso, config.get().workdays)
-  local tasks = vim.tbl_filter(function(it)
-    return it.kind == "task" and not it.archived
-  end, require("logpose.index").build(root))
-  table.sort(tasks, function(a, b)
-    return a.file < b.file
-  end)
-  for _, it in ipairs(tasks) do
-    local tag = it.project and (" #" .. it.project) or ""
-    if it.status == cfg.done then
-      if it.done_date and it.done_date >= since and it.done_date < iso then
-        table.insert(out.yesterday, "- [x] " .. it.text .. tag)
-      end
-    else
-      if it.status == cfg.start then
-        table.insert(out.today, "- [ ] " .. it.text .. tag)
-      end
-      if it.blocked then
-        local reason = it.blocked == "yes" and "" or (": " .. it.blocked)
-        table.insert(out.blockers, "- " .. it.text .. reason .. tag)
-      end
-    end
-  end
-  return out
-end
-
---- Standup text for the daily note of `iso`, plus the board's task files.
----@param root string
----@param iso string
----@return string[]? lines, string? err
-function M.render(root, iso)
-  local daily = require("logpose.notes.daily")
-  local path = daily.path(iso, root)
-  local buf = fs.find_buf(path)
-  local lines = buf and vim.api.nvim_buf_get_lines(buf, 0, -1, false) or fs.read_lines(path)
-  local board = M.board_items(root, iso)
-  if not lines then
-    if #board.yesterday + #board.today + #board.blockers == 0 then
-      return nil, ("logpose: no daily note for %s; run :Logpose daily"):format(iso)
-    end
-    lines = {}
-  end
-  local opts = config.get().standup
-  local projects = {}
-  if opts.group_by_project then
-    local search = require("logpose.search")
-    projects = search.projects(root, require("logpose.index").build(root))
-  end
-  local out = { "# Standup " .. iso }
-  for _, key in ipairs({ "yesterday", "today", "blockers" }) do
-    local name = opts.sections[key]
-    local items = M.section(lines, name)
-    for _, line in ipairs(board[key]) do
-      if not vim.tbl_contains(items, line) then
-        table.insert(items, line)
-      end
-    end
+--- The standup as markdown, to paste where your team does standups.
+---@param s logpose.Standup
+---@return string[]
+function M.markdown(s)
+  local group = config.get().standup.group_by_project
+  local out = { "# Standup " .. s.date }
+  for _, part in ipairs({ { "Yesterday", s.yesterday }, { "Today", s.today }, { "Blockers", s.blockers } }) do
     table.insert(out, "")
-    table.insert(out, "## " .. name)
-    if #items == 0 then
+    table.insert(out, "## " .. part[1])
+    table.insert(out, "")
+    if #part[2] == 0 then
       table.insert(out, "- (none)")
-    else
-      vim.list_extend(out, opts.group_by_project and group(items, projects) or items)
+    end
+    local current = false
+    for _, e in ipairs(part[2]) do
+      if group and e.project ~= current then
+        current = e.project
+        if out[#out] ~= "" then
+          table.insert(out, "")
+        end
+        table.insert(out, "### " .. (e.project or "other"))
+        table.insert(out, "")
+      end
+      local text = e.text .. (e.note and (" (" .. e.note .. ")") or "")
+      table.insert(out, "- " .. text)
     end
   end
   return (require("logpose.markdown").tidy(out))
 end
 
+--- Copy the standup for `iso` to the clipboard (and the unnamed register).
+---@param root string
+---@param iso? string
+function M.copy(root, iso)
+  local text = table.concat(M.markdown(M.collect(root, iso)), "\n")
+  vim.fn.setreg('"', text)
+  pcall(vim.fn.setreg, "+", text)
+  ui.notify("logpose: standup copied", vim.log.levels.INFO)
+end
+
+--- `:Logpose standup`: the standup on the today screen. `!` copies it; a date shows that day's.
 ---@param opts logpose.CommandOpts
 function M.command(opts)
   local iso = opts.args[1]
   if iso == nil or iso == "today" then
-    iso = date.today()
+    iso = nil
   elseif not date.is_iso(iso) then
     error(("logpose: invalid date %q (use YYYY-MM-DD)"):format(iso), 0)
   end
   config.with_root(ui.safely(function(root)
-    local lines, err = M.render(root, iso)
-    if not lines then
-      require("logpose.util.ui").notify(err, vim.log.levels.WARN)
-      return
+    if opts.bang then
+      return M.copy(root, iso)
     end
+    if not iso or iso == date.today() then
+      return require("logpose.today").open(root, { focus = "standup" })
+    end
+    local lines = M.markdown(M.collect(root, iso))
     ui.scratch(lines, {
       name = "logpose://standup/" .. iso,
       filetype = "markdown",

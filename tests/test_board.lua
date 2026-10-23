@@ -332,11 +332,11 @@ end
 
 T["standup lists board work; report and health count it"] = function()
   task("yesterday", { title = "Finished yesterday", status = "done", project = "acme", done = "2026-10-14" })
-  child.cmd("Logpose standup")
-  local s = screen()
-  H.contains(s, "## Yesterday\n\n### acme\n\n- [x] Finished yesterday #acme")
-  H.contains(s, "## Today\n\n### acme\n\n- [ ] Queue design #acme")
-  H.contains(s, "## Blockers\n\n### acme\n\n- Queue design: waiting on ana #acme")
+  child.cmd("Logpose standup!")
+  local s = child.fn.getreg('"')
+  H.contains(s, "## Yesterday\n\n### acme\n\n- Finished yesterday (→ Done)")
+  H.contains(s, "- Queue design (In progress)")
+  H.contains(s, "## Blockers\n\n### acme\n\n- Queue design (waiting on ana)")
 
   local report = table.concat(
     child.lua_get(
