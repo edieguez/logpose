@@ -307,6 +307,12 @@ Each shows the active project, or every project when there's none (a filter
 given on the command line looks in every project). Every entry is listed:
 scroll, or fold the groups you don't need (`z`).
 
+Rows are a table across the window: the title or name takes the room, the
+rest lines up at the right edge, and every other row is banded
+(`LogposeBand`, worked out from your colour scheme unless you set it). On a
+wide screen the list keeps to `lists.max_width`, in the middle; on a narrow
+one the columns on the right go first.
+
 Moving an entry to another group changes its note, so the list and the
 files agree: another project moves a meeting to that project's folder (links
 follow), another type sets its `type:`, another tag swaps the note's tag,
@@ -327,13 +333,15 @@ note itself (week, month, last met) can't be moved to.
   q       close                        ?   keys and filter cheat sheet
 
                                                           *logpose-filter-bar*
-`/` on a list or the board opens a one-line filter over it; what's behind it
-follows as you type. A menu shows what can come next, each with a word on
+`/` on a list or the board opens a one-line filter below it, like Vim's own
+`/`, so it covers none of the results; they follow as you type. A menu shows what can come next, each with a word on
 what it does: the filters (`type:`, `attendees:`, `date>=`, `or`, `not`, and
 the fields your notes use), then their values from the journal (meeting
 types, projects, tags, people, dates such as `today` or `-7d`). <Tab>
 completes, <CR> keeps the filter, <Esc> restores the old one, <F1> shows the
-cheat sheet. The lower edge counts the matches and names ignored words.
+cheat sheet. The menu opens while you type a word and stays shut between
+words (<Tab> opens it). The bar's right end counts the matches and names
+ignored words.
 
 The notes list adds `d` (today's daily note) and `b` (the board); the people
 list `y`, `o`, `t` and `R` (|logpose-people-screen|). `f` on a project in
@@ -342,7 +350,8 @@ list `y`, `o`, `t` and `R` (|logpose-people-screen|). `f` on a project in
 Highlights: `LogposeListTitle`, `LogposeListScope`, `LogposeListFilter`,
 `LogposeListGroup`, `LogposeListCount`, `LogposeListTree`, `LogposeListDate`,
 `LogposeListMeta`, `LogposeListTodos`, `LogposeListTasks`,
-`LogposeListPeople`, `LogposeListHint`.
+`LogposeListPeople`, `LogposeListHint`, `LogposeBand`; the filter bar:
+`LogposeFilterTitle`, `LogposeFilterHint`.
 
 ------------------------------------------------------------------------------
 PROJECTS                                                    *logpose-projects*
@@ -1103,6 +1112,12 @@ Board and tasks ~
   tasks          (table)
       `capture_status`    column for |:Logpose-capture| ("backlog")
       `promote_status`    column for |:Logpose-promote| ("backlog")
+  lists          (table)
+      `max_width`         the lists span the window up to this many
+                          columns; on a wider one they keep to it, in
+                          the middle (160)
+      `bands`             every other row on a slightly different
+                          background, `LogposeBand` (true)
 
 Notes and meetings ~
 
