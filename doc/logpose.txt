@@ -642,12 +642,16 @@ matter.
 Completion in notes ~
 In a journal note, `[[` offers every note and task to link (inserted in
 `link_style`); a name in the frontmatter's `attendees:` or `with:` line
-offers people; `@` in the text offers people as `@handle`.
+offers people; `@` in the text offers people (pages and everyone mentioned)
+as `@handle`, matching any part of the name.
 
-  blink.cmp   add this provider, and `"logpose"` to your markdown sources:
-    `logpose = { name = "logpose", module = "logpose.completion.blink" }`
-  nvim-cmp    the source is registered by `setup()`; add
-              `{ name = "logpose" }` to your markdown sources.
+No setup is needed. In a journal note, on the first Insert mode, logpose
+adds its source to whichever completion plugin is loaded:
+
+  blink.cmp   the `logpose` provider (`logpose.completion.blink`), added
+              for markdown, unless your config has it already
+  nvim-cmp    `{ name = "logpose" }` added to the note's buffer sources
+  neither     Neovim's own menu, opened as you type
 
 ------------------------------------------------------------------------------
 SPRINTS, ARCHIVES AND REPORTS                                *logpose-sprints*
