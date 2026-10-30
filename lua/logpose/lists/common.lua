@@ -168,17 +168,6 @@ function M.day(iso)
   return date.short(iso, today)
 end
 
---- The width of the date column for `entries` (by their `when`).
----@param entries table[]
----@return integer
-function M.day_width(entries)
-  local w = 0
-  for _, e in ipairs(entries) do
-    w = math.max(w, vim.fn.strdisplaywidth(M.day(e.when)))
-  end
-  return w
-end
-
 --- Newest first, then by title.
 function M.newest(a, b)
   local da, db = a.when or "", b.when or ""
@@ -204,30 +193,18 @@ function M.by_title(a, b)
   return a.key < b.key
 end
 
---- The title column's width for `entries`.
----@param entries table[]
----@param width integer
----@param reserve integer room for the rest of the row
----@param max? integer
----@return integer
-function M.title_width(entries, width, reserve, max)
-  local longest = 0
-  for _, e in ipairs(entries) do
-    longest = math.max(longest, vim.fn.strdisplaywidth(e.item.title or e.item.text or ""))
-  end
-  return math.max(12, math.min(longest, max or 44, width - reserve))
-end
-
---- Append `meta` chunks to a row, separated by dots.
+--- Chunks one after another, with a dot between them.
 ---@param chunks table[]
----@param meta table[]
 ---@return table[]
-function M.with_meta(chunks, meta)
-  for i, m in ipairs(meta) do
-    table.insert(chunks, { i == 1 and "  " or "  ·  ", "LogposeListMeta" })
-    table.insert(chunks, m)
+function M.joined(chunks)
+  local out = {}
+  for i, c in ipairs(chunks) do
+    if i > 1 then
+      table.insert(out, { " · ", "LogposeListMeta" })
+    end
+    table.insert(out, c)
   end
-  return chunks
+  return out
 end
 
 --- Swap `from` for `to` in a frontmatter list (tags, projects) of `file`.

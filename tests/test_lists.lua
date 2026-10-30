@@ -47,6 +47,11 @@ local function screen()
   return table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 end
 
+--- A row's cells, " | " between them (columns are as far apart as the window allows).
+local function cells(line)
+  return (vim.trim(line):gsub("%s%s+", " | "))
+end
+
 local function line_with(s)
   for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
     if l:find(s, 1, true) then
@@ -78,8 +83,7 @@ T["meetings"]["by week, newest first, with people, action items and tasks"] = fu
   H.contains(s, "▾ Week of Mon 12 Oct · this week  2")
   H.contains(s, "▾ Week of Mon 5 Oct · last week  1")
   local retro = child.api.nvim_buf_get_lines(0, line_with("Retro") - 1, line_with("Retro"), false)[1]
-  H.contains(retro, "Yesterday   Retrospective    Retro")
-  H.contains(retro, "Ana, Bob  ·  ☐ 1 open  ·  → 1 task  ·  ◆ acme")
+  eq(cells(retro), "Yesterday | Retrospective | Retro | Ana, Bob | ☐ 1 open · → 1 task | ◆ acme")
   eq(line_with("Retro") < line_with("1:1 Advisor"), true)
   eq(line_with("Week of Mon 12") < line_with("Week of Mon 5"), true)
   eq(s:find("Queue design", 1, true), nil) -- notes have their own list
@@ -164,7 +168,7 @@ T["meetings"]["rows leave out what their heading or title already says"] = funct
   end
   child.cmd("Logpose meetings")
   eq(select(2, row("Sprint review"):gsub("Sprint review", "")), 1) -- the type matches the title: once
-  H.contains(row("  Retro"), "Retrospective    Retro") -- a different title keeps its type
+  H.contains(cells(row("  Retro")), "Retrospective | Retro") -- a different title keeps its type
   child.type_keys("g") -- by type: the heading says it
   eq(row("  Retro"):find("Retrospective", 1, true), nil)
   child.type_keys("g") -- by project: the heading says it
@@ -174,7 +178,7 @@ end
 T["meetings"]["a count moves that many groups: 2<"] = function()
   child.cmd("Logpose meetings")
   child.type_keys("g") -- by type: 1:1, Retrospective, Sprint planning
-  child.api.nvim_win_set_cursor(0, { line_with("Planning      Carla"), 2 })
+  child.api.nvim_win_set_cursor(0, { line_with("Carla"), 2 })
   child.type_keys("2", "<")
   H.contains(H.read(root .. "/meetings/acme/2026-10-05 - planning.md"), "type: 1on1")
   child.type_keys("9", ">") -- past the last group: stops there
@@ -225,7 +229,10 @@ T["meetings"]["/ opens the filter bar: the list follows, a menu shows what to ty
   -- half-typed words are ignored, and the bar says so
   child.type_keys("/", " since:2026-1")
   vim.loop.sleep(120)
-  H.contains(child.lua_get("require('logpose.filter.bar').status[vim.api.nvim_get_current_win()]"), "ignored: since:2026-1")
+  H.contains(
+    child.lua_get("require('logpose.filter.bar').status[vim.api.nvim_get_current_win()]"),
+    "ignored: since:2026-1"
+  )
   child.type_keys("<Esc>", "<Esc>")
   eq(child.bo.filetype, "logpose-meetings")
   H.contains(bar(), "type:retro") -- <Esc>: the filter as it was
@@ -271,7 +278,8 @@ T["notes"]["topic notes and project pages by type; daily notes and meetings on r
   H.contains(s, "▾ Topic notes  2")
   H.contains(s, "▾ Project pages  1")
   H.contains(s, "Queue design")
-  H.contains(s, "☐ 1 to-do  ·  ◆ acme  ·  #arch #perf")
+  local queue = child.api.nvim_buf_get_lines(0, line_with("Queue design") - 1, line_with("Queue design"), false)[1]
+  H.contains(cells(queue), "Queue design | ☐ 1 to-do | ◆ acme | #arch #perf")
   eq(s:find("Daily notes", 1, true), nil)
   eq(s:find("Retro", 1, true), nil)
   eq(s:find("Fix CI", 1, true), nil)

@@ -134,48 +134,47 @@ M.sorts = {
   { label = "by title", cmp = common.by_title },
 }
 
-function M.layout(ctx)
-  ctx.day_w = common.day_width(ctx.entries)
-  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + ctx.day_w + 2 + 30, 48)
-end
+M.columns = {
+  { key = "day", max = 12, hl = "LogposeListDate" },
+  { key = "title", flex = true, max = 64 },
+  { key = "activity", max = 30 },
+  { key = "project", max = 24 },
+  { key = "tags", max = 40, min = 8, hl = "LogposeListMeta" },
+}
 
 ---@param e logpose.ListEntry
 ---@param ctx table
----@return table[]
-function M.row(e, ctx)
+---@return table<string, string|table[]>
+function M.cells(e, ctx)
   local date = require("logpose.util.date")
   local it = e.item
-  local title = it.file_type == "daily" and date.weekday_name(it.date or e.when) or (it.title or "")
-  local chunks = {
-    { lists.fit(common.day(e.when), ctx.day_w), "LogposeListDate" },
-    { "  " },
-    { lists.fit(title, ctx.title_w) },
-  }
-  local meta = {}
+  local activity = {}
   if #e.info.open > 0 then
-    table.insert(meta, { ("☐ %d to-do%s"):format(#e.info.open, #e.info.open == 1 and "" or "s"), "LogposeListTodos" })
+    table.insert(
+      activity,
+      { ("☐ %d to-do%s"):format(#e.info.open, #e.info.open == 1 and "" or "s"), "LogposeListTodos" }
+    )
   end
   if #e.info.tasks > 0 then
     table.insert(
-      meta,
+      activity,
       { ("→ %d task%s"):format(#e.info.tasks, #e.info.tasks == 1 and "" or "s"), "LogposeListTasks" }
     )
   end
-  if ctx.all_projects and ctx.group ~= "project" and it.project then
-    table.insert(meta, { "◆ " .. it.project, ctx.hl(it.project) })
-  end
-  if #(it.fm_tags or {}) > 0 then
-    table.insert(meta, {
-      table.concat(
-        vim.tbl_map(function(t)
-          return "#" .. t
-        end, it.fm_tags),
-        " "
-      ),
-      "LogposeListMeta",
-    })
-  end
-  return common.with_meta(chunks, meta)
+  return {
+    day = common.day(e.when),
+    title = it.file_type == "daily" and date.weekday_name(it.date or e.when) or (it.title or ""),
+    activity = common.joined(activity),
+    project = ctx.all_projects and ctx.group ~= "project" and it.project and {
+      { "◆ " .. it.project, ctx.hl(it.project) },
+    } or nil,
+    tags = table.concat(
+      vim.tbl_map(function(t)
+        return "#" .. t
+      end, it.fm_tags or {}),
+      " "
+    ),
+  }
 end
 
 function M.details(e)

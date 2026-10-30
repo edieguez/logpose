@@ -313,6 +313,59 @@ T["a template without ## Topics gets an ## Agenda"] = function()
   H.contains(H.read(note.path), "## Agenda\n\n- budget\n\n## Notes")
 end
 
+T["rows span the window, banded; a wide window keeps the list in the middle"] = function()
+  child.cmd("Logpose people")
+  local function row_of(name)
+    for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
+      if l:find(name, 1, true) then
+        return i, l
+      end
+    end
+  end
+  local _, ana = row_of("Ana López")
+  -- the name column takes the room; the rest sits at the right edge
+  eq(vim.fn.strdisplaywidth(ana) > 120, true)
+  H.contains(ana, "Backend lead")
+  H.contains(ana, "ana@acme.io · @ana.l")
+  -- every other row has a band, as wide as the list
+  local bands = child.lua_get([[vim.tbl_map(function(m)
+    return { row = m[2], hl = m[4].hl_group, pad = m[4].virt_text and #m[4].virt_text[1][1] or 0 }
+  end, vim.api.nvim_buf_get_extmarks(0, vim.api.nvim_get_namespaces()["logpose.lists"], 0, -1, { details = true }))]])
+  local banded = {}
+  for _, b in ipairs(bands) do
+    if b.hl == "LogposeBand" then
+      banded[b.row + 1] = true
+    end
+  end
+  local entries = child.lua_get([[(function()
+    local out = {}
+    for i, r in pairs(require("logpose.lists").screens[vim.api.nvim_get_current_buf()].rows) do
+      if r.entry and not r.detail then
+        table.insert(out, i)
+      end
+    end
+    table.sort(out)
+    return out
+  end)()]])
+  eq(#entries >= 3, true)
+  eq(banded[entries[1]], nil)
+  eq(banded[entries[2]], true)
+  eq(child.lua_get("vim.api.nvim_get_hl(0, { name = 'LogposeBand' }) ~= vim.empty_dict()"), true)
+  -- a widescreen: the list keeps to lists.max_width, in the middle
+  child.o.columns = 260
+  child.lua("vim.wait(50)")
+  local _, wide = row_of("Ana López")
+  local indent = #wide:match("^ *")
+  eq(indent > 40, true)
+  eq(vim.fn.strdisplaywidth(wide) <= indent + 160, true)
+  -- a narrow window: the columns on the right go first; the name stays
+  child.o.columns = 50
+  child.lua("vim.wait(50)")
+  local _, narrow = row_of("Ana López")
+  eq(vim.fn.strdisplaywidth(narrow) <= 50, true)
+  H.contains(narrow, "Ana López")
+end
+
 T["the filter bar sits under the list, like /, and covers none of it"] = function()
   child.cmd("Logpose people")
   local list = child.api.nvim_get_current_win()

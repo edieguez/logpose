@@ -120,51 +120,52 @@ M.sorts = {
   { label = "by title", cmp = common.by_title },
 }
 
+M.columns = {
+  { key = "day", max = 12, hl = "LogposeListDate" },
+  { key = "type", max = 18, min = 6, hl = "LogposeListMeta" },
+  { key = "title", flex = true, max = 56 },
+  { key = "attendees", max = 48, min = 10, hl = "LogposeListPeople" },
+  { key = "activity", max = 30 },
+  { key = "project", max = 24 },
+}
+
 ---@param ctx table
 function M.layout(ctx)
-  ctx.day_w = common.day_width(ctx.entries)
-  ctx.title_w = common.title_width(ctx.entries, ctx.width, 2 + ctx.day_w + 2 + 30, 40)
-  local labels = type_labels()
-  local w = 0
-  for _, e in ipairs(ctx.group ~= "type" and ctx.entries or {}) do
-    w = math.max(w, vim.fn.strdisplaywidth(labels[e.item.type] or e.item.type or ""))
-  end
-  ctx.type_w = math.min(w, 16)
-  ctx.labels = labels
+  ctx.labels = type_labels()
 end
 
 ---@param e logpose.ListEntry
 ---@param ctx table
----@return table[]
-function M.row(e, ctx)
+---@return table<string, string|table[]>
+function M.cells(e, ctx)
   local it = e.item
-  local chunks = { { lists.fit(common.day(it.date), ctx.day_w), "LogposeListDate" }, { "  " } }
-  if ctx.type_w > 0 then
-    local label = ctx.labels[it.type] or it.type or ""
+  local label
+  if ctx.group ~= "type" then
+    label = ctx.labels[it.type] or it.type or ""
     if text.plain(label) == text.plain(it.title or "") then
-      label = "" -- "Sprint planning  Sprint planning": once is enough
+      label = nil -- "Sprint planning  Sprint planning": once is enough
     end
-    table.insert(chunks, { lists.fit(label, ctx.type_w), "LogposeListMeta" })
-    table.insert(chunks, { "  " })
   end
-  table.insert(chunks, { lists.fit(it.title or "", ctx.title_w) })
-  local meta = {}
-  if #e.attendees > 0 then
-    table.insert(meta, { common.people(e.attendees), "LogposeListPeople" })
-  end
+  local activity = {}
   if #e.info.open > 0 then
-    table.insert(meta, { ("☐ %d open"):format(#e.info.open), "LogposeListTodos" })
+    table.insert(activity, { ("☐ %d open"):format(#e.info.open), "LogposeListTodos" })
   end
   if #e.info.tasks > 0 then
     table.insert(
-      meta,
+      activity,
       { ("→ %d task%s"):format(#e.info.tasks, #e.info.tasks == 1 and "" or "s"), "LogposeListTasks" }
     )
   end
-  if ctx.all_projects and ctx.group ~= "project" and it.project then
-    table.insert(meta, { "◆ " .. it.project, ctx.hl(it.project) })
-  end
-  return common.with_meta(chunks, meta)
+  return {
+    day = common.day(it.date),
+    type = label,
+    title = it.title or "",
+    attendees = #e.attendees > 0 and common.people(e.attendees) or nil,
+    activity = common.joined(activity),
+    project = ctx.all_projects and ctx.group ~= "project" and it.project and {
+      { "◆ " .. it.project, ctx.hl(it.project) },
+    } or nil,
+  }
 end
 
 ---@param e logpose.ListEntry

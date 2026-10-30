@@ -12,10 +12,13 @@
 ---                targets?(s) -> { {key, label}… }, ask?: string (prompt for a new group),
 ---                descending?: boolean, none?: string }
 ---   sorts: { label, cmp(a, b) }
----   row(e, ctx) -> chunks;  details?(e, s) -> { { chunks, file?, lnum? }… }
+---   columns: { {key, max?, min?, flex?, hl?}… }; cells(e, ctx) -> { [key] = string | chunks }
+---     (a table across the window: each column as wide as its longest cell; `flex` columns take
+---     the room left over, and give way first when it's narrow)
+---   or row(e, ctx) -> chunks;  details?(e, s) -> { { chunks, file?, lnum? }… }
 ---   open(e, s), edit(e, s, done(key?)), add(s, group, done(key?)), keys(s, map, helpers)
 local config = require("logpose.config")
-local fit = require("logpose.board.text").fit
+local text = require("logpose.board.text")
 local ui = require("logpose.util.ui")
 
 local M = {}
@@ -121,6 +124,89 @@ function M.groups(s, entries)
 end
 
 --- The screen as lines of chunks, and what each row is.
+local GAP = 3
+
+local function cell_chunks(col, v)
+  if v == nil or v == "" then
+    return {}
+  end
+  if type(v) == "string" then
+    return { { v, col.hl } }
+  end
+  return v
+end
+
+local function chunks_width(chunks)
+  local w = 0
+  for _, c in ipairs(chunks) do
+    w = w + vim.fn.strdisplaywidth(c[1])
+  end
+  return w
+end
+
+--- How wide each column is in a table `avail` cells wide: as wide as the longest cell (up to its
+--- `max`); room left over goes to the `flex` columns (the title), so the rest sit at the right
+--- edge; short of room, `flex` columns shrink (to their `min`), then columns go from the right.
+---@param columns table[]
+---@param cells table<string, table>[]  each entry's cells, as chunks
+---@param avail integer
+---@return { col: table, width: integer, gap: integer }[]
+function M.widths(columns, cells, avail)
+  local cols = {}
+  for _, col in ipairs(columns) do
+    local w = 0
+    for _, c in ipairs(cells) do
+      w = math.max(w, chunks_width(c[col.key] or {}))
+    end
+    w = math.min(w, col.max or 60)
+    if w > 0 then
+      table.insert(cols, { col = col, width = w, gap = GAP })
+    end
+  end
+  local function total()
+    local t = 0
+    for i, c in ipairs(cols) do
+      t = t + c.width + (i > 1 and GAP or 0)
+    end
+    return t
+  end
+  local function shrink(floor)
+    for _, c in ipairs(cols) do
+      local over = total() - avail
+      if over <= 0 then
+        return
+      end
+      if c.col.flex then
+        c.width = math.max(math.min(c.width, floor or c.col.min or 12), c.width - over)
+      end
+    end
+  end
+  shrink()
+  while total() > avail and #cols > 1 and not cols[#cols].col.flex do
+    table.remove(cols)
+  end
+  shrink(6)
+  if #cols > 0 then
+    cols[1].gap = 0
+  end
+  local extra = avail - total()
+  if extra > 0 and #cols > 1 then
+    -- room to spare: the flex columns take it, so the rest of the row sits at the right edge
+    local flex = vim.tbl_filter(function(c)
+      return c.col.flex
+    end, cols)
+    if #flex == 0 then
+      flex = { cols[1] }
+    end
+    local each, rest = math.floor(extra / #flex), extra % #flex
+    for i, c in ipairs(flex) do
+      c.width = c.width + each + (i <= rest and 1 or 0)
+    end
+  end
+  return cols
+end
+
+--- The screen as lines of chunks, and what each row is.
 ---@param s logpose.ListState
 ---@param width integer
 ---@return table[], table<integer, table>
@@ -132,7 +218,15 @@ function M.build(s, width)
     return { key = g.key, label = g.label }
   end, groups)
   local lines, rows = {}, {}
+  -- on a wide window the list keeps to `lists.max_width`, in the middle
+  local max_w = config.get().lists.max_width or 160
+  local inner = math.max(20, math.min(width - 1, max_w))
+  local margin = width - 1 > max_w and math.floor((width - inner) / 2) or 0
+  s.margin = margin
   local function add(chunks, r)
+    if margin > 0 and #chunks > 0 then
+      table.insert(chunks, 1, { string.rep(" ", margin) })
+    end
     table.insert(lines, chunks)
     rows[#lines] = r
   end
@@ -161,6 +255,35 @@ function M.build(s, width)
   if s.view.layout then
     s.view.layout(ctx)
   end
+  -- a table: every entry's cells first, so the columns line up across the groups
+  local cols, cells = nil, {}
+  if s.view.columns then
+    local all = {}
+    for _, e in ipairs(entries) do
+      local raw = s.view.cells(e, ctx)
+      local c = {}
+      for _, col in ipairs(s.view.columns) do
+        c[col.key] = cell_chunks(col, raw[col.key])
+      end
+      cells[e.key] = c
+      table.insert(all, c)
+    end
+    cols = M.widths(s.view.columns, all, inner - 2 - 1)
+  end
+  local function row_of(e)
+    if not cols then
+      return s.view.row(e, ctx)
+    end
+    local out = {}
+    for _, c in ipairs(cols) do
+      if c.gap > 0 then
+        table.insert(out, { string.rep(" ", c.gap) })
+      end
+      vim.list_extend(out, text.fit_chunks(cells[e.key][c.col.key], c.width))
+    end
+    return out
+  end
+  local band = config.get().lists.bands ~= false and require("logpose.util.screen").band_hl() or nil
   for gi, grp in ipairs(groups) do
     if gi > 1 then
       add({})
@@ -171,10 +294,14 @@ function M.build(s, width)
       { ("  %d"):format(#grp.entries), "LogposeListCount" },
     }, { heading = true, group = grp.key })
     if not folded then
-      for _, e in ipairs(grp.entries) do
-        local chunks = s.view.row(e, ctx)
+      for ei, e in ipairs(grp.entries) do
+        local chunks = row_of(e)
         table.insert(chunks, 1, { "  " })
         add(chunks, { entry = e, group = grp.key })
+        if band and ei % 2 == 0 then
+          -- every other row banded, so a row is easy to follow across a wide window
+          chunks.band = { hl = band, from = margin, width = margin + inner }
+        end
         if s.expanded[e.key] and s.view.details then
           local details = s.view.details(e, s)
           if #details == 0 then
@@ -224,7 +351,7 @@ function M.render(s, keep)
     for i = 1, #texts do
       local r = rows[i]
       if r and r.entry and not r.detail and r.entry.key == keep then
-        pcall(vim.api.nvim_win_set_cursor, win, { i, 2 })
+        pcall(vim.api.nvim_win_set_cursor, win, { i, (s.margin or 0) + 2 })
         return
       end
     end
@@ -339,7 +466,7 @@ function M.open(root, view, opts)
   M.render(s)
   for i = 1, vim.api.nvim_buf_line_count(buf) do
     if s.rows[i] and s.rows[i].entry then
-      vim.api.nvim_win_set_cursor(0, { i, 2 })
+      vim.api.nvim_win_set_cursor(0, { i, (s.margin or 0) + 2 })
       break
     end
   end
@@ -390,7 +517,7 @@ function M.open(root, view, opts)
       refresh()
       for i, r in pairs(s.rows) do
         if r.heading and r.group == key then
-          vim.api.nvim_win_set_cursor(0, { i, 0 })
+          vim.api.nvim_win_set_cursor(0, { i, s.margin or 0 })
         end
       end
     end
@@ -401,7 +528,7 @@ function M.open(root, view, opts)
     local i = cur + dir
     while i >= 1 and i <= last do
       if s.rows[i] and s.rows[i].heading then
-        vim.api.nvim_win_set_cursor(0, { i, 0 })
+        vim.api.nvim_win_set_cursor(0, { i, s.margin or 0 })
         return
       end
       i = i + dir
@@ -545,6 +672,21 @@ function M.open(root, view, opts)
       refresh()
     end,
   })
+  -- the window's width changed: lay the rows out again
+  local width_was = vim.api.nvim_win_get_width(win)
+  vim.api.nvim_create_autocmd({ "VimResized", "WinResized" }, {
+    group = vim.api.nvim_create_augroup("logpose.lists.resize." .. buf, { clear = true }),
+    callback = function()
+      if not vim.api.nvim_buf_is_valid(buf) then
+        return true
+      end
+      local w = vim.fn.bufwinid(buf)
+      if w ~= -1 and vim.api.nvim_win_get_width(w) ~= width_was then
+        width_was = vim.api.nvim_win_get_width(w)
+        M.render(s) -- same lines, laid out again: the cursor stays put
+      end
+    end,
+  })
   vim.api.nvim_create_autocmd("BufWipeout", {
     buffer = buf,
     callback = function()
@@ -614,8 +756,6 @@ function M.help(view)
   })
   return rows
 end
-
-M.fit = fit
 
 --- `:Logpose <view> [filter]` for a view module.
 ---@param view table
