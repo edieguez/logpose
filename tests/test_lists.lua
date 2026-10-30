@@ -218,14 +218,14 @@ T["meetings"]["/ opens the filter bar: the list follows, a menu shows what to ty
     table.concat(child.lua_get("vim.api.nvim_buf_get_lines(vim.fn.bufnr('logpose://meetings'), 0, -1, false)"), "\n")
   eq(behind:find("Planning", 1, true), nil)
   H.contains(behind, "Retro")
-  H.contains(child.lua_get("vim.api.nvim_win_get_config(0).footer[1][1]"), "1 meeting")
+  H.contains(child.lua_get("require('logpose.filter.bar').status[vim.api.nvim_get_current_win()]"), "1 meeting")
   child.type_keys("<CR>")
   eq(child.bo.filetype, "logpose-meetings")
   H.contains(bar(), "type:retro")
   -- half-typed words are ignored, and the bar says so
   child.type_keys("/", " since:2026-1")
   vim.loop.sleep(120)
-  H.contains(child.lua_get("vim.api.nvim_win_get_config(0).footer[1][1]"), "ignored: since:2026-1")
+  H.contains(child.lua_get("require('logpose.filter.bar').status[vim.api.nvim_get_current_win()]"), "ignored: since:2026-1")
   child.type_keys("<Esc>", "<Esc>")
   eq(child.bo.filetype, "logpose-meetings")
   H.contains(bar(), "type:retro") -- <Esc>: the filter as it was
