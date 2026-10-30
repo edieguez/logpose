@@ -162,7 +162,7 @@ carried over.**
 ```
 
 **The new-meeting form.** `:Logpose meeting` without a type opens a form with every field
-filled in as far as it can be: the first type, today's date, the active project. Pick the type
+filled in as far as it can be: Ad-hoc (or your `default_meeting_type`), today's date, the active project. Pick the type
 (`<CR>`), and the title follows it (`Retro`); type another title to replace it. For a 1:1 the
 title field is the person (completing people you've met), for an ad-hoc meeting its title.
 `attendees` and `tags` complete names and tags you've used. Below the fields, a summary says what
@@ -197,7 +197,7 @@ within a project. A new note in a series starts with a `Previous: [[…]]` link 
 `## Carried over` section holding the previous note's open to-dos. In the old note, those
 are marked `- [>]`.
 
-> **Configure:** add your own types in `meeting_types`
+> **Configure:** start new meetings on another type with `default_meeting_type = "retro"`; add your own types in `meeting_types`
 > (`standup = { label = "Standup", title = "Standup" }`), remove one (`retro = false`), or set
 > `ask_attendees = true` on a type. Turn off carrying with `series = { carry_over = false }`.
 
@@ -1054,6 +1054,7 @@ and `LogposeListHint`.
 ```lua
 meeting_filename = "{date} - {slug}",  -- add {time} (HHMM) to allow several per day
 meeting_subdir = "{project}",          -- "" keeps all meetings in one folder
+default_meeting_type = "adhoc",        -- the type the new-meeting form starts on
 meeting_types = {
   planning   = { label = "Sprint planning", template = "planning", title = "Sprint planning", order = 10 },
   refinement = { label = "Refinement", template = "refinement", title = "Refinement", order = 20 },

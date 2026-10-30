@@ -56,6 +56,8 @@ M.defaults = {
     },
     adhoc = { label = "Ad-hoc", template = "meeting", prompt = "Meeting title: ", order = 60 },
   },
+  --- The type a new meeting starts with in the form (any key of `meeting_types`).
+  default_meeting_type = "adhoc",
   --- Meeting filename (without .md). Variables: {date}, {time} (HHMM), {slug}, {type}.
   meeting_filename = "{date} - {slug}",
   --- Subdirectory of `dirs.meetings` for meeting notes. `{project}` is the active project
@@ -416,6 +418,7 @@ local function validate(opts)
     check(("projects.paths[%q]"):format(tostring(dir)), name, "string")
   end
   check("meeting_types", opts.meeting_types, "table")
+  check("default_meeting_type", opts.default_meeting_type, "string", true)
   for name, t in pairs(opts.meeting_types) do
     if t ~= false then
       check("meeting_types." .. name, t, "table")

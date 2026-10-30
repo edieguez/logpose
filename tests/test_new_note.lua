@@ -81,9 +81,10 @@ T["meeting"][":Logpose meeting opens the form; saving creates the note and opens
   child.cmd("Logpose meeting")
   eq(child.bo.filetype, "logpose-edit")
   eq(child.api.nvim_win_get_config(0).title[1][1], " New meeting ")
-  eq(values(), { "planning", "", "2026-10-15", "", "", "" })
+  eq(values(), { "adhoc", "", "2026-10-15", "", "", "" }) -- Ad-hoc to start with
   eq(child.fn.mode(), "i") -- typing the title right away
   eq(child.api.nvim_win_get_cursor(0)[1], 2)
+  set("type", "planning")
   H.contains(eol("title"), "empty: “Sprint planning”")
   set("type", "retro")
   H.contains(eol("title"), "empty: “Retro”")

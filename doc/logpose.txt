@@ -163,8 +163,8 @@ same command again on the same day opens the existing note.
                                                          *logpose-new-meeting*
 New-meeting form ~
 `:Logpose meeting` without a type opens a form (the one of |logpose-edit|)
-filled in as far as it can be: the first type, today's date (or the date
-given), the active project. Fields: `type`, `title`, `date`, `project`,
+filled in as far as it can be: Ad-hoc (`default_meeting_type`), today's
+date (or the date given), the active project. Fields: `type`, `title`, `date`, `project`,
 `attendees`, `tags`. The title follows the type: empty gives the type's own
 ("Retro"), anything else replaces it; for a type that asks something, it's
 the answer (a 1:1's person, completed from people; an ad-hoc title,
@@ -180,7 +180,8 @@ series within a project. A new note in a series starts with
 `Previous: [[…]]` and a `## Carried over` section holding the previous note's
 open to-dos. In the old note, those are marked `- [>]`.
 
-Options: `meeting_types`, `meeting_filename`, `meeting_subdir`, `series`.
+Options: `meeting_types`, `default_meeting_type`, `meeting_filename`,
+`meeting_subdir`, `series`.
 
 ------------------------------------------------------------------------------
 TASKS AND THE BOARD                                            *logpose-board*
@@ -1131,6 +1132,8 @@ Notes and meetings ~
                  `person = true`: the input is a person, completed from
                  known people. `ask_attendees = true`: also ask for
                  attendees. Set a type to `false` to remove it.
+  default_meeting_type (string)  The type the new-meeting form starts on
+                 ("adhoc"); the first type when it isn't one of yours.
   meeting_filename (string)    Without `.md`. Variables: {date}, {time}
                  (HHMM), {slug}, {type}. Must contain {slug}.
                  Default "{date} - {slug}".

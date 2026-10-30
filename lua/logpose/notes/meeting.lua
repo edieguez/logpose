@@ -29,6 +29,18 @@ function M.types()
   return out
 end
 
+--- The type a new meeting starts with: `default_meeting_type` (Ad-hoc) when it's a type you
+--- have, else the first one.
+---@return string
+function M.default_type()
+  local key = config.get().default_meeting_type
+  if key and config.get().meeting_types[key] then
+    return key
+  end
+  local types = M.types()
+  return types[1] and types[1].key or ""
+end
+
 ---@param key string
 ---@return table
 local function get_type(key)
