@@ -253,8 +253,7 @@ function M.load_new_note(root, kind, defaults)
     end
   end
   if kind == "meeting" then
-    local types = require("logpose.notes.meeting").types()
-    initial.type = defaults.type or (types[1] and types[1].key) or ""
+    initial.type = defaults.type or require("logpose.notes.meeting").default_type()
     initial.date = defaults.date or date.today()
     initial.attendees = table.concat(defaults.attendees or {}, ", ")
   end

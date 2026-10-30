@@ -135,10 +135,15 @@ T["titles with quotes produce valid YAML"] = function()
   H.contains(H.read(meeting("2026-10-14 - say-hi-bye.md")), [[title: "Say \"hi\" \\ bye"]])
 end
 
-T["without a type, opens the new-meeting form, starting on the first type"] = function()
+T["without a type, opens the new-meeting form, starting on Ad-hoc"] = function()
   child.cmd("Logpose meeting")
   eq(child.bo.filetype, "logpose-edit")
-  eq(child.api.nvim_buf_get_lines(0, 0, 1, false)[1], "planning") -- the first type
+  eq(child.api.nvim_buf_get_lines(0, 0, 1, false)[1], "adhoc")
+  -- default_meeting_type picks another; one that isn't a type falls back to the first
+  child.lua("require('logpose.config').options.default_meeting_type = 'retro'")
+  eq(child.lua_get("require('logpose.notes.meeting').default_type()"), "retro")
+  child.lua("require('logpose.config').options.default_meeting_type = 'gone'")
+  eq(child.lua_get("require('logpose.notes.meeting').default_type()"), "planning")
 end
 
 T["same type and title on the same day opens the existing note"] = function()
