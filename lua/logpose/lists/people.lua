@@ -259,53 +259,49 @@ M.sorts = {
   },
 }
 
-function M.layout(ctx)
-  local name_w, role_w = 12, 0
-  for _, e in ipairs(ctx.entries) do
-    name_w = math.max(name_w, vim.fn.strdisplaywidth(e.person.name))
-    role_w = math.max(role_w, vim.fn.strdisplaywidth(e.person.role or ""))
-  end
-  ctx.name_w, ctx.role_w = math.min(name_w, 28), math.min(role_w, 22)
-end
+M.columns = {
+  { key = "name", flex = true, max = 32 },
+  { key = "role", max = 24, min = 8, hl = "LogposeListMeta" },
+  { key = "reach", max = 40, hl = "LogposeListPeople" },
+  { key = "met", max = 22, hl = "LogposeListMeta" },
+  { key = "activity", max = 64 },
+  { key = "projects", max = 32, hl = "LogposeListMeta" },
+}
 
 ---@param e logpose.ListEntry
 ---@param ctx table
----@return table[]
-function M.row(e, ctx)
+---@return table<string, string|table[]>
+function M.cells(e, ctx)
   local people = require("logpose.people")
   local date = require("logpose.util.date")
   local p, i = e.person, e.inv
-  local chunks = { { lists.fit(p.name, ctx.name_w) } }
-  if ctx.role_w > 0 then
-    table.insert(chunks, { "  " })
-    table.insert(chunks, { lists.fit(p.role or "", ctx.role_w), "LogposeListMeta" })
-  end
-  local meta = {}
   local reach = vim.tbl_map(function(c)
     return c.shown
   end, people.contacts_of(p))
-  if #reach > 0 then
-    table.insert(meta, { table.concat(reach, " · "), "LogposeListPeople" })
-  end
-  if i.last then
-    table.insert(meta, { "met " .. date.relative(i.last, date.today()), "LogposeListMeta" })
-  end
+  local activity = {}
   if #i.todos > 0 then
-    table.insert(meta, { ("☐ %d open"):format(#i.todos), "LogposeListTodos" })
-  end
-  if not p.page then
-    table.insert(meta, { ("%d mention%s"):format(p.count, p.count == 1 and "" or "s"), "LogposeListMeta" })
+    table.insert(activity, { ("☐ %d open"):format(#i.todos), "LogposeListTodos" })
   end
   if #e.next > 0 then
-    table.insert(meta, { ("✎ %d for the next 1:1"):format(#e.next), "LogposeListTasks" })
+    table.insert(activity, { ("✎ %d for the next 1:1"):format(#e.next), "LogposeListTasks" })
+  end
+  if not p.page then
+    table.insert(activity, { ("%d mention%s"):format(p.count, p.count == 1 and "" or "s"), "LogposeListMeta" })
   end
   if e.same_as then
-    table.insert(meta, { ("same as %s? R merges"):format(e.same_as.name), "LogposeListTodos" })
+    table.insert(activity, { ("same as %s? R merges"):format(e.same_as.name), "LogposeListTodos" })
   end
-  if ctx.all_projects and ctx.group ~= "project" and #e.project_list > 0 then
-    table.insert(meta, { "◆ " .. table.concat(e.project_list, ", "), "LogposeListMeta" })
-  end
-  return common.with_meta(chunks, meta)
+  return {
+    name = p.name,
+    role = p.role,
+    reach = table.concat(reach, " · "),
+    met = i.last and ("met " .. date.relative(i.last, date.today())) or nil,
+    activity = common.joined(activity),
+    projects = ctx.all_projects and ctx.group ~= "project" and #e.project_list > 0 and ("◆ " .. table.concat(
+      e.project_list,
+      ", "
+    )) or nil,
+  }
 end
 
 function M.details(e)

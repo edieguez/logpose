@@ -5,7 +5,9 @@ local M = {}
 ---@alias logpose.Chunk { [1]: string, [2]?: string }
 
 --- Replace `buf`'s text with `lines` (each a list of chunks: text and a highlight group), locked
---- and unmodified; trailing spaces are dropped and highlights clipped to the text.
+--- and unmodified; trailing spaces are dropped and highlights clipped to the text. A line with a
+--- `band = { hl, from, width }` field gets a background from byte `from` to display column
+--- `width` (padded past the text with virtual spaces, so the buffer's text stays the same).
 ---@param buf integer
 ---@param ns integer
 ---@param lines logpose.Chunk[][]
@@ -33,6 +35,23 @@ function M.draw(buf, ns, lines)
       end
       col = col + #c[1]
     end
+    local band = chunks.band
+    if band then
+      local from = math.min(band.from or 0, #texts[i])
+      local pad = band.width - vim.fn.strdisplaywidth(texts[i])
+      vim.api.nvim_buf_set_extmark(buf, ns, i - 1, from, {
+        end_col = #texts[i],
+        hl_group = band.hl,
+        priority = 50,
+      })
+      if pad > 0 then
+        -- past the end of the text: spaces that aren't in the buffer
+        vim.api.nvim_buf_set_extmark(buf, ns, i - 1, #texts[i], {
+          virt_text = { { string.rep(" ", pad), band.hl } },
+          virt_text_pos = "inline",
+        })
+      end
+    end
   end
   return texts
 end
@@ -44,6 +63,39 @@ function M.links(links)
     vim.api.nvim_set_hl(0, name, { link = link, default = true })
   end
 end
+
+--- A background a little off the editor's for banded rows (`LogposeBand`, yours if you set it).
+--- Worked out from `Normal` (5% towards the text colour); `CursorColumn` without colours.
+function M.band_hl()
+  local name = "LogposeBand"
+  local cur = vim.api.nvim_get_hl(0, { name = name })
+  if next(cur) and not vim.deep_equal(cur, M._band) then
+    return name -- set by you or your colour scheme
+  end
+  local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+  local bg, fg = normal.bg, normal.fg
+  if not bg then
+    vim.api.nvim_set_hl(0, name, { link = "CursorColumn" })
+  else
+    fg = fg or (vim.o.background == "light" and 0x000000 or 0xffffff)
+    local function mix(shift)
+      local x, y = math.floor(bg / shift) % 256, math.floor(fg / shift) % 256
+      return math.floor(x + (y - x) * 0.05 + 0.5) * shift
+    end
+    vim.api.nvim_set_hl(0, name, { bg = mix(0x10000) + mix(0x100) + mix(1) })
+  end
+  M._band = vim.api.nvim_get_hl(0, { name = name })
+  return name
+end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = vim.api.nvim_create_augroup("logpose.screen.band", { clear = true }),
+  callback = function()
+    if M._band then
+      M.band_hl() -- ours: work it out again for the new colours
+    end
+  end,
+})
 
 --- Leave a screen: its window shows the buffer you were in before (or an empty one).
 ---@param buf integer the screen's buffer

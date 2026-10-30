@@ -134,6 +134,13 @@ M.defaults = {
       email = { label = "Email", open = "mailto:{value}", order = 1 },
     },
   },
+  lists = {
+    --- The meetings, notes and people lists span the window up to this many columns; on a wider
+    --- window they keep to this width, in the middle.
+    max_width = 160,
+    --- Every other row on a slightly different background, to follow a row across (`LogposeBand`).
+    bands = true,
+  },
   tasks = {
     --- Column a captured task starts in, and one promoted from a to-do.
     capture_status = "backlog",
