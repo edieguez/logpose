@@ -362,6 +362,8 @@ with that title exists, the write-up is added to its end. On a to-do inside a ta
 
 ![The meetings list: meetings grouped by week, with their type, attendees, open action items, linked tasks and project](docs/images/meetings.png)
 
+![The people list: names, roles, how to reach them, when you last met, open to-dos and projects, in banded rows across the window](docs/images/people.png)
+
 ```vim
 :Logpose meetings                       " every meeting, by week
 :Logpose meetings attendees:ana         " the ones Ana attended
@@ -370,7 +372,10 @@ with that title exists, the write-up is added to its end. On a to-do inside a ta
 ```
 
 Each is a list grouped under headings, newest or most relevant first, with what matters at a
-glance:
+glance. Rows are laid out as a table across the window: the title (or name) takes the room, the
+rest lines up at the right edge, and every other row has a slightly different background so a row
+is easy to follow across. On a wide screen the list keeps to `lists.max_width` (160 columns) in
+the middle; on a narrow one the columns on the right give way first.
 
 | List | Each line | Group by (`g`) |
 |---|---|---|
@@ -404,13 +409,14 @@ date instead.
 
 ### The filter bar
 
-`/` on a list or the board opens a one-line filter over it. What's behind it updates as you
-type, and a menu shows what you can type next, each with a word on what it does: first the
+`/` on a list or the board opens a one-line filter below it, like Vim's own `/`, so it covers
+none of what you're filtering. The list updates as you type, and a menu shows what you can type next, each with a word on what it does: first the
 filters (`type:`, `attendees:`, `date>=`, `or`, `not`, and the fields your notes use, like
 `room:`), then their values from your journal (meeting types, projects, tags, people, dates
 like `today` or `-7d`). `<Tab>` completes, `<CR>` keeps the filter, `<Esc>` puts the old one
-back and `<F1>` shows the cheat sheet. The bar's lower edge counts what matches and names any
-word it ignored (a half-typed `since:2026-1`, say). `?` on a list shows its keys and the same
+back and `<F1>` shows the cheat sheet. The menu opens by itself while you type a word and
+stays shut between words (`<Tab>` opens it), so the results stay in view. The bar's right end
+counts what matches and names any word it ignored (a half-typed `since:2026-1`, say). `?` on a list shows its keys and the same
 cheat sheet; `:Logpose find` completes filter values on the command line too.
 
 The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `t` (talk: start a 1:1),
@@ -1024,6 +1030,10 @@ board = {
 tasks = {
   capture_status = "backlog",   -- column for :Logpose capture
   promote_status = "backlog",   -- column for :Logpose promote
+},
+lists = {
+  max_width = 160,  -- the meetings, notes and people lists span the window up to this; wider, they're centred
+  bands = true,     -- every other row on a slightly different background (LogposeBand)
 },
 ```
 

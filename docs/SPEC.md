@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads, 0.50.0 = Next 1:1 items; screens share their drawing); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads, 0.50.0 = Next 1:1 items; screens share their drawing, 0.51.0 = lists as tables across the window, banded rows, the filter bar below); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1322,7 +1322,7 @@ groupings, filters and moves, projects screen `f`.
   (`today`, `-7d`, this month, a range), or a field's values in the journal, most used first. A
   leading `-` is kept. `CHEATSHEET` / `cheatsheet_lines()` for help windows. `:Logpose find`
   completion uses it for values.
-- `filter/bar.lua`: a one-line float over the list or board window (`relative = "win"`).
+- `filter/bar.lua`: a one-line window under the list or board (a split since 0.51.0, see C12).
   `on_change` re-applies the filter as you type (deferred 40 ms) and returns a count shown on the
   lower edge with the ignored words (lenient `query.parse`'s skipped) and, when empty, examples.
   Our own popup (`vim.fn.complete`, `completeopt=menuone,noinsert,noselect` while open; blink and
@@ -1392,6 +1392,42 @@ blockers, options.
 
 **Tests**: `n` adds (twice, a ready-made list item kept as is), the row counts them, a 1:1 takes
 them under `## Topics` and empties the page; a template without Topics gets `## Agenda`.
+
+## C12 — Lists across the window; the filter bar below (0.51.0)
+
+**Goal.** Rows use the width a wide screen gives them without getting lost, and filtering never
+hides the results.
+
+**Lists as tables** (`lists/init.lua`)
+- A view gives `columns` (`{ key, max?, min?, flex?, hl? }`) and `cells(e, ctx)` → `{ [key] =
+  string | chunks }` instead of `row`. `M.widths(columns, cells, avail)`: each column as wide as
+  its longest cell (up to `max`; empty columns dropped); room left over goes to the `flex`
+  columns (title, name), so the rest sit at the right edge; short of room, `flex` columns shrink
+  to `min` (12), then columns go from the right, then flex shrinks further (6). Gap 3.
+- Content width = `min(window - 1, lists.max_width)` (160); a wider window centres it (`s.margin`
+  spaces before every line; cursor columns follow). Re-laid out on `VimResized`/`WinResized`.
+- Meetings: day · type · title (flex) · attendees · activity (`☐ open · → tasks`) · project.
+  Notes: day · title (flex) · activity · project · tags. People: name (flex) · role · reach ·
+  met · activity (open, next 1:1, mentions, same as) · projects.
+- Banding: every other entry row in a group (`lists.bands`, default on) gets `LogposeBand`
+  across the content width. `screen.draw` takes `line.band = { hl, from, width }`: a highlight
+  from byte `from` to the text's end, then inline virtual spaces to `width`, so the buffer text
+  is unchanged. `screen.band_hl()` works out `LogposeBand` from `Normal` (5% towards the
+  foreground; `CursorColumn` without colours), recomputed on `ColorScheme` unless you or your
+  scheme set it. The cursorline wins over the band.
+
+**The filter bar below** (`filter/bar.lua`)
+- `nvim_open_win(buf, true, { split = "below", win = parent, height = 1 })`, `winfixheight`; the
+  prompt is the `statuscolumn` (`Filter people › `), the status (count, ignored words, hints)
+  right-aligned virtual text (`M.status[win]` for tests). `pumheight` 10 while open, so the
+  menu (opening upwards) covers only the bottom of the list.
+- The menu opens by itself on an empty bar (on `InsertEnter`) and while a word is typed; between
+  words it stays shut (`<Tab>` opens it). `TextChangedI` on entering Insert mode (nothing typed)
+  is ignored.
+
+**Tests**: rows as cells (`cells()` helper in `test_lists.lua`), banding on alternate rows, a
+260-column window centred and capped, a 50-column one keeps the name; the bar is a split below
+the list with its top in view, no menu between words, `<Tab>` opens it, closing leaves one window.
 
 ## 5. Command reference (final state)
 
