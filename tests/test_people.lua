@@ -241,4 +241,75 @@ T["completion offers person: filters"] = function()
   eq(vim.tbl_contains(child.fn.getcompletion("Logpose find tasks ", "cmdline"), "person:bob-smith"), true)
 end
 
+T["@ in a note opens the menu with no setup: Neovim's own, blink.cmp's or nvim-cmp's"] = function()
+  person("ana-lopez", 'name: "Ana López"\nrole: Backend lead')
+  local path = root .. "/notes/plan.md"
+  H.write(path, "# Plan\n")
+  -- no completion plugin: Neovim's own menu
+  local cot = child.o.completeopt
+  child.cmd("edit " .. path)
+  child.type_keys("Go", "ask @lop")
+  vim.loop.sleep(30)
+  eq(child.fn.pumvisible(), 1)
+  local items = child.lua_get("vim.fn.complete_info({ 'items' }).items")
+  eq(items[1].word, "@ana-lopez")
+  eq(items[1].abbr, "Ana López")
+  child.type_keys("<C-n>", "<C-y>", "<Esc>")
+  eq(child.api.nvim_get_current_line(), "ask @ana-lopez")
+  eq(child.o.completeopt, cot) -- yours again after Insert mode
+
+  -- blink.cmp: the source goes in for markdown
+  child.lua([[
+    _G.calls = {}
+    package.loaded["blink.cmp.config"] = { sources = { default = { "lsp", "buffer" }, providers = {}, per_filetype = {} } }
+    package.loaded["blink.cmp"] = {
+      add_source_provider = function(id, c) table.insert(_G.calls, { "provider", id, c.module }) end,
+      add_filetype_source = function(ft, id) table.insert(_G.calls, { "filetype", ft, id }) end,
+    }
+  ]])
+  child.cmd("edit " .. root .. "/notes/other.md")
+  child.type_keys("i", "<Esc>")
+  child.lua("vim.wait(20)")
+  eq(child.lua_get("_G.calls"), {
+    { "provider", "logpose", "logpose.completion.blink" },
+    { "filetype", "markdown", "logpose" },
+  })
+  -- once is enough; and outside the journal, nothing
+  child.cmd("edit " .. H.tmpdir() .. "/elsewhere.md")
+  child.type_keys("i", "<Esc>")
+  child.lua("vim.wait(20)")
+  eq(#child.lua_get("_G.calls"), 2)
+end
+
+T["a blink.cmp config that has the source already is left alone; nvim-cmp gets it per note"] = function()
+  child.lua([[
+    _G.calls = {}
+    package.loaded["blink.cmp.config"] = { sources = {
+      default = { "lsp" }, providers = { logpose = { module = "logpose.completion.blink" } },
+      per_filetype = { markdown = { "logpose", inherit_defaults = true } },
+    } }
+    package.loaded["blink.cmp"] = {
+      add_source_provider = function(id) table.insert(_G.calls, id) end,
+      add_filetype_source = function(_, id) table.insert(_G.calls, id) end,
+    }
+  ]])
+  child.cmd("edit " .. root .. "/notes/a.md")
+  child.type_keys("i", "<Esc>")
+  child.lua("vim.wait(20)")
+  eq(child.lua_get("_G.calls"), {})
+  child.lua([[
+    package.loaded["blink.cmp"], package.loaded["blink.cmp.config"] = nil, nil
+    _G.buffer_sources = nil
+    package.loaded["cmp"] = {
+      register_source = function() end,
+      get_config = function() return { sources = { { name = "buffer" } } } end,
+      setup = { buffer = function(c) _G.buffer_sources = vim.tbl_map(function(x) return x.name end, c.sources) end },
+    }
+  ]])
+  child.cmd("edit " .. root .. "/notes/b.md")
+  child.type_keys("i", "<Esc>")
+  child.lua("vim.wait(20)")
+  eq(child.lua_get("_G.buffer_sources"), { "buffer", "logpose" })
+end
+
 return T
