@@ -51,7 +51,7 @@ Optional, and used automatically when present:
 | Plugin | What it adds |
 |---|---|
 | [snacks.nvim](https://github.com/folke/snacks.nvim), [fzf-lua](https://github.com/ibhagwan/fzf-lua) or [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) | Search with live results and a preview. Without one, logpose uses `vim.ui.select` and the quickfix list. |
-| [blink.cmp](https://github.com/Saghen/blink.cmp) or [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) | Completion of `[[` note links ([setup](#topic-notes-and-links)). |
+| [blink.cmp](https://github.com/Saghen/blink.cmp) or [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) | Completion of `[[` links and `@` people in notes uses its menu ([completion](#topic-notes-and-links)). Without one, Neovim's own menu does the job. |
 | A Nerd Font | Nicer board glyphs with `board = { icons = "nerd" }`. |
 
 ## Quick start
@@ -734,12 +734,10 @@ matter.
 
 **Completion in notes.** In a journal note, typing `[[` offers every note and task to link;
 in the frontmatter's `attendees:` and `with:` lines, typing a name (after `[` or a comma) offers
-people; and `@` in the text offers people as `@handle`. It needs a completion plugin:
-
-- **blink.cmp:** add `logpose = { name = "logpose", module = "logpose.completion.blink" }` to
-  `sources.providers`, and `"logpose"` to your markdown sources.
-- **nvim-cmp:** logpose registers the source itself; add `{ name = "logpose" }` to your markdown
-  sources.
+people; and `@` in the text offers your people (everyone with a page, and everyone you've
+mentioned) as `@handle`, matching any part of the name (`@lop` finds Ana López). It works with no
+setup: in a journal note logpose adds its source to blink.cmp or nvim-cmp, whichever you use
+(unless your config lists it already), and without either it opens Neovim's own menu.
 
 ## Sprints, archives and reports
 
