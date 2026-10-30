@@ -313,4 +313,25 @@ T["a template without ## Topics gets an ## Agenda"] = function()
   H.contains(H.read(note.path), "## Agenda\n\n- budget\n\n## Notes")
 end
 
+T["the filter bar sits under the list, like /, and covers none of it"] = function()
+  child.cmd("Logpose people")
+  local list = child.api.nvim_get_current_win()
+  child.type_keys("/")
+  eq(child.bo.filetype, "logpose-filter")
+  local bar = child.api.nvim_get_current_win()
+  eq(child.api.nvim_win_get_config(bar).relative, "") -- a window of its own, not a float
+  local lpos, bpos = child.fn.win_screenpos(list), child.fn.win_screenpos(bar)
+  eq(bpos[1] > lpos[1] + child.api.nvim_win_get_height(list) - 1, true)
+  eq(child.fn.line("w0", list), 1) -- the top of the list is in view
+  child.type_keys("<C-e>", "role:lead ")
+  vim.loop.sleep(120)
+  eq(child.fn.pumvisible(), 0) -- between words the menu stays shut
+  H.contains(child.lua_get("require('logpose.filter.bar').status[vim.api.nvim_get_current_win()]"), "1 person")
+  child.type_keys("<Tab>")
+  eq(child.fn.pumvisible(), 1) -- Tab opens it
+  child.type_keys("<C-e>", "<CR>")
+  eq(child.api.nvim_get_current_win(), list)
+  eq(#child.api.nvim_tabpage_list_wins(0), 1) -- the bar is gone
+end
+
 return T
