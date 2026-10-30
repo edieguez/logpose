@@ -1,6 +1,6 @@
 --- nvim-cmp source for journal notes: `[[` links, people in `attendees:`/`with:`, `@` mentions
---- (see `logpose.completion`). Registered as "logpose" by require("logpose").setup()
---- when nvim-cmp is installed; add { name = "logpose" } to your markdown sources.
+--- (see `logpose.completion`). Registered as "logpose" and added to a journal note's sources by
+--- itself (or list { name = "logpose" } in your markdown sources).
 local M = {}
 
 function M.new()

@@ -1,5 +1,6 @@
 --- blink.cmp source for journal notes: `[[` links, people in `attendees:`/`with:`, `@` mentions
---- (see `logpose.completion`). Add to your blink config:
+--- (see `logpose.completion`). Added for markdown by itself in journal notes; to list it in your
+--- own config instead:
 ---   sources = { per_filetype = { markdown = { inherit_defaults = true, "logpose" } },
 ---               providers = { logpose = { name = "logpose", module = "logpose.completion.blink" } } }
 local M = {}
