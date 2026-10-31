@@ -793,6 +793,14 @@ end
 ---@return integer win
 function M.show(model, opts)
   opts = opts or {}
+  -- one form at a time: the one already open comes back to the front
+  for _, open in pairs(M.forms) do
+    if vim.api.nvim_win_is_valid(open.win) then
+      vim.api.nvim_set_current_win(open.win)
+      ui.notify("logpose: a form is open already: save it (<C-s>) or close it (q) first", vim.log.levels.WARN)
+      return open.win
+    end
+  end
   define_highlights()
   local buf = vim.api.nvim_create_buf(false, true)
   local lines = {}
@@ -868,6 +876,7 @@ function M.show(model, opts)
   }
   M.forms[buf] = f
   M.render(f)
+  require("logpose.util.modal").guard(win)
 
   -- completeopt is global on Neovim 0.10: set it while the form has focus
   local saved_cot

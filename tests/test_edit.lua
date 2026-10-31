@@ -562,4 +562,61 @@ T[":Logpose edit on quickfix lines edits those tasks together"] = function()
   eq(values(), { "todo", "", "review", "2026-10-16", "" }) -- read back: now shared
 end
 
+T["a form keeps the focus while it's open; one form at a time"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  child.cmd("Logpose board")
+  local board = child.api.nvim_get_current_win()
+  child.type_keys("l", "e") -- TODO
+  eq(child.bo.filetype, "logpose-edit")
+  local form = child.api.nvim_get_current_win()
+  -- going behind it (a click, <C-w>w, a plugin) comes straight back
+  child.cmd("stopinsert")
+  child.api.nvim_set_current_win(board)
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_get_current_win(), form)
+  child.type_keys("<C-w>w")
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_get_current_win(), form)
+  -- another form while one is open: the open one, and a word on why
+  child.lua(("require('logpose.edit').open(%q)"):format(root .. "/tasks/fix.md"))
+  eq(child.api.nvim_get_current_win(), form)
+  eq(child.lua_get("vim.tbl_count(require('logpose.edit.form').forms)"), 1)
+  H.contains(child.notifications()[#child.notifications()].msg, "a form is open already")
+  -- a float opened from it (a picker, help) can have the focus
+  child.lua([[_G.float = vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), true,
+    { relative = "editor", row = 1, col = 1, width = 10, height = 2 })]])
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_get_current_win(), child.lua_get("_G.float"))
+  child.lua("vim.api.nvim_win_close(_G.float, true)")
+  -- closed, the board is free again
+  child.api.nvim_set_current_win(form)
+  child.type_keys("q")
+  eq(child.api.nvim_get_current_win(), board)
+  child.cmd("vsplit")
+  child.type_keys("<C-w>w")
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_win_get_config(0).relative, "")
+end
+
+T["peek and help windows keep the focus too"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  child.cmd("Logpose board")
+  local board = child.api.nvim_get_current_win()
+  child.type_keys("l", "K")
+  local peek = child.api.nvim_get_current_win()
+  eq(child.api.nvim_win_get_config(peek).relative, "editor")
+  child.api.nvim_set_current_win(board)
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_get_current_win(), peek)
+  child.type_keys("q")
+  eq(child.api.nvim_get_current_win(), board)
+  child.type_keys("?")
+  local help = child.api.nvim_get_current_win()
+  child.api.nvim_set_current_win(board)
+  child.lua("vim.wait(20)")
+  eq(child.api.nvim_get_current_win(), help)
+  child.type_keys("q")
+  eq(child.api.nvim_get_current_win(), board)
+end
+
 return T

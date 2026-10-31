@@ -41,6 +41,7 @@ function M.open(title, lines)
   })
   vim.wo[win].wrap = false
   vim.wo[win].cursorline = false
+  require("logpose.util.modal").guard(win)
   for _, lhs in ipairs({ "q", "<Esc>", "?" }) do
     vim.keymap.set("n", lhs, function()
       pcall(vim.api.nvim_win_close, win, true)

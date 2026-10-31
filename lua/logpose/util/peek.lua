@@ -27,6 +27,7 @@ function M.open(file, title, on_close)
   })
   vim.wo[win].wrap = true
   vim.wo[win].linebreak = true
+  require("logpose.util.modal").guard(win)
   -- Start at the body, after the frontmatter.
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local body = 1
