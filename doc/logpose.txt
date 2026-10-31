@@ -571,6 +571,11 @@ one value; the field's name is drawn beside it and can't be edited. Lists
 (`tags`, `attendees`, `paths`) are written `a, b`. Fields logpose keeps
 itself (`created`, `modified`, `started`, `done`, `series`) are shown below.
 
+The form, like the peek and help windows, keeps the focus while it's open:
+going to a window behind it (a click, <C-w>w, a plugin) comes back to it, and
+a second form brings the open one to the front instead. Floating windows
+opened from it (pickers, menus) work as usual.
+
 As you type, a menu offers what fits the field: projects, board columns
 (`status`), existing tags, people, meeting types, the next two weeks (`due`,
 `date`) and folders (`paths`). In a list it completes the next item.

@@ -670,6 +670,10 @@ description, paths, colour) and people pages (name, aliases, role, projects, way
 The form's title says which it is (`Edit task · …`, `Edit meeting · …`). Other keys are left as
 they are.
 
+The form keeps the focus while it's open, like the peek and help windows: clicking the board or
+`<C-w>w` brings you back to it, so nothing behind it changes underneath, and opening another form
+brings the open one to the front instead. Pickers and menus opened from it work as usual.
+
 `:Logpose edit` opens the frontmatter of the current task or note as a form. It also opens from `e` on a
 board card, `e` on a project in `:Logpose projects`, and `:Logpose edit last` for the task you
 just captured:
