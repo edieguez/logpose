@@ -64,7 +64,7 @@ capture/done, sprint-aware archives and reports.
 
 **Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
 bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads, 0.50.0 = Next 1:1 items; screens share their drawing, 0.51.0 = lists as tables across the window, banded rows, the filter bar below, 0.52.0 = completion in notes with no setup, 0.53.0 = new meetings start as Ad-hoc, 0.53.1 = dialogs keep the focus); fixes bump the patch;
+0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads, 0.50.0 = Next 1:1 items; screens share their drawing, 0.51.0 = lists as tables across the window, banded rows, the filter bar below, 0.52.0 = completion in notes with no setup, 0.53.0 = new meetings start as Ad-hoc, 0.53.1 = dialogs keep the focus, 0.54.0 = project docs); fixes bump the patch;
 1.0.0 once M3 is done.
 
 ---
@@ -1473,6 +1473,44 @@ alone (pickers, completion docs, another dialog). Guarded: the edit form, peek, 
 second `edit.open` leaves one form; a float takes the focus; after `q` the windows are free; peek
 and help do the same.
 
+## C16 — Project docs (0.54.0)
+
+**Goal.** A personal wiki that lasts: lasting knowledge in `notes/`, linked to projects; what
+only makes sense inside one project (decisions, specs, runbooks) in that project's folder,
+`projects/<project>/`, next to its page (kept as `projects/<project>.md` for Obsidian).
+
+**Design**
+- `doc_types` (config, like `meeting_types`): `decision` (`statuses` proposed, accepted,
+  superseded, rejected), `spec`, `runbook`, `doc`; templates `decision.md`, `spec.md`,
+  `runbook.md`, `doc.md` (markdownlint-clean).
+- `index.file_type`: a file directly in `projects/` (or `projects/archive/`) is a page
+  (`project`); anything deeper is a `doc`. `index.doc_project(path)`: the folder's name (under
+  `archive/` too); a doc's `project` falls back to it.
+- `notes/doc.lua`: `types`, `spec`, `default_type`, `dir`, `path` (`<slug>-2.md`… when taken),
+  `create(root, { type, title, project, tags, status })` (frontmatter `title`, `type`,
+  `project`, `status` when the type has statuses, `tags`, timestamps), `move(root, path, to)`
+  (frontmatter, every link via `maintenance.link_pair`/`rewrite_links`, the emptied folder
+  removed), `command` (`:Logpose doc [type] [title]`, the form), `complete`.
+- Form (`kind = "doc"`): new fields `type, title, project, status, tags`; editing `title, type,
+  status, project, tags`. `fields.doc_checks`: a project is needed; `status` must be one of the
+  type's (a new one: empty means the first, as a hint). Candidates: doc types; statuses of the
+  type typed. Effects: "create projects/acme/x.md, a decision of acme"; "move the doc to
+  projects/billing/, fixing N links to it". `save.note` moves a doc whose project changed.
+- Notes list: docs grouped by type (`doc:<type>`, "Decisions", order after topic notes; a
+  type's `plural` overrides), the status in the activity column; `a` under a doc type opens the
+  doc form; `m` to No project refused. `notes`/`topics` search scopes include docs.
+- `maintenance.plan_project`: `plan_folder` for both the meeting folder (files) and the docs
+  folder (files and folders); merging moves the contents and removes the emptied folder.
+- `fs.reload` and the moves keep `v:errmsg` as it was (a markdown ftplugin's silenced unmapping on
+  reload set E31, which a mapping's caller sees as an error).
+- Keymap `<leader>jD`.
+
+**Tests** (`test_docs.lua`): the form (first type, project needed, status hint, preview, file and
+frontmatter, cursor in Context); type and status checks, a type without statuses; the index
+(page vs doc, project from the folder, `type:decision`); moving to another project (file, link,
+empty folder gone, no project refused); the notes list (groups and order, status, `a`, `m`);
+rename and merge move the folder and its contents.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1493,6 +1531,7 @@ and help do the same.
 | `:Logpose ticket [ID]`                    | F8 |
 | `:Logpose find decisions\|blockers\|people …` | O1, O3 |
 | `:Logpose note [title]` / `project-page [name]` | O4 |
+| `:Logpose doc [type] [title]`             | C16 |
 | `:Logpose backlinks` / `links`            | O4 |
 | `:Logpose view [name]`                    | O5 |
 | `:Logpose rename-tag` / `rename-project`  | O6 |

@@ -23,6 +23,7 @@ Requires Neovim 0.10 or later.
   [Projects](#projects) · [Search](#search) · [Action items](#action-items-and-people) ·
   [People](#people) ·
   [Editing details](#editing-details) · [Links](#topic-notes-and-links) ·
+  [Project docs](#project-docs) ·
   [Sprints and reports](#sprints-archives-and-reports) ·
   [Extras](#extras)
 - **Reference:** [Commands](#commands) · [Board keys](#board-keys) ·
@@ -743,6 +744,42 @@ mentioned) as `@handle`, matching any part of the name (`@lop` finds Ana López)
 setup: in a journal note logpose adds its source to blink.cmp or nvim-cmp, whichever you use
 (unless your config lists it already), and without either it opens Neovim's own menu.
 
+## Project docs
+
+**Decisions, specs and runbooks that belong to one project, in its own folder.**
+
+Topic notes in `notes/` are for what you learn and keep, whatever the project. A project doc is
+for what only makes sense inside one project: a decision and why it was taken, the spec of a
+feature, how to deploy or restore it. It lives in the project's folder, next to its page:
+
+```text
+projects/
+├── acme.md                  the project page
+└── acme/                    its docs (and anything else you keep there: diagrams, exports)
+    ├── use-postgres.md
+    └── deploy.md
+```
+
+`:Logpose doc` opens the new-doc form: the type, the title, the project (a doc needs one) and
+tags. `:Logpose doc decision Use Postgres` starts it with those filled in. Each type has its own
+template:
+
+| Type | Template | Status |
+|---|---|---|
+| `decision` | Context · Decision · Consequences · Alternatives considered | `proposed` (new), `accepted`, `superseded`, `rejected` |
+| `spec` | Goal · Scope · Design · Open questions | |
+| `runbook` | When to use it · Steps · Checking it worked · Rolling back | |
+| `doc` | empty | |
+
+The notes list shows docs under their type (Decisions, Specs…), with a decision's status;
+`a` under a type adds one, and `type:decision` or `project:acme` finds them anywhere. **Moving
+a doc to another project moves the file** to that project's folder, and links to it follow
+(`m` in the list, or `project` in the edit form). Renaming or merging a project moves its folder
+too. A doc's project comes from its folder when the frontmatter doesn't say.
+
+> **Configure:** add or remove types in `doc_types`
+> (`adr = { label = "ADR", template = "decision", statuses = { "draft", "done" } }`, `spec = false`).
+
 ## Sprints, archives and reports
 
 **logpose knows which sprint any date falls in.** Give it the start date and number of any one
@@ -869,8 +906,9 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `meetings [FILTERS]` | Every meeting, by week, type, project or series, with attendees and action items. |
-| `notes [FILTERS]` | Topic notes and project pages by type, project, tag or month, with their to-dos and linked tasks. |
+| `notes [FILTERS]` | Topic notes, project docs and project pages by type, project, tag or month, with their to-dos and linked tasks. |
 | `note [TITLE]` | Create or open a topic note. Without a title, the new-note form. |
+| `doc [TYPE] [TITLE]` | A new [project doc](#project-docs): decision, spec, runbook or doc, in the project's folder. |
 | `project [NAME\|none\|auto]` | Switch project (the projects screen without a name); `none` for no project, `auto` to detect it. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
@@ -961,6 +999,7 @@ and it never replaces a key you've mapped yourself.
 | **Notes** | `<leader>jl` | notes list | `<leader>jd` | daily note |
 | | `<leader>jM` | meetings list | | |
 | | `<leader>jm` | meeting note | `<leader>jn` | topic note |
+| | `<leader>jD` | project doc | | |
 | | `<leader>jf` | find notes | `<leader>jb` | backlinks |
 | | `<leader>j/` | grep the journal | | |
 | **Tasks** | `<leader>jk` | board | `<leader>jc` | new task |
@@ -1068,6 +1107,13 @@ meeting_types = {
   adhoc      = { label = "Ad-hoc", template = "meeting", prompt = "Meeting title: ", order = 60 },
   -- a type may also set ask_attendees = true; set a type to false to remove it
 },
+doc_types = {                          -- project docs, in projects/<project>/
+  decision = { label = "Decision", template = "decision", order = 10,
+               statuses = { "proposed", "accepted", "superseded", "rejected" } },
+  spec     = { label = "Spec", template = "spec", order = 20 },
+  runbook  = { label = "Runbook", template = "runbook", order = 30 },
+  doc      = { label = "Doc", template = "doc", order = 40 },
+},
 series = { carry_over = true, mark_carried = true },
 daily = { carry_over = true, mark_carried = true },  -- open to-dos and blockers carry to the next note
 standup = { group_by_project = true },
@@ -1127,7 +1173,7 @@ file, then one above the current directory, then the journal chosen with `:Logpo
 ## Templates
 
 logpose ships templates for `daily`, `meeting`, `planning`, `refinement`, `review`, `retro`,
-`1on1`, `note`, `project` and `task`. To change one, put a file with the same name in your
+`1on1`, `note`, `project`, `task`, and the project docs' `decision`, `spec`, `runbook` and `doc`. To change one, put a file with the same name in your
 journal's `templates/` folder.
 
 | Variable | Becomes |
@@ -1163,6 +1209,7 @@ headings, lists and code it inserts, and never rewraps your own text.
 │   └── archive/sprint-42/           done tasks from past sprints
 ├── notes/queue-design.md            topic notes
 ├── projects/acme-api.md             project pages
+├── projects/acme-api/use-postgres.md  project docs
 ├── people/ana-lopez.md              people pages
 ├── reports/sprint-42.md
 └── templates/                       your template overrides

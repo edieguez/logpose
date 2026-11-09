@@ -26,6 +26,7 @@ CONTENTS                                                    *logpose-contents*
        People pages ........................ |logpose-people|
        Editing details ..................... |logpose-edit|
        Topic notes and links ............... |logpose-links|
+       Project docs ........................ |logpose-docs|
        Sprints, archives and reports ....... |logpose-sprints|
        Statusline .......................... |logpose-statusline|
   4. Commands .............................. |logpose-commands|
@@ -660,6 +661,32 @@ adds its source to whichever completion plugin is loaded:
   neither     Neovim's own menu, opened as you type
 
 ------------------------------------------------------------------------------
+PROJECT DOCS                                                    *logpose-docs*
+
+Decisions, specs, runbooks and other docs that belong to one project live in
+its folder, next to its page: `projects/acme/use-postgres.md` beside
+`projects/acme.md`. Topic notes (`notes/`) are for what outlives a project.
+
+|:Logpose-doc| opens the new-doc form: `type`, `title`, `project` (needed:
+the doc goes in that project's folder), `status` and `tags`. Types and their
+templates:
+
+  decision   Context, Decision, Consequences, Alternatives considered;
+             `status` proposed (new), accepted, superseded, rejected
+  spec       Goal, Scope, Design, Open questions
+  runbook    When to use it, Steps, Checking it worked, Rolling back
+  doc        empty
+
+The notes list shows them under their type (Decisions, Specs…) with a
+decision's status; `a` under a type adds one; `type:decision` and
+`project:acme` find them. Another project (`m` in the list, `project` in the
+form) moves the file to that project's folder and fixes the links to it;
+renaming or merging a project moves its folder. A doc without `project:`
+takes it from its folder.
+
+Options: `doc_types` (|logpose-setup|).
+
+------------------------------------------------------------------------------
 SPRINTS, ARCHIVES AND REPORTS                                *logpose-sprints*
 
 Periods are Monday weeks unless you configure sprints. Give logpose the
@@ -839,6 +866,12 @@ Notes and projects ~
     Create (from the `note` template) or open `notes/{slug}.md`. Without
     {title}, a form (|logpose-edit|) for its title, project and tags; <C-s>
     creates the note and opens it.
+
+                                                                *:Logpose-doc*
+:Logpose doc [{type}] [{title}]
+    The new-doc form (|logpose-docs|), starting on {type} (the first type,
+    `decision`, without one) and {title}; <C-s> creates the doc in its
+    project's folder and opens it.
 
                                                                *:Logpose-edit*
 :Logpose edit [last]
@@ -1039,6 +1072,7 @@ you have mapped yourself are never replaced.
   <leader>jl  notes list            <leader>jd  daily note
   <leader>jM  meetings list
   <leader>jm  meeting note          <leader>jn  topic note
+  <leader>jD  project doc
   <leader>jf  find notes            <leader>jb  backlinks
   <leader>j/  grep the journal
 
@@ -1131,6 +1165,10 @@ Board and tasks ~
 
 Notes and meetings ~
 
+  doc_types      (table)       Project doc types by name. Fields: `label`,
+                 `template` (default "doc"), `order`, `statuses` (the
+                 values of `status:`, the first for a new doc). Set a type
+                 to `false` to remove it.
   meeting_types  (table)       Types by name. Fields: `label`, `template`
                  (default "meeting"), `order`, and either `title` (fixed)
                  or `prompt` (asks; `title` may use {input}).
@@ -1200,7 +1238,7 @@ Folders and file names ~
 
 Templates are looked up in your journal's `templates/` folder first, then in
 the plugin's. Shipped: daily, meeting, planning, refinement, review, retro,
-1on1, note, project, task.
+1on1, note, project, task; for project docs decision, spec, runbook, doc.
 
   {date} {time} {weekday}     2026-10-15, 09:05, Thursday
   {iso_week} {sprint}         2026-W42, sprint-43
@@ -1238,7 +1276,8 @@ Layout ~
   ├── daily/daily-2026-10-15.md      notes: daily,
   ├── meetings/acme/2026-10-14 - retro.md       meetings,
   ├── notes/queue-design.md                     topic notes,
-  ├── projects/acme.md                          project pages
+  ├── projects/acme.md                          project pages,
+  ├── projects/acme/use-postgres.md             project docs
   ├── people/ana-lopez.md            people pages
   ├── tasks/fix-flaky-test.md        tasks: one file each
   ├── tasks/archive/sprint-42/       done tasks from past sprints
