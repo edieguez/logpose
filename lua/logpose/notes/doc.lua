@@ -1,6 +1,7 @@
 --- Project docs: decisions, specs, runbooks and other docs that belong to one project and live in
 --- its folder, `projects/<project>/<slug>.md`, next to the project page. `:Logpose doc [type]`
---- opens the new-doc form; moving a doc to another project moves the file (links follow).
+--- opens the new-doc form; moving a doc to another project moves the file (links follow);
+--- promoting one makes it a lasting note in `notes/`.
 local config = require("logpose.config")
 local fs = require("logpose.util.fs")
 local text = require("logpose.util.text")
@@ -114,15 +115,17 @@ function M.create(root, d)
   return path, cursor, false
 end
 
---- Move a doc to another project's folder, its `project:` and the links to it following.
+--- Move a note to `dest` with its frontmatter changed (`fm`, see `frontmatter.set`) and the
+--- links to it fixed; `body(lines)` may change it too. The folder it leaves is removed if empty.
 ---@param root string
 ---@param path string
----@param to string the project
----@return string new_path
-function M.move(root, path, to)
+---@param dest string
+---@param fm table
+---@param body? fun(lines: string[]): string[]
+---@return string dest
+local function relocate(root, path, dest, fm, body)
   local link = require("logpose.link")
   local maintenance = require("logpose.maintenance")
-  local dest = fs.join(M.dir(root, to), vim.fs.basename(path))
   if dest == path then
     return path
   end
@@ -135,7 +138,10 @@ function M.move(root, path, to)
   end
   local pair = maintenance.link_pair(root, path, dest)
   local changes = {}
-  local lines = require("logpose.frontmatter").set(fs.read_lines(path) or {}, { project = to })
+  local lines = require("logpose.frontmatter").set(fs.read_lines(path) or {}, fm)
+  if body then
+    lines = body(lines)
+  end
   table.insert(changes, { path = path, content = table.concat(lines, "\n"), count = 1 })
   for _, file in ipairs(require("logpose.index").files(root)) do
     if file ~= path then
@@ -156,6 +162,71 @@ function M.move(root, path, to)
   table.insert(changes, { path = vim.fs.dirname(path), rmdir = true, count = 0 }) -- if it's empty now
   maintenance.apply(changes)
   return dest
+end
+
+--- Move a doc to another project's folder, its `project:` and the links to it following.
+---@param root string
+---@param path string
+---@param to string the project
+---@return string new_path
+function M.move(root, path, to)
+  return relocate(root, path, fs.join(M.dir(root, to), vim.fs.basename(path)), { project = to })
+end
+
+--- Make a doc a lasting note: it moves to `notes/` (links follow), leaves its project, type and
+--- status behind, and says where it started ("Started in [[projects/acme|Acme]].").
+---@param root string
+---@param path string
+---@return string new_path
+function M.promote(root, path)
+  local index = require("logpose.index")
+  if index.file_type(path, root) ~= "doc" then
+    error("logpose: this isn't a project doc", 0)
+  end
+  local item = index.index_lines(path, fs.read_lines(path) or {}, root)[1]
+  local project = item.project
+  local dest = require("logpose.notes.topic").note_path(root, item.title)
+  local page = project and fs.join(config.path("projects", root), project .. ".md")
+  return relocate(root, path, dest, { project = false, type = false, status = false }, function(lines)
+    if not project then
+      return lines
+    end
+    local close = require("logpose.frontmatter").close(lines) or 0
+    local title = require("logpose.project").title(root, project)
+    local line = ("Started in %s."):format(require("logpose.link").make(dest, page, title, root))
+    local out = vim.list_slice(lines, 1, close)
+    vim.list_extend(out, { line, "" })
+    local rest = vim.list_slice(lines, close + 1)
+    while rest[1] == "" do
+      table.remove(rest, 1)
+    end
+    return vim.list_extend(out, rest)
+  end)
+end
+
+--- `:Logpose promote` in a doc: ask, then make it a lasting note (`!`: without asking).
+---@param root string
+---@param path string
+---@param bang? boolean
+---@param done? fun(path: string)
+function M.promote_ask(root, path, bang, done)
+  local function go()
+    local dest = M.promote(root, path)
+    local rel = require("logpose.link").relpath(root, dest)
+    ui.notify(("logpose: now a lasting note: %s"):format(rel), vim.log.levels.INFO)
+    if done then
+      done(dest)
+    end
+  end
+  if bang then
+    return go()
+  end
+  local yes = "Move it to notes/ (it leaves the project; links follow)"
+  vim.ui.select({ yes, "Cancel" }, { prompt = "Make it a lasting note?" }, function(choice)
+    if choice == yes then
+      ui.safely(go)()
+    end
+  end)
 end
 
 ---@param opts logpose.CommandOpts
