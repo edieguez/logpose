@@ -188,7 +188,8 @@ function M.promote(root)
 end
 
 --- `:Logpose promote`: on a to-do, a task; in a task file (not on one of its to-dos), the
---- task's write-up (or the selected lines) becomes a note.
+--- task's write-up (or the selected lines) becomes a note; in a project doc, it becomes a lasting
+--- note in `notes/` (asks first; `!` doesn't).
 ---@param opts logpose.CommandOpts
 function M.promote_command(opts)
   require("logpose.config").with_root(ui.safely(function(root)
@@ -197,6 +198,14 @@ function M.promote_command(opts)
     local on_todo = M.parse(vim.api.nvim_get_current_line()) ~= nil and (opts.range or 0) == 0
     if path ~= "" and taskfile.is_task_file(path, root) and not on_todo then
       require("logpose.notes.from_task").command(root, require("logpose.util.fs").normalize(path), opts)
+      return
+    end
+    local norm = path ~= "" and require("logpose.util.fs").normalize(path)
+    if norm and not on_todo and require("logpose.index").file_type(norm, root) == "doc" then
+      if vim.bo.modified then
+        error("logpose: save the doc first", 0)
+      end
+      require("logpose.notes.doc").promote_ask(root, norm, opts.bang)
       return
     end
     M.promote(root)

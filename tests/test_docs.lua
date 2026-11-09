@@ -238,4 +238,51 @@ T["rename-project moves the folder of docs; merge-project moves what's in it"] =
   H.contains(H.read(root .. "/notes/db.md"), "[[projects/billing/use-postgres]]")
 end
 
+T[":Logpose promote makes a doc a lasting note: to notes/, its project left behind, links fixed"] = function()
+  H.write(
+    root .. "/projects/acme/postgres-tuning.md",
+    '---\ntitle: "Postgres tuning"\ntype: doc\nproject: acme\ntags: [db]\n---\n## Settings\n\nwork_mem\n'
+  )
+  H.write(root .. "/notes/db.md", "# DB\nsee [[projects/acme/postgres-tuning|tuning]]\n")
+  child.cmd("edit " .. root .. "/projects/acme/postgres-tuning.md")
+  child.lua([[vim.ui.select = function(items, opts, cb) _G.asked = opts.prompt; cb(items[1]) end]])
+  child.cmd("Logpose promote")
+  eq(child.lua_get("_G.asked"), "Make it a lasting note?")
+  local dest = root .. "/notes/postgres-tuning.md"
+  eq(vim.fn.filereadable(root .. "/projects/acme/postgres-tuning.md"), 0)
+  eq(child.api.nvim_buf_get_name(0), dest) -- the buffer follows
+  local text = H.read(dest)
+  eq(text:find("project:", 1, true), nil)
+  eq(text:find("type:", 1, true), nil)
+  H.contains(text, 'title: "Postgres tuning"\ntags: [db]')
+  H.contains(text, "---\nStarted in [[projects/acme|Acme API]].\n\n## Settings")
+  H.contains(H.read(root .. "/notes/db.md"), "[[notes/postgres-tuning|tuning]]")
+  local n = child.notifications()
+  H.contains(n[#n].msg, "now a lasting note: notes/postgres-tuning.md")
+  -- in a topic note, promote isn't for docs
+  child.cmd("Logpose promote")
+  H.contains(child.notifications()[#child.notifications()].msg, "no to-do on this line")
+end
+
+T["the notes list: P makes a doc a lasting note; <Tab> shows its links both ways"] = function()
+  H.write(
+    root .. "/projects/acme/use-postgres.md",
+    '---\ntitle: "Use Postgres"\ntype: decision\nproject: acme\n---\nsee [[notes/db]] and [[notes/gone]]\n'
+  )
+  H.write(root .. "/notes/db.md", '---\ntitle: "DB"\n---\nwhy: [[projects/acme/use-postgres]]\n')
+  child.cmd("Logpose notes")
+  child.api.nvim_win_set_cursor(0, { child.fn.search("Use Postgres", "n"), 2 })
+  child.type_keys("<Tab>")
+  local text = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(text, "← DB  linked from notes/db.md")
+  H.contains(text, "→ DB  links to notes/db.md")
+  H.contains(text, "→ notes/gone  missing")
+  child.lua([[vim.ui.select = function(items, _, cb) cb(items[1]) end]])
+  child.api.nvim_win_set_cursor(0, { child.fn.search("Use Postgres", "n"), 2 })
+  child.type_keys("P")
+  eq(vim.fn.filereadable(root .. "/notes/use-postgres.md"), 1)
+  H.contains(H.read(root .. "/notes/db.md"), "[[notes/use-postgres]]")
+  H.contains(child.api.nvim_get_current_line(), "Use Postgres") -- the cursor stays on it
+end
+
 return T

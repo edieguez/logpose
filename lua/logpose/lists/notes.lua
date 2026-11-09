@@ -14,6 +14,7 @@ M.noun = "notes"
 M.one = "note"
 M.help = {
   { "a", "a new topic note (in this group's project or tag); under a doc type, a new doc" },
+  { "P", "a project doc: make it a lasting note in notes/" },
   { "d  b", "today's daily note · the board" },
   { "type:daily", "in the filter: daily notes too (type:meeting: meetings)" },
 }
@@ -205,7 +206,63 @@ function M.cells(e, ctx)
   }
 end
 
-function M.details(e)
+--- Notes linking to this one, and the notes it links to (each once; a missing target says so).
+---@param e logpose.ListEntry
+---@param s logpose.ListState
+---@return table[]
+local function link_details(e, s)
+  local links = require("logpose.links")
+  local index = require("logpose.index")
+  local titles = {}
+  for _, it in ipairs(index.build(s.root)) do
+    if index.is_file(it) then
+      titles[it.file] = it.title
+    end
+  end
+  local rel = function(p)
+    return require("logpose.link").relpath(s.root, p)
+  end
+  local out, seen = {}, {}
+  for _, l in ipairs(links.backlinks(s.root, e.file)) do
+    if not seen["<" .. l.from] then
+      seen["<" .. l.from] = true
+      table.insert(out, {
+        chunks = {
+          { "← ", "LogposeListTree" },
+          { titles[l.from] or l.title or rel(l.from) },
+          { "  linked from " .. rel(l.from), "LogposeListMeta" },
+        },
+        file = l.from,
+        lnum = l.lnum,
+      })
+    end
+  end
+  for _, l in ipairs(links.outgoing(s.root, e.file)) do
+    local key = ">" .. (l.target or l.raw)
+    if not seen[key] then
+      seen[key] = true
+      if l.target then
+        table.insert(out, {
+          chunks = {
+            { "→ ", "LogposeListTree" },
+            { titles[l.target] or rel(l.target) },
+            { "  links to " .. rel(l.target), "LogposeListMeta" },
+          },
+          file = l.target,
+        })
+      else
+        table.insert(out, {
+          chunks = { { "→ ", "LogposeListTree" }, { l.raw }, { "  missing", "LogposeListTodos" } },
+          file = e.file,
+          lnum = l.lnum,
+        })
+      end
+    end
+  end
+  return out
+end
+
+function M.details(e, s)
   local out = {}
   for _, t in ipairs(e.info.open) do
     table.insert(out, { chunks = { { "☐ ", "LogposeListTodos" }, { t.text } }, file = t.file, lnum = t.lnum })
@@ -223,6 +280,9 @@ function M.details(e)
       },
       file = t.file,
     })
+  end
+  if s then
+    vim.list_extend(out, link_details(e, s))
   end
   return out
 end
@@ -258,7 +318,17 @@ function M.add(s, group)
   require("logpose.edit").open_new_note(s.root, "topic", defaults)
 end
 
-function M.keys(_, map)
+function M.keys(s, map, helpers)
+  map("P", function()
+    local e = helpers.entry_at(s)
+    if not e or e.item.file_type ~= "doc" then
+      require("logpose.util.ui").notify("logpose: P makes a project doc a lasting note", vim.log.levels.INFO)
+      return
+    end
+    require("logpose.notes.doc").promote_ask(s.root, e.file, false, function(dest)
+      helpers.refresh(dest)
+    end)
+  end, "Make a doc a lasting note")
   map("d", function()
     vim.cmd("Logpose daily")
   end, "Daily note")
