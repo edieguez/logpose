@@ -41,7 +41,12 @@ function M.collect(s)
   local out = {}
   for _, it in ipairs(items) do
     local ft = it.file_type
-    local archived = ft == "project" and ((it.fields or {}).archived == "true" or (it.fields or {}).archived == "yes")
+    local archived = (ft == "project" or ft == "doc")
+      and (
+        (it.fields or {}).archived == "true"
+        or (it.fields or {}).archived == "yes"
+        or require("logpose.index").in_project_archive(it.file, s.root)
+      )
     if it.kind == "note" and not archived and (want[ft] or (ft ~= "daily" and ft ~= "meeting")) then
       local created = type((it.fields or {}).created) == "string" and it.fields.created:match("^%d%d%d%d%-%d%d%-%d%d")
       local when = it.date or created or (it.mtime and os.date("%Y-%m-%d", it.mtime)) or ""

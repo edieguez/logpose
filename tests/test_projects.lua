@@ -327,7 +327,8 @@ T["manager"]["D archives a project and U restores it"] = function()
   child.lua("_G.pick('Archive')")
   on("acme")
   child.type_keys("D")
-  H.contains(H.read(root .. "/projects/acme.md"), "archived: true")
+  eq(vim.fn.filereadable(root .. "/projects/acme.md"), 0) -- moved to the archive
+  H.contains(H.read(root .. "/projects/archive/acme.md"), "archived: true")
   eq(project_of("a"), "acme")
   eq(child.lua_get("require('logpose.state').get('project')"), vim.NIL)
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "thesis", "none", "auto" })
@@ -336,6 +337,7 @@ T["manager"]["D archives a project and U restores it"] = function()
   on("▸ acme")
   child.type_keys("U")
   eq(H.read(root .. "/projects/acme.md"):match("archived") == nil, true)
+  eq(vim.fn.isdirectory(root .. "/projects/archive"), 0) -- emptied, so gone
   eq(child.fn.getcompletion("Logpose project ", "cmdline"), { "acme", "thesis", "none", "auto" })
 end
 

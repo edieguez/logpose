@@ -48,6 +48,10 @@ end
 ---@param project string
 ---@return string
 function M.dir(root, project)
+  local page = require("logpose.project").pages(root)[project]
+  if page and page.in_archive then
+    return fs.join(vim.fs.dirname(page.path), project) -- archived: projects/archive/<project>/
+  end
   return fs.join(config.path("projects", root), project)
 end
 
@@ -186,7 +190,7 @@ function M.promote(root, path)
   local item = index.index_lines(path, fs.read_lines(path) or {}, root)[1]
   local project = item.project
   local dest = require("logpose.notes.topic").note_path(root, item.title)
-  local page = project and fs.join(config.path("projects", root), project .. ".md")
+  local page = project and require("logpose.project").page_path(root, project)
   return relocate(root, path, dest, { project = false, type = false, status = false }, function(lines)
     if not project then
       return lines
