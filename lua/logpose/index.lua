@@ -507,6 +507,11 @@ end
 --- revalidated by mtime and size on the next build, so the cache itself is kept.
 function M.clear_cache()
   M.generation = M.generation + 1
+  -- project pages list what's in their project: follow along, a moment later
+  local ok, hub = pcall(require, "logpose.projects.hub")
+  if ok then
+    hub.schedule()
+  end
 end
 
 --- Forget the last build, as if a new command started (benchmarks and tests).

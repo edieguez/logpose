@@ -64,6 +64,12 @@ for _, t in ipairs(require("logpose.notes.doc").types()) do
     io.stderr:write("doc.create: " .. tostring(derr) .. "\n")
   end
 end
+pcall(
+  require("logpose.notes.topic").note,
+  root,
+  "Postgres tips",
+  { project = false, open = false, body = { "Learnt on [[projects/acme|Acme]]." } }
+)
 local ok_person, perr = pcall(require("logpose.people").create, root, {
   name = "Ana López",
   aliases = { "Ana" },
@@ -127,4 +133,5 @@ run("Logpose migrate!")
 run("Logpose archive!")
 run("Logpose report! week -1")
 run("Logpose report! week")
+run("Logpose hub!") -- the project pages' hub sections
 vim.cmd("qa!")
