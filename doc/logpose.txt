@@ -323,7 +323,8 @@ note itself (week, month, last met) can't be moved to.
 
   <CR>    open (a heading: fold the group; a detail: open it)
   <Tab>   details: attendees, action items, linked tasks; for a person,
-          their meetings, to-dos and mentions
+          their meetings, to-dos and mentions; for a note, the notes linking
+          to it (`←`) and those it links to (`→`, missing ones flagged)
   K       peek: the note in a floating window, to read and edit
   /       the filter bar (|logpose-filter-bar|)  <BS>  clear the filter
   g       change the grouping          s   change the order
@@ -345,7 +346,8 @@ cheat sheet. The menu opens while you type a word and stays shut between
 words (<Tab> opens it). The bar's right end counts the matches and names
 ignored words.
 
-The notes list adds `d` (today's daily note) and `b` (the board); the people
+The notes list adds `P` (a project doc becomes a lasting note,
+|logpose-docs|), `d` (today's daily note) and `b` (the board); the people
 list `y`, `o`, `t` and `R` (|logpose-people-screen|). `f` on a project in
 |:Logpose-projects| opens its notes.
 
@@ -684,6 +686,12 @@ form) moves the file to that project's folder and fixes the links to it;
 renaming or merging a project moves its folder. A doc without `project:`
 takes it from its folder.
 
+A doc that outgrows its project becomes a lasting note with
+|:Logpose-promote| in it (or `P` in the notes list): it moves to `notes/`,
+the links to it are fixed, `project`, `type` and `status` go, and it starts
+with `Started in [[projects/acme|Acme]].`, which keeps it on the project
+page's list.
+
 Options: `doc_types` (|logpose-setup|).
 
                                                                  *logpose-hub*
@@ -822,6 +830,11 @@ To-dos ~
     starts with `From: [[task]]`; the task gets the note under `## Notes`. A
     note with that title gets the write-up added at its end. `N` on the
     board does the same for the focused card.
+
+    In a project doc (not on one of its to-dos): after asking (not with !),
+    it becomes a lasting note: it moves to `notes/` (links follow), loses
+    `project`, `type` and `status`, and starts with `Started in [[project]].`
+    `P` in the notes list does the same.
 
                                                             *:Logpose-actions*
 :Logpose actions [{mode}] [{filters}...]
