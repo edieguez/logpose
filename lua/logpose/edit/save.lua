@@ -75,12 +75,14 @@ function M.move_meeting(root, path, from, to)
   maintenance.apply(changes)
   if buf then
     -- show the moved note where the old one was
+    local errmsg = vim.v.errmsg
     for _, win in ipairs(vim.fn.win_findbuf(buf)) do
       vim.api.nvim_win_call(win, function()
         vim.cmd.edit(vim.fn.fnameescape(dest))
       end)
     end
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    vim.v.errmsg = errmsg -- a filetype plugin's silenced unmapping isn't an error
   end
   return dest
 end
@@ -140,7 +142,15 @@ function M.create_note(root, kind, r, ctx, model)
   local project = str(v.project)
   local new_project = project and not vim.tbl_contains(require("logpose.project").known(root), project)
   local path, cursor, existed
-  if kind == "meeting" then
+  if kind == "doc" then
+    path, cursor, existed = require("logpose.notes.doc").create(root, {
+      type = v.type,
+      title = vim.trim(v.title),
+      project = project,
+      tags = tags,
+      status = str(v.status),
+    })
+  elseif kind == "meeting" then
     local note = require("logpose.edit.fields").build_meeting({ root = root }, r, ctx)
     if not note then
       return nil
@@ -188,6 +198,10 @@ function M.note(root, path, kind, changed, opts)
       end
     end
   end
+  local doc_move
+  if kind == "doc" and type(changed.project) == "string" and changed.project ~= "" then
+    doc_move, changed.project = changed.project, nil -- the move writes it
+  end
   local meeting_move
   if kind == "meeting" and changed.project ~= nil then
     local old = require("logpose.index").frontmatter(fields.note_lines(path)).project
@@ -215,6 +229,9 @@ function M.note(root, path, kind, changed, opts)
   end
   if meeting_move then
     path = M.move_meeting(root, path, meeting_move.from, meeting_move.to)
+  end
+  if doc_move then
+    path = require("logpose.notes.doc").move(root, path, doc_move)
   end
   if not (opts and opts.batch) then
     M.notify_changed(kind, keys)

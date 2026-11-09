@@ -170,8 +170,8 @@ function M.rewrite_links(line, pairs)
   return line, n
 end
 
---- Plan a project rename: frontmatter `project:`, #tags, the meeting folder, the project page,
---- and links pointing into them.
+--- Plan a project rename: frontmatter `project:`, #tags, the meeting folder, the project page
+--- and its folder of docs, and links pointing into them.
 ---@param root string
 ---@param old string
 ---@param new string
@@ -194,33 +194,40 @@ function M.plan_project(root, old, new, opts)
   local page_old = fs.join(config.path("projects", root), old .. ".md")
   local page_new = fs.join(config.path("projects", root), new .. ".md")
   local rel_prefixes = {}
-  local merged_dir -- a meeting folder emptied by a merge, removed after the moves
+  local merged_dirs = {} -- folders emptied by a merge, removed after the moves
   -- When merging into a project that has a page, the old page stays (archived, pointing at
   -- the new one) so links to it keep working.
   local keep_page = merge and fs.exists(page_old) and fs.exists(page_new) and page_old or nil
-  if config.get().meeting_subdir:find("{project}", 1, true) and fs.is_dir(meetings_old) then
-    if fs.exists(meetings_new) and not merge then
-      error(
-        ("logpose: %s already exists (merge-project combines two projects)"):format(link.relpath(root, meetings_new)),
-        0
-      )
+  -- A project's folder (its meetings, its docs) moves; merged into one that has one, what's in
+  -- it moves into that.
+  local function plan_folder(from_dir, to_dir, files_only)
+    if not fs.is_dir(from_dir) then
+      return
     end
-    if fs.exists(meetings_new) then
-      merged_dir = meetings_old
-      for entry, kind in vim.fs.dir(meetings_old) do
-        if kind == "file" then
-          local to = fs.join(meetings_new, entry)
+    if fs.exists(to_dir) and not merge then
+      error(("logpose: %s already exists (merge-project combines two projects)"):format(link.relpath(root, to_dir)), 0)
+    end
+    if fs.exists(to_dir) then
+      table.insert(merged_dirs, from_dir)
+      for entry, kind in vim.fs.dir(from_dir) do
+        if kind == "file" or not files_only then
+          local to = fs.join(to_dir, entry)
           if fs.exists(to) then
             error(("logpose: both projects have %s"):format(link.relpath(root, to)), 0)
           end
-          moves[fs.join(meetings_old, entry)] = to
+          moves[fs.join(from_dir, entry)] = to
         end
       end
     else
-      moves[meetings_old] = meetings_new
+      moves[from_dir] = to_dir
     end
-    table.insert(rel_prefixes, M.link_pair(root, meetings_old .. "/", meetings_new .. "/"))
+    table.insert(rel_prefixes, M.link_pair(root, from_dir .. "/", to_dir .. "/"))
   end
+  if config.get().meeting_subdir:find("{project}", 1, true) then
+    plan_folder(meetings_old, meetings_new, true)
+  end
+  local docs = require("logpose.notes.doc")
+  plan_folder(docs.dir(root, old), docs.dir(root, new), false)
   if fs.exists(page_old) and not keep_page then
     if fs.exists(page_new) then
       error(
@@ -289,8 +296,8 @@ function M.plan_project(root, old, new, opts)
   for from, to in pairs(moves) do
     table.insert(changes, { path = from, move_to = to, count = 0 })
   end
-  if merged_dir then
-    table.insert(changes, { path = merged_dir, rmdir = true, count = 0 })
+  for _, dir in ipairs(merged_dirs) do
+    table.insert(changes, { path = dir, rmdir = true, count = 0 })
   end
   table.sort(changes, function(a, b)
     return a.path < b.path
@@ -335,12 +342,14 @@ function M.apply(changes)
     end
   end
   -- Buffers showing moved files follow them, so a later `:w` doesn't bring the old file back.
+  local errmsg = vim.v.errmsg
   for _, f in ipairs(followers) do
     vim.api.nvim_buf_call(f.buf, function()
       vim.cmd("silent! file " .. vim.fn.fnameescape(f.to))
       vim.cmd("silent! edit!")
     end)
   end
+  vim.v.errmsg = errmsg -- what a filetype plugin's silenced unmapping left there isn't ours
   for _, c in ipairs(changes) do
     if c.rmdir then
       (vim.uv or vim.loop).fs_rmdir(c.path) -- only succeeds when it's empty

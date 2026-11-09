@@ -23,7 +23,7 @@ local SCOPE_FILTER = {
     return it.kind == "note" and it.file_type == "meeting"
   end,
   topics = function(it)
-    return it.kind == "note" and (it.file_type == "topic" or it.file_type == "project")
+    return it.kind == "note" and (it.file_type == "topic" or it.file_type == "project" or it.file_type == "doc")
   end,
   tasks = function(it)
     return it.kind == "task" and not it.archived

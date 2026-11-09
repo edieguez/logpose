@@ -15,6 +15,7 @@ M.MAPS = {
   { "d", "n", "<Plug>(logpose-daily)", "Note: daily" },
   { "m", "n", "<Plug>(logpose-meeting)", "Note: meeting" },
   { "n", "n", "<Plug>(logpose-note)", "Note: topic" },
+  { "D", "n", "<Plug>(logpose-doc)", "Note: project doc" },
   { "l", "n", "<Plug>(logpose-notes)", "Notes: browse" },
   { "M", "n", "<Plug>(logpose-meetings)", "Meetings: browse" },
   { "f", "n", "<Plug>(logpose-find)", "Find notes" },

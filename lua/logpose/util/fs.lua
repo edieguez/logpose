@@ -164,9 +164,11 @@ end
 function M.reload(path)
   local buf = M.find_buf(path)
   if buf and not vim.bo[buf].modified then
+    local errmsg = vim.v.errmsg
     vim.api.nvim_buf_call(buf, function()
       vim.cmd("silent! edit")
     end)
+    vim.v.errmsg = errmsg -- a filetype plugin's silenced unmapping on reload isn't an error
   end
 end
 

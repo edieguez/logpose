@@ -13,6 +13,7 @@ M.FIELDS = {
   meeting = { "title", "type", "date", "project", "attendees", "tags" },
   project = { "title", "description", "paths", "color" },
   topic = { "title", "project", "tags" },
+  doc = { "title", "type", "status", "project", "tags" },
   other = { "title", "project", "tags" },
   person = {}, -- see M.fields_for: its own fields, then the configured ways to reach people
 }
@@ -39,6 +40,7 @@ M.NEW_FIELDS = { "title", "status", "project", "tags", "due", "blocked", "contex
 M.NEW_NOTE_FIELDS = {
   meeting = { "type", "title", "date", "project", "attendees", "tags" },
   topic = { "title", "project", "tags" },
+  doc = { "type", "title", "project", "status", "tags" },
 }
 
 --- Fields a bulk edit of tasks offers (a title is per task).
@@ -252,6 +254,10 @@ function M.load_new_note(root, kind, defaults)
       initial[key] = v
     end
   end
+  if kind == "doc" then
+    initial.type = defaults.type or require("logpose.notes.doc").default_type()
+    initial.status = ""
+  end
   if kind == "meeting" then
     initial.type = defaults.type or require("logpose.notes.meeting").default_type()
     initial.date = defaults.date or date.today()
@@ -270,7 +276,7 @@ function M.load_new_note(root, kind, defaults)
     old = {},
     info = {},
     title = defaults.from_task and "Note from task"
-      or ({ meeting = "New meeting", person = "New person" })[kind]
+      or ({ meeting = "New meeting", person = "New person", doc = "New project doc" })[kind]
       or "New topic note",
     new = true,
     initial = initial,
@@ -423,6 +429,12 @@ function M.check(kind, key, text, ctx)
       return text, "not a meeting type · <CR> to pick"
     end
     return text, nil, spec.label
+  elseif key == "type" and kind == "doc" then
+    local spec = require("logpose.notes.doc").spec(text)
+    if not spec then
+      return text, "not a doc type · <CR> to pick"
+    end
+    return text, nil, spec.label
   elseif key == "content" then
     local v = text:lower()
     if v ~= "copy" and v ~= "move" then
@@ -526,7 +538,39 @@ function M.collect(model, texts, ctx)
   if model.new and model.kind == "meeting" then
     M.meeting_title(r, texts.title or "")
   end
+  if model.kind == "doc" then
+    M.doc_checks(model, r)
+  end
   return r
+end
+
+--- A project doc: it needs a project (it lives in that project's folder), and a type with
+--- `statuses` takes one of them (empty: the first, for a new doc).
+---@param model logpose.EditModel
+---@param r logpose.EditResult
+function M.doc_checks(model, r)
+  local function fail(key, msg)
+    if not r.errors[key] then
+      r.nerrors = r.nerrors + 1
+    end
+    r.errors[key] = msg
+  end
+  local project = r.values.project
+  if not r.errors.project and (project == nil or project == "") then
+    fail("project", "a doc lives in a project's folder")
+  end
+  local spec = require("logpose.notes.doc").spec(type(r.values.type) == "string" and r.values.type or nil)
+  local status = type(r.values.status) == "string" and r.values.status or ""
+  if spec and spec.statuses then
+    if status == "" then
+      if model.new then
+        r.hints = r.hints or {}
+        r.hints.status = ("empty: %s · <CR> to pick"):format(spec.statuses[1])
+      end
+    elseif not vim.tbl_contains(spec.statuses, status) then
+      fail("status", table.concat(spec.statuses, ", ") .. " · <CR> to pick")
+    end
+  end
 end
 
 --- A new meeting: what its `title` field means for the type picked, as a hint (empty field), a
@@ -653,6 +697,18 @@ local function new_note_effects(model, r, ctx)
         table.insert(out, ("link the previous %s%s"):format(note.previous.title, when))
       end
     end
+  elseif model.kind == "doc" then
+    local title = vim.trim(type(v.title) == "string" and v.title or "")
+    local project = not r.errors.project and type(v.project) == "string" and v.project ~= "" and v.project
+    if title == "" or not project then
+      return out
+    end
+    local path = require("logpose.notes.doc").path(model.root, project, title)
+    if fs.exists(path) then
+      return { "open the existing " .. rel(path) }
+    end
+    local spec = require("logpose.notes.doc").spec(v.type)
+    table.insert(out, ("create %s, a %s of %s"):format(rel(path), spec and spec.label:lower() or "doc", project))
   else
     local title = vim.trim(type(v.title) == "string" and v.title or "")
     local path = title ~= "" and require("logpose.notes.topic").note_path(model.root, title)
@@ -766,6 +822,16 @@ function M.effects(model, r, links_to, ctx)
         end
       elseif model.kind == "task" and key == "blocked" then
         table.insert(out, v == "" and ("unblock %s (logged)"):format(who) or ("block %s (logged)"):format(who))
+      elseif model.kind == "doc" and key == "project" and v ~= "" then
+        local dir = require("logpose.link").relpath(model.root, require("logpose.notes.doc").dir(model.root, v))
+        local n = links_to and links_to() or 0
+        table.insert(
+          out,
+          ("move the doc to %s/%s"):format(
+            dir,
+            n > 0 and (", fixing %d link%s to it"):format(n, n == 1 and "" or "s") or ""
+          )
+        )
       elseif model.kind == "meeting" and key == "project" then
         local dir = require("logpose.link").relpath(
           model.root,
