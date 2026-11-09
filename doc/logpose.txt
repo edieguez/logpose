@@ -442,9 +442,13 @@ meetings (files and series) and links into another, with a preview. The old
 project page stays, archived and marked `merged_into`, so links to it work.
 
 Archiving sets `archived: true` in the project's page (creating the page if
-needed). Its tasks and notes stay where they are and stay searchable, but it
-leaves completion, the projects screen (until `A`) and the all-projects
-board, and is unpinned if it was pinned. `U` restores it.
+needed) and moves the page and its folder of docs (|logpose-docs|) to
+`projects/archive/`, fixing the links to them. Its tasks, notes and meetings
+stay where they are, and everything stays searchable, but it leaves
+completion, the projects screen (until `A`), the all-projects board, the
+notes list and `[[` completion, and is unpinned if it was pinned. `U`
+restores it, moving the page and folder back. A page with `archived: true`
+outside the archive (from before) still counts as archived.
 
 Known projects come from the pinned project, `projects.paths`, project pages,
 meeting folders and the `project:` of any note or task.
@@ -1312,6 +1316,7 @@ Layout ~
   ├── notes/queue-design.md                     topic notes,
   ├── projects/acme.md                          project pages,
   ├── projects/acme/use-postgres.md             project docs
+  ├── projects/archive/old.md        an archived project (and old/, its docs)
   ├── people/ana-lopez.md            people pages
   ├── tasks/fix-flaky-test.md        tasks: one file each
   ├── tasks/archive/sprint-42/       done tasks from past sprints
