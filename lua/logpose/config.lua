@@ -224,6 +224,9 @@ M.defaults = {
     paths = {},
     --- Open the project's board when you switch to a project.
     open_board = true,
+    --- Keep a section of each project page listing its docs, notes and latest meetings
+    --- (between <!-- logpose:hub --> markers), updated as the journal changes.
+    hub = true,
   },
 }
 
