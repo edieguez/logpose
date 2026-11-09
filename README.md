@@ -777,6 +777,33 @@ a doc to another project moves the file** to that project's folder, and links to
 (`m` in the list, or `project` in the edit form). Renaming or merging a project moves its folder
 too. A doc's project comes from its folder when the frontmatter doesn't say.
 
+### The project page as a hub
+
+**The project page lists what's in the project, and keeps the list up to date.** At its end,
+logpose keeps a section of links to the project's docs by type, its topic notes (those with the
+project, and those that link to the page) and its latest meetings:
+
+```markdown
+## In this project
+
+<!-- logpose:hub -->
+- Decisions
+  - [[projects/acme/use-postgres|Use Postgres]] · accepted
+- Notes
+  - [[notes/queue-design|Queue design]]
+- Meetings (23)
+  - [[meetings/acme/2026-11-06 - retro|Retro]] · Fri 6 Nov
+<!-- /logpose:hub -->
+```
+
+The markers are HTML comments, so Obsidian and GitHub show only the list: browsing the journal
+there, the project page is where you start. The section follows on its own a moment after
+anything in the journal changes; `:Logpose hub` brings the current project's up to date now, and
+`:Logpose hub!` every project's. The page is written only when the list changes, its `modified:`
+stays as it was, and a page with unsaved changes waits until you've saved it. Write above or
+below the section; what's between the markers is logpose's. A project with nothing to list yet
+gets no section. `projects = { hub = false }` turns it off.
+
 > **Configure:** add or remove types in `doc_types`
 > (`adr = { label = "ADR", template = "decision", statuses = { "draft", "done" } }`, `spec = false`).
 
@@ -909,6 +936,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `notes [FILTERS]` | Topic notes, project docs and project pages by type, project, tag or month, with their to-dos and linked tasks. |
 | `note [TITLE]` | Create or open a topic note. Without a title, the new-note form. |
 | `doc [TYPE] [TITLE]` | A new [project doc](#project-docs): decision, spec, runbook or doc, in the project's folder. |
+| `hub[!] [PROJECT]` | Bring the project page's list of docs, notes and meetings up to date now (`!`: every project). |
 | `project [NAME\|none\|auto]` | Switch project (the projects screen without a name); `none` for no project, `auto` to detect it. |
 | `projects` | Manage projects: what needs attention, add, rename, merge, archive. |
 | `project-page [NAME]` | Create or open a project page. |
@@ -1034,6 +1062,7 @@ require("logpose").setup({
     detect = true,         -- the git repo you're in is the project
     paths = {},            -- { ["~/work/acme-api"] = "acme" }; the longest match wins
     open_board = true,     -- switching project opens its board
+    hub = true,            -- project pages list their docs, notes and meetings
   },
   link_style = "wiki",     -- or "markdown"
   picker = "auto",         -- "snacks" | "fzf_lua" | "telescope" | "select"
