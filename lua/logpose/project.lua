@@ -107,17 +107,32 @@ end
 ---@field color? string        "#7aa2f7" or a highlight group, for its cards on the board
 ---@field merged_into? string
 
---- Project pages: `projects/<name>.md`, keyed by project. A page is what makes a project exist
---- before it has any notes or tasks, and holds what logpose knows about it: its display name,
---- description, repo folders, colour, and whether it's archived.
+--- Project pages: `projects/<name>.md` (`projects/archive/<name>.md` once archived), keyed by
+--- project. A page is what makes a project exist before it has any notes or tasks, and holds what
+--- logpose knows about it: its display name, description, repo folders, colour, and whether it's
+--- archived.
 ---@param root string
 ---@return table<string, logpose.ProjectPage>
 function M.pages(root)
   local out = {}
-  local dir = config.path("projects", root)
-  if not fs.is_dir(dir) then
+  local base = config.path("projects", root)
+  if not fs.is_dir(base) then
     return out
   end
+  local index = require("logpose.index")
+  local archive = fs.join(base, index.ARCHIVE)
+  for _, dir in ipairs({ archive, base }) do -- a page outside the archive wins
+    if fs.is_dir(dir) then
+      M._read_pages(dir, dir == archive, out)
+    end
+  end
+  return out
+end
+
+---@param dir string
+---@param in_archive boolean
+---@param out table<string, logpose.ProjectPage>
+function M._read_pages(dir, in_archive, out)
   local index = require("logpose.index")
   for entry, kind in vim.fs.dir(dir) do
     if kind == "file" and entry:match("%.md$") then
@@ -134,7 +149,8 @@ function M.pages(root)
         end
         out[name] = {
           path = path,
-          archived = fm.archived == "true" or fm.archived == "yes",
+          archived = in_archive or fm.archived == "true" or fm.archived == "yes",
+          in_archive = in_archive,
           title = str(fm.title),
           description = str(fm.description),
           paths = paths or {},
@@ -144,7 +160,15 @@ function M.pages(root)
       end
     end
   end
-  return out
+end
+
+--- Where a project's page is (in the archive once archived), or would be.
+---@param root string
+---@param name string
+---@return string
+function M.page_path(root, name)
+  local page = M.pages(root)[name]
+  return page and page.path or fs.join(config.path("projects", root), name .. ".md")
 end
 
 --- Archived projects (from their pages).
@@ -255,10 +279,69 @@ end
 function M.set_archived(root, name, archived)
   local slug = M.normalize(name)
   M.set_page_field(root, name, "archived", archived or nil)
+  if slug then
+    M.move_archive(root, slug, archived)
+  end
   if archived and state.get("project") == slug then
     state.set("project", nil)
   end
   M.changed()
+end
+
+--- Move a project's page and its folder of docs into `projects/archive/` (or back out of it),
+--- fixing the links to them.
+---@param root string
+---@param name string
+---@param archived boolean
+function M.move_archive(root, name, archived)
+  local maintenance = require("logpose.maintenance")
+  local base = config.path("projects", root)
+  local archive = fs.join(base, require("logpose.index").ARCHIVE)
+  local from_dir, to_dir = base, archive
+  if not archived then
+    from_dir, to_dir = archive, base
+  end
+  local page_from, page_to = fs.join(from_dir, name .. ".md"), fs.join(to_dir, name .. ".md")
+  local docs_from, docs_to = fs.join(from_dir, name), fs.join(to_dir, name)
+  local moves, pairs_ = {}, {}
+  if fs.exists(page_from) then
+    if fs.exists(page_to) then
+      error(("logpose: %s already exists"):format(require("logpose.link").relpath(root, page_to)), 0)
+    end
+    table.insert(moves, { page_from, page_to })
+    table.insert(pairs_, maintenance.link_pair(root, page_from, page_to))
+  end
+  if fs.is_dir(docs_from) then
+    if fs.exists(docs_to) then
+      error(("logpose: %s already exists"):format(require("logpose.link").relpath(root, docs_to)), 0)
+    end
+    table.insert(moves, { docs_from, docs_to })
+    table.insert(pairs_, maintenance.link_pair(root, docs_from .. "/", docs_to .. "/"))
+  end
+  if #moves == 0 then
+    return
+  end
+  local changes = {}
+  for _, file in ipairs(require("logpose.index").files(root)) do
+    local lines = fs.read_lines(file) or {}
+    local n = 0
+    for i, l in ipairs(lines) do
+      local nl, moved = maintenance.rewrite_links(l, pairs_)
+      if moved > 0 then
+        lines[i], n = nl, n + moved
+      end
+    end
+    if n > 0 then
+      table.insert(changes, { path = file, content = table.concat(lines, "\n"), count = n })
+    end
+  end
+  for _, m in ipairs(moves) do
+    table.insert(changes, { path = m[1], move_to = m[2], count = 0 })
+  end
+  if not archived then
+    table.insert(changes, { path = archive, rmdir = true, count = 0 }) -- if that was the last one
+  end
+  maintenance.apply(changes)
 end
 
 --- Create a project: its page, with a display name and the folders that belong to it.

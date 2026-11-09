@@ -219,6 +219,15 @@ end
 --- The folder under `projects/` that archived projects (pages and folders) move to.
 M.ARCHIVE = "archive"
 
+--- Is `path` in the archive of projects (`projects/archive/…`)?
+---@param path string
+---@param root string
+---@return boolean
+function M.in_project_archive(path, root)
+  local dir = config.path("projects", root):gsub("/+$", "") .. "/" .. M.ARCHIVE .. "/"
+  return vim.startswith(path, dir)
+end
+
 --- The project a project doc belongs to, from its folder: projects/<name>/… or
 --- projects/archive/<name>/….
 ---@param path string

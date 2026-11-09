@@ -191,8 +191,9 @@ function M.plan_project(root, old, new, opts)
   local moves = {}
   local meetings_old = fs.join(config.path("meetings", root), old)
   local meetings_new = fs.join(config.path("meetings", root), new)
-  local page_old = fs.join(config.path("projects", root), old .. ".md")
-  local page_new = fs.join(config.path("projects", root), new .. ".md")
+  local page_old = project.page_path(root, old)
+  local page_new = project.pages(root)[new] and project.page_path(root, new)
+    or fs.join(vim.fs.dirname(page_old), new .. ".md") -- an archived one stays in the archive
   local rel_prefixes = {}
   local merged_dirs = {} -- folders emptied by a merge, removed after the moves
   -- When merging into a project that has a page, the old page stays (archived, pointing at
@@ -227,7 +228,9 @@ function M.plan_project(root, old, new, opts)
     plan_folder(meetings_old, meetings_new, true)
   end
   local docs = require("logpose.notes.doc")
-  plan_folder(docs.dir(root, old), docs.dir(root, new), false)
+  local docs_old = docs.dir(root, old)
+  local docs_new = project.pages(root)[new] and docs.dir(root, new) or fs.join(vim.fs.dirname(docs_old), new)
+  plan_folder(docs_old, docs_new, false)
   if fs.exists(page_old) and not keep_page then
     if fs.exists(page_new) then
       error(

@@ -16,8 +16,9 @@ M.HEADING = "## In this project"
 M.MEETINGS = 3 -- the latest ones listed
 
 ---@param it logpose.Item
-local function archived_doc(it)
-  return it.file:find("/" .. require("logpose.index").ARCHIVE .. "/", 1, true) ~= nil
+---@param root string
+local function archived_doc(it, root)
+  return require("logpose.index").in_project_archive(it.file, root)
 end
 
 --- The section's lines (between the markers) for a project: nil when there's nothing to list.
@@ -33,7 +34,7 @@ function M.lines(root, project, page, items)
   local seen = {}
   for _, it in ipairs(items) do
     if it.kind == "note" and it.project == project then
-      if it.file_type == "doc" and not archived_doc(it) then
+      if it.file_type == "doc" and not archived_doc(it, root) then
         local t = it.type or "doc"
         docs[t] = docs[t] or {}
         table.insert(docs[t], it)
@@ -151,16 +152,20 @@ function M.with_section(lines, section)
 end
 
 --- Bring one project's hub up to date. Returns "updated", "same", "busy" (unsaved changes in
---- the page), "nothing" (nothing to list yet, and no section) or "no page".
+--- the page), "nothing" (nothing to list yet, and no section), "archived" or "no page".
 ---@param root string
 ---@param project string
 ---@param items? logpose.Item[]
 ---@return string
 function M.update(root, project, items)
-  local page = fs.join(config.path("projects", root), project .. ".md")
-  if not fs.exists(page) then
+  local info = require("logpose.project").pages(root)[project]
+  if not info then
     return "no page"
   end
+  if info.archived then
+    return "archived"
+  end
+  local page = info.path
   items = items or require("logpose.index").build(root)
   local section = M.lines(root, project, page, items) or { "- Nothing yet" }
   local buf = fs.find_buf(page)
@@ -276,6 +281,7 @@ function M.command(opts)
       busy = "%s's page has unsaved changes: save it first",
       ["nothing"] = "nothing to list for %s yet",
       ["no page"] = "%s has no project page (:Logpose project-page makes one)",
+      archived = "%s is archived: its page keeps the list it had",
     })[res]
     ui.notify("logpose: " .. msg:format(project), vim.log.levels.INFO)
   end))

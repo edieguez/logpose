@@ -103,6 +103,13 @@ function M.project_page(root, name, opts)
   if not slug then
     error(("logpose: invalid project name %q"):format(name), 0)
   end
+  local existing = require("logpose.project").pages(root)[slug]
+  if existing then -- archived pages live in projects/archive/
+    if not (opts and opts.open == false) then
+      open(existing.path)
+    end
+    return existing.path
+  end
   local fm = {
     { "title", require("logpose.frontmatter").quote(name) },
     { "type", "project" },

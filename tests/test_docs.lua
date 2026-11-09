@@ -285,4 +285,70 @@ T["the notes list: P makes a doc a lasting note; <Tab> shows its links both ways
   H.contains(child.api.nvim_get_current_line(), "Use Postgres") -- the cursor stays on it
 end
 
+T["archiving a project moves its page and docs to projects/archive/; restoring brings them back"] = function()
+  H.write(root .. "/projects/acme/use-postgres.md", '---\ntitle: "Use Postgres"\ntype: decision\nproject: acme\n---\n')
+  H.write(
+    root .. "/notes/db.md",
+    '---\ntitle: "DB"\n---\n[[projects/acme|Acme]] chose [[projects/acme/use-postgres]]\n'
+  )
+  child.lua(("require('logpose.project').set_archived(%q, 'acme', true)"):format(root))
+  eq(vim.fn.filereadable(root .. "/projects/archive/acme.md"), 1)
+  eq(vim.fn.filereadable(root .. "/projects/archive/acme/use-postgres.md"), 1)
+  eq(vim.fn.isdirectory(root .. "/projects/acme"), 0)
+  H.contains(H.read(root .. "/projects/archive/acme.md"), "archived: true")
+  H.contains(
+    H.read(root .. "/notes/db.md"),
+    "[[projects/archive/acme|Acme]] chose [[projects/archive/acme/use-postgres]]"
+  )
+  -- still a page and a doc of acme; searchable, but out of the notes list and link completion
+  local got = child.lua_get(([[(function()
+    local out = {}
+    for _, it in ipairs(require("logpose.index").build(%q)) do
+      if it.kind == "note" then out[vim.fs.basename(it.file)] = { it.file_type, it.project or false } end
+    end
+    return out
+  end)()]]):format(root))
+  eq(got["acme.md"], { "project", "acme" })
+  eq(got["use-postgres.md"], { "doc", "acme" })
+  eq(child.lua_get(("require('logpose.project').pages(%q).acme.archived"):format(root)), true)
+  child.cmd("Logpose notes")
+  eq(table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find("Use Postgres", 1, true), nil)
+  local candidates = child.lua_get(
+    ("vim.tbl_map(function(c) return c.label end, require('logpose.links').candidates(%q, %q))"):format(
+      root,
+      root .. "/notes/new.md"
+    )
+  )
+  eq(vim.tbl_contains(candidates, "Use Postgres"), false)
+  eq(vim.tbl_contains(candidates, "DB"), true)
+  local found = child.lua_get(
+    ([[vim.tbl_map(function(it) return it.title end,
+    require("logpose.query").filter(require("logpose.index").build(%q), require("logpose.query").parse({ "type:decision" })))]]):format(
+      root
+    )
+  )
+  eq(found, { "Use Postgres" })
+  -- a new doc for it goes in its archived folder; its page opens from there
+  eq(child.lua_get(("require('logpose.notes.doc').dir(%q, 'acme')"):format(root)), root .. "/projects/archive/acme")
+  eq(
+    child.lua_get(("require('logpose.notes.topic').project_page(%q, 'acme', { open = false })"):format(root)),
+    root .. "/projects/archive/acme.md"
+  )
+  -- restored
+  child.lua(("require('logpose.project').set_archived(%q, 'acme', false)"):format(root))
+  eq(vim.fn.filereadable(root .. "/projects/acme/use-postgres.md"), 1)
+  eq(vim.fn.isdirectory(root .. "/projects/archive"), 0)
+  H.contains(H.read(root .. "/notes/db.md"), "[[projects/acme|Acme]] chose [[projects/acme/use-postgres]]")
+  eq(H.read(root .. "/projects/acme.md"):find("archived", 1, true), nil)
+end
+
+T["renaming an archived project keeps it in the archive"] = function()
+  H.write(root .. "/projects/acme/use-postgres.md", '---\ntitle: "Use Postgres"\ntype: decision\nproject: acme\n---\n')
+  child.lua(("require('logpose.project').set_archived(%q, 'acme', true)"):format(root))
+  child.cmd("Logpose rename-project! acme old-acme")
+  eq(vim.fn.filereadable(root .. "/projects/archive/old-acme.md"), 1)
+  eq(vim.fn.filereadable(root .. "/projects/archive/old-acme/use-postgres.md"), 1)
+  eq(vim.fn.isdirectory(root .. "/projects/archive/acme"), 0)
+end
+
 return T
