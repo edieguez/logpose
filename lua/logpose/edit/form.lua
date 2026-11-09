@@ -119,6 +119,15 @@ function M.candidates(root, kind, key, partial, others)
     for _, t in ipairs(require("logpose.notes.meeting").types()) do -- in their `order`
       add(t.key, t.spec.label)
     end
+  elseif key == "type" and kind == "doc" then
+    for _, t in ipairs(require("logpose.notes.doc").types()) do
+      add(t.key, t.spec.label)
+    end
+  elseif key == "status" and kind == "doc" then
+    local spec = require("logpose.notes.doc").spec(others and vim.trim(others.type or "") or nil)
+    for _, st in ipairs(spec and spec.statuses or {}) do
+      add(st, nil)
+    end
   elseif fields.DATES[key] then
     local today = date.today()
     for d = 0, 13 do
@@ -478,7 +487,7 @@ end
 local function choices(f, key)
   local words = vim.tbl_map(function(it)
     return it.word
-  end, M.candidates(f.model.root, f.model.kind, key, ""))
+  end, M.candidates(f.model.root, f.model.kind, key, "", texts(f)))
   if key == "project" then
     table.sort(words)
     table.insert(words, 1, "")
@@ -533,7 +542,7 @@ function M.pick()
   end
   local row = vim.api.nvim_win_get_cursor(0)[1]
   local key = key_at(f, row)
-  local items = key and M.candidates(f.model.root, f.model.kind, key, "") or {}
+  local items = key and M.candidates(f.model.root, f.model.kind, key, "", texts(f)) or {}
   if key == "project" then
     table.insert(items, 1, { word = f.model.bulk and "none" or "", menu = "no project" })
   end

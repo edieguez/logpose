@@ -216,6 +216,26 @@ local function under(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
+--- The folder under `projects/` that archived projects (pages and folders) move to.
+M.ARCHIVE = "archive"
+
+--- The project a project doc belongs to, from its folder: projects/<name>/… or
+--- projects/archive/<name>/….
+---@param path string
+---@param root string
+---@return string?
+function M.doc_project(path, root)
+  local dir = config.path("projects", root):gsub("/+$", "")
+  if not vim.startswith(path, dir .. "/") then
+    return nil
+  end
+  local parts = vim.split(path:sub(#dir + 2), "/", { plain = true })
+  if parts[1] == M.ARCHIVE then
+    table.remove(parts, 1)
+  end
+  return #parts >= 2 and parts[1]:lower() or nil
+end
+
 --- Where a file sits in the journal.
 ---@param path string
 ---@param root string
@@ -233,7 +253,11 @@ function M.file_type(path, root)
   elseif under(path, p("people")) then
     return "person"
   elseif under(path, p("projects")) then
-    return "project"
+    -- a page sits in projects/ (or projects/archive/); anything deeper is a project doc
+    local dir = p("projects"):gsub("/+$", "")
+    local rel = path:sub(#dir + 2)
+    local depth = select(2, rel:gsub("/", ""))
+    return (depth == 0 or (depth == 1 and vim.startswith(rel, M.ARCHIVE .. "/"))) and "project" or "doc"
   elseif under(path, p("notes")) then
     return "topic"
   end
@@ -273,6 +297,9 @@ function M.index_lines(path, lines, root)
     note_date = d and date.is_iso(d) and d or nil
   end
   local project = type(fm.project) == "string" and fm.project ~= "" and fm.project:lower() or nil
+  if file_type == "doc" then
+    project = project or M.doc_project(path, root) -- its folder says, when the frontmatter doesn't
+  end
   local mtype = type(fm.type) == "string" and fm.type ~= "" and fm.type or nil
   local series = type(fm.series) == "string" and fm.series ~= "" and fm.series or nil
 

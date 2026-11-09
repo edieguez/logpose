@@ -1,0 +1,186 @@
+--- Project docs: decisions, specs, runbooks and other docs that belong to one project and live in
+--- its folder, `projects/<project>/<slug>.md`, next to the project page. `:Logpose doc [type]`
+--- opens the new-doc form; moving a doc to another project moves the file (links follow).
+local config = require("logpose.config")
+local fs = require("logpose.util.fs")
+local text = require("logpose.util.text")
+local ui = require("logpose.util.ui")
+
+local M = {}
+
+--- Doc types, sorted by `order` then name.
+---@return { key: string, spec: table }[]
+function M.types()
+  local out = {}
+  for key, spec in pairs(config.get().doc_types) do
+    if spec then
+      table.insert(out, { key = key, spec = spec })
+    end
+  end
+  table.sort(out, function(a, b)
+    local oa, ob = a.spec.order or math.huge, b.spec.order or math.huge
+    if oa ~= ob then
+      return oa < ob
+    end
+    return a.key < b.key
+  end)
+  return out
+end
+
+--- A doc type's settings (nil when it isn't one).
+---@param key? string
+---@return table?
+function M.spec(key)
+  local spec = key and config.get().doc_types[key]
+  return spec or nil
+end
+
+--- The first doc type ("decision" by default).
+---@return string
+function M.default_type()
+  local types = M.types()
+  return types[1] and types[1].key or "doc"
+end
+
+--- A project's folder: `projects/<project>/`.
+---@param root string
+---@param project string
+---@return string
+function M.dir(root, project)
+  return fs.join(config.path("projects", root), project)
+end
+
+--- Where a doc titled `title` goes in `project`'s folder (`<slug>-2.md`… when the name's taken).
+---@param root string
+---@param project string
+---@param title string
+---@return string
+function M.path(root, project, title)
+  local slug = text.slugify(title)
+  slug = slug ~= "" and slug or "doc"
+  local dir = M.dir(root, project)
+  return fs.titled_path(title, function(n)
+    return fs.join(dir, (n and (slug .. "-" .. n) or slug) .. ".md")
+  end)
+end
+
+--- Create a doc (without opening it). Returns its path, where the cursor goes, and whether it
+--- existed already (then it's left as it is).
+---@param root string
+---@param d { type: string, title: string, project: string, tags?: string[], status?: string }
+---@return string path, integer[]? cursor, boolean existed
+function M.create(root, d)
+  local spec = M.spec(d.type)
+  if not spec then
+    error(("logpose: %q isn't a doc type"):format(tostring(d.type)), 0)
+  end
+  local project = require("logpose.project").normalize(d.project or "")
+  if not project then
+    error("logpose: a doc belongs to a project", 0)
+  end
+  local path = M.path(root, project, d.title)
+  if fs.exists(path) then
+    return path, nil, true
+  end
+  local template = require("logpose.template")
+  local fmt = require("logpose.frontmatter")
+  local date = require("logpose.util.date")
+  local rendered = template.render(
+    template.load(spec.template or "doc", root),
+    template.vars(date.today(), { title = d.title, project = project, type = d.type })
+  )
+  local lines = {
+    "---",
+    "title: " .. fmt.quote(d.title),
+    "type: " .. d.type,
+    "project: " .. project,
+  }
+  local status = text.nonempty(d.status) or (spec.statuses and spec.statuses[1])
+  if status then
+    table.insert(lines, "status: " .. status)
+  end
+  table.insert(lines, "tags: " .. fmt.render("tags", d.tags or {}))
+  vim.list_extend(lines, require("logpose.timestamps").lines())
+  table.insert(lines, "---")
+  local body, cursor = require("logpose.markdown").tidy_text(
+    table.concat(lines, "\n") .. "\n" .. rendered.text,
+    { rendered.cursor[1] + #lines, rendered.cursor[2] }
+  )
+  local ok, err = fs.write_file(path, body)
+  if not ok then
+    error(err, 0)
+  end
+  require("logpose.index").clear_cache()
+  return path, cursor, false
+end
+
+--- Move a doc to another project's folder, its `project:` and the links to it following.
+---@param root string
+---@param path string
+---@param to string the project
+---@return string new_path
+function M.move(root, path, to)
+  local link = require("logpose.link")
+  local maintenance = require("logpose.maintenance")
+  local dest = fs.join(M.dir(root, to), vim.fs.basename(path))
+  if dest == path then
+    return path
+  end
+  if fs.exists(dest) then
+    error(("logpose: %s already exists"):format(link.relpath(root, dest)), 0)
+  end
+  local buf = fs.find_buf(path)
+  if buf and vim.bo[buf].modified then
+    error("logpose: the doc has unsaved changes; save it first", 0)
+  end
+  local pair = maintenance.link_pair(root, path, dest)
+  local changes = {}
+  local lines = require("logpose.frontmatter").set(fs.read_lines(path) or {}, { project = to })
+  table.insert(changes, { path = path, content = table.concat(lines, "\n"), count = 1 })
+  for _, file in ipairs(require("logpose.index").files(root)) do
+    if file ~= path then
+      local flines = fs.read_lines(file) or {}
+      local n = 0
+      for i, l in ipairs(flines) do
+        local nl, moved = maintenance.rewrite_links(l, { pair })
+        if moved > 0 then
+          flines[i], n = nl, n + 1
+        end
+      end
+      if n > 0 then
+        table.insert(changes, { path = file, content = table.concat(flines, "\n"), count = n })
+      end
+    end
+  end
+  table.insert(changes, { path = path, move_to = dest, count = 0 })
+  table.insert(changes, { path = vim.fs.dirname(path), rmdir = true, count = 0 }) -- if it's empty now
+  maintenance.apply(changes)
+  return dest
+end
+
+---@param opts logpose.CommandOpts
+function M.command(opts)
+  local args = vim.deepcopy(opts.args)
+  local kind = args[1] and M.spec(args[1]) and table.remove(args, 1) or nil
+  local title = vim.trim(table.concat(args, " "))
+  config.with_root(ui.safely(function(root)
+    local project = require("logpose.project").resolve(root)
+    require("logpose.edit").open_new_note(root, "doc", {
+      type = kind,
+      title = title ~= "" and title or nil,
+      project = project,
+    })
+  end))
+end
+
+---@return string[]
+function M.complete(_, args)
+  if #args == 0 then
+    return vim.tbl_map(function(t)
+      return t.key
+    end, M.types())
+  end
+  return {}
+end
+
+return M

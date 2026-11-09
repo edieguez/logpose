@@ -1,4 +1,4 @@
---- `:Logpose notes [filter]`: topic notes and project pages (daily notes and meetings with
+--- `:Logpose notes [filter]`: topic notes, project docs and project pages (daily notes and meetings with
 --- `type:daily` or `type:meeting` in the filter; meetings have `:Logpose meetings`), grouped by
 --- type, project, tag or month. Moving a note to another project or tag changes the note.
 local common = require("logpose.lists.common")
@@ -13,7 +13,7 @@ M.footer = "<CR> open · <Tab> details · / filter · g group · m move · a new
 M.noun = "notes"
 M.one = "note"
 M.help = {
-  { "a", "a new topic note (in this group's project or tag)" },
+  { "a", "a new topic note (in this group's project or tag); under a doc type, a new doc" },
   { "d  b", "today's daily note · the board" },
   { "type:daily", "in the filter: daily notes too (type:meeting: meetings)" },
 }
@@ -60,7 +60,18 @@ end
 ---@return string
 local function kind_of(e)
   local ft = e.item.file_type
-  return (ft == "meeting" or ft == "project" or ft == "daily") and ft or "topic"
+  return (ft == "meeting" or ft == "project" or ft == "daily" or ft == "doc") and ft or "topic"
+end
+
+--- The heading of a doc type: "Decisions", "Specs"…
+---@param key string
+---@return string
+local function doc_heading(key)
+  local spec = require("logpose.notes.doc").spec(key)
+  if not spec then
+    return "Docs"
+  end
+  return spec.plural or ((spec.label or key) .. "s")
 end
 
 M.groupings = {
@@ -69,6 +80,17 @@ M.groupings = {
     label = "type",
     of = function(e)
       local ft = e.item.file_type
+      if ft == "doc" then
+        -- each doc type its own group, after the topic notes
+        local order = 1.5
+        for i, t in ipairs(require("logpose.notes.doc").types()) do
+          if t.key == e.item.type then
+            order = 1 + i / 100
+          end
+        end
+        local key = e.item.type or "doc"
+        return { { key = "doc:" .. key, label = doc_heading(key), order = order } }
+      end
       for i, t in ipairs(M.TYPES) do
         if t.key == ft or (t.key == "other" and i == #M.TYPES) then
           return { { key = t.key, label = t.label, order = i } }
@@ -89,6 +111,9 @@ M.groupings = {
     move = function(s, e, _, to)
       if e.item.file_type == "project" then
         error("logpose: a project page belongs to its project (R on the projects screen renames it)", 0)
+      end
+      if e.item.file_type == "doc" and to == "" then
+        error("logpose: a doc lives in a project's folder; move it to another project", 0)
       end
       local project = to ~= "" and require("logpose.project").normalize(to) or ""
       return require("logpose.edit.save").note(s.root, e.file, kind_of(e), { project = project or "" })
@@ -149,6 +174,9 @@ function M.cells(e, ctx)
   local date = require("logpose.util.date")
   local it = e.item
   local activity = {}
+  if it.file_type == "doc" and type((it.fields or {}).status) == "string" and it.fields.status ~= "" then
+    table.insert(activity, { it.fields.status, "LogposeListMeta" })
+  end
   if #e.info.open > 0 then
     table.insert(
       activity,
@@ -212,10 +240,16 @@ function M.edit(e, s, done)
   })
 end
 
---- A new topic note, in this group's project or with its tag.
+--- A new topic note, in this group's project or with its tag (under a doc type, a new doc).
 function M.add(s, group)
   local defaults = { project = s.project }
   local by = s.view.groupings[s.group].key
+  local doc_type = by == "type" and group and group:match("^doc:(.+)$")
+  if doc_type then
+    defaults.type = require("logpose.notes.doc").spec(doc_type) and doc_type or nil
+    require("logpose.edit").open_new_note(s.root, "doc", defaults)
+    return
+  end
   if by == "project" then
     defaults.project = group ~= "" and group or nil
   elseif by == "tag" and group and group ~= "" then

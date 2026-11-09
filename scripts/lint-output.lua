@@ -33,7 +33,7 @@ local function run(cmd)
   end
 end
 
--- Day 1: daily, every meeting type, topic note, project page, tasks.
+-- Day 1: daily, every meeting type, topic note, project page and docs, tasks.
 at(2026, 10, 13)
 run("Logpose daily")
 vim.api.nvim_buf_set_lines(0, -1, -1, false, {})
@@ -57,6 +57,13 @@ answers = { "Sync with QA" }
 run("Logpose meeting adhoc")
 run("Logpose note Queue design")
 run("Logpose project-page acme")
+for _, t in ipairs(require("logpose.notes.doc").types()) do
+  local ok_doc, derr =
+    pcall(require("logpose.notes.doc").create, root, { type = t.key, title = t.spec.label .. " one", project = "acme" })
+  if not ok_doc then
+    io.stderr:write("doc.create: " .. tostring(derr) .. "\n")
+  end
+end
 local ok_person, perr = pcall(require("logpose.people").create, root, {
   name = "Ana López",
   aliases = { "Ana" },

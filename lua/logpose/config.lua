@@ -56,6 +56,20 @@ M.defaults = {
     },
     adhoc = { label = "Ad-hoc", template = "meeting", prompt = "Meeting title: ", order = 60 },
   },
+  --- Project docs: notes that live in their project's folder (`projects/<project>/`). Set a type
+  --- to `false` to remove it. Fields: label, template (default "doc"), order, and `statuses` (the
+  --- values its `status:` takes, the first for a new one).
+  doc_types = {
+    decision = {
+      label = "Decision",
+      template = "decision",
+      order = 10,
+      statuses = { "proposed", "accepted", "superseded", "rejected" },
+    },
+    spec = { label = "Spec", template = "spec", order = 20 },
+    runbook = { label = "Runbook", template = "runbook", order = 30 },
+    doc = { label = "Doc", template = "doc", order = 40 },
+  },
   --- The type a new meeting starts with in the form (any key of `meeting_types`).
   default_meeting_type = "adhoc",
   --- Meeting filename (without .md). Variables: {date}, {time} (HHMM), {slug}, {type}.
@@ -217,7 +231,7 @@ M.defaults = {
 M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true, ["tickets.url"] = true }
 
 --- Keys whose values are open-ended tables (no unknown-key warnings inside).
-M.open_keys = { meeting_types = true, ["projects.paths"] = true, views = true }
+M.open_keys = { meeting_types = true, doc_types = true, ["projects.paths"] = true, views = true }
 
 ---@type logpose.Config?
 M.options = nil
@@ -419,6 +433,16 @@ local function validate(opts)
   end
   check("meeting_types", opts.meeting_types, "table")
   check("default_meeting_type", opts.default_meeting_type, "string", true)
+  check("doc_types", opts.doc_types, "table")
+  for name, t in pairs(opts.doc_types) do
+    if t ~= false then
+      check("doc_types." .. name, t, "table")
+      check("doc_types." .. name .. ".template", t.template, "string", true)
+      check("doc_types." .. name .. ".label", t.label, "string", true)
+      check("doc_types." .. name .. ".order", t.order, "number", true)
+      check("doc_types." .. name .. ".statuses", t.statuses, "table", true)
+    end
+  end
   for name, t in pairs(opts.meeting_types) do
     if t ~= false then
       check("meeting_types." .. name, t, "table")
