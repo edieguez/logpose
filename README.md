@@ -93,6 +93,8 @@ logpose keeps three things apart, and every command, screen and search uses thes
   they [stay in step](#a-to-do-and-its-task-stay-in-step).
 - **A task's write-up becomes a note.** The note starts with `From: [[the task]]`; the task lists
   the note under `## Notes`.
+- **A project doc becomes a lasting note.** It moves to `notes/`, leaves its project behind and
+  starts with `Started in [[the project]]` ([project docs](#project-docs)).
 
 The board shows how many notes are linked with each task (`✎ 2`); `n` opens them.
 
@@ -398,7 +400,7 @@ date instead.
 | Key | Does |
 |---|---|
 | `<CR>` | Open it. On a heading, fold the group. |
-| `<Tab>` | Details: the attendees, action items, linked tasks; for a person, their meetings, to-dos and mentions. `<CR>` opens any of them. |
+| `<Tab>` | Details: the attendees, action items, linked tasks; for a person, their meetings, to-dos and mentions; for a note, the notes linking to it (`←`) and those it links to (`→`, missing ones flagged). `<CR>` opens any of them. |
 | `K` | Peek: the note in a floating window, to read and edit. |
 | `/` | The filter bar (below): the list follows as you type. `<BS>` clears the filter. |
 | `g` / `s` | Change the grouping / the order (newest, oldest, by title; people: recently met, by name, most involved). |
@@ -421,7 +423,7 @@ counts what matches and names any word it ignored (a half-typed `since:2026-1`, 
 cheat sheet; `:Logpose find` completes filter values on the command line too.
 
 The people list adds `y` (copy a way to reach them), `o` (open it: mail, chat), `t` (talk: start a 1:1),
-`n` (note something for the next 1:1) and `R` (rename them everywhere); the notes list `d` (today's daily note) and `b` (the board).
+`n` (note something for the next 1:1) and `R` (rename them everywhere); the notes list `P` (make a project doc a lasting note), `d` (today's daily note) and `b` (the board).
 When a bare first name (`ana`) is probably someone with a fuller name (`Ana López`), the people
 list says `same as Ana López? R merges`, and `R` offers that name. You (`me`) aren't listed.
 Rows leave out what their group heading already says (the project, the meeting type), and a
@@ -777,6 +779,11 @@ a doc to another project moves the file** to that project's folder, and links to
 (`m` in the list, or `project` in the edit form). Renaming or merging a project moves its folder
 too. A doc's project comes from its folder when the frontmatter doesn't say.
 
+**When a doc outgrows its project**, make it a lasting note: `:Logpose promote` in the doc (or
+`P` on it in the notes list) moves it to `notes/`, fixes the links to it, drops its `project`,
+`type` and `status`, and starts it with `Started in [[projects/acme|Acme]].` That link keeps it
+on the project page's list below, so the project still points to what it taught you.
+
 ### The project page as a hub
 
 **The project page lists what's in the project, and keeps the list up to date.** At its end,
@@ -915,7 +922,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `check` | Check off the to-do on this line (or the selected ones); again to uncheck. |
-| `promote` | On a to-do: a task, linked both ways. In a task file (or a selection): a note from its write-up, linked both ways. |
+| `promote[!]` | On a to-do: a task, linked both ways. In a task file (or a selection): a note from its write-up, linked both ways. In a project doc: a lasting note in `notes/` (asks; `!` doesn't). |
 | `actions [open\|mine\|overdue\|all] [FILTERS]` | Meeting action items (to-dos in meeting notes) in the quickfix list. |
 
 ### Finding things
