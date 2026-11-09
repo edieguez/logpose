@@ -522,8 +522,11 @@ change before applying it.
 
 **Archiving** hides a project you're done with, without losing anything. Its tasks and notes
 stay where they are and remain searchable, but it leaves completion, the projects screen and the
-all-projects board. logpose records this as `archived: true` in the project page, and `U`
-undoes it.
+all-projects board. logpose records this as `archived: true` in the project page and moves the
+page and its folder of [docs](#project-docs) into `projects/archive/`, fixing the links to them,
+so finished projects stay out of the way in Obsidian and GitHub too. Archived docs stay
+searchable (`type:decision` finds them) but leave the notes list and `[[` completion. `U`
+undoes it all.
 
 > **Configure:** `projects = { paths = { ["~/work/api"] = "acme" } }` also names a folder's
 > project, from your config. `meeting_subdir = ""` keeps all meetings in one folder.
@@ -1246,6 +1249,7 @@ headings, lists and code it inserts, and never rewraps your own text.
 ├── notes/queue-design.md            topic notes
 ├── projects/acme-api.md             project pages
 ├── projects/acme-api/use-postgres.md  project docs
+├── projects/archive/old-thing.md    an archived project (and old-thing/, its docs)
 ├── people/ana-lopez.md              people pages
 ├── reports/sprint-42.md
 └── templates/                       your template overrides
