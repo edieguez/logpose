@@ -686,6 +686,18 @@ takes it from its folder.
 
 Options: `doc_types` (|logpose-setup|).
 
+                                                                 *logpose-hub*
+The project page as a hub ~
+At the end of `projects/acme.md`, logpose keeps a list of the project's docs
+by type, its topic notes (with `project: acme`, or linking to the page) and
+its latest meetings, between `<!-- logpose:hub -->` and
+`<!-- /logpose:hub -->` (Obsidian and GitHub hide the markers). It follows
+a moment after the journal changes; |:Logpose-hub| does it now. The page is
+written only when the list changes, keeps its `modified:`, and waits while
+it has unsaved changes. What's between the markers is logpose's; write
+around it. No section until there's something to list. Turn it off with
+`projects = { hub = false }`.
+
 ------------------------------------------------------------------------------
 SPRINTS, ARCHIVES AND REPORTS                                *logpose-sprints*
 
@@ -872,6 +884,13 @@ Notes and projects ~
     The new-doc form (|logpose-docs|), starting on {type} (the first type,
     `decision`, without one) and {title}; <C-s> creates the doc in its
     project's folder and opens it.
+
+                                                                *:Logpose-hub*
+:Logpose hub [{project}]
+:Logpose hub!
+    Bring a project page's list (|logpose-hub|) up to date now: {project},
+    or the page or doc you're in, or the active project. With !, every
+    project's.
 
                                                                *:Logpose-edit*
 :Logpose edit [last]
@@ -1119,7 +1138,9 @@ General ~
   projects       (table)       `detect` (true): the git repo of the current
                  buffer or directory is the project. `paths` ({}): folder ->
                  project name; the longest match wins. `open_board` (true):
-                 switching project opens its board.
+                 switching project opens its board. `hub` (true): project
+                 pages keep a list of their docs, notes and meetings
+                 (|logpose-hub|).
 
 Sprints and periods ~
 
