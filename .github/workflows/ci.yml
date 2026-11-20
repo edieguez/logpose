@@ -9,6 +9,7 @@ jobs:
   test:
     name: test (nvim ${{ matrix.neovim }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10 # the suite takes well under a minute: a stuck child Neovim ends here
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +27,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: JohnnyMorganz/stylua-action@v4
@@ -37,6 +39,7 @@ jobs:
   markdown:
     name: markdownlint (templates and generated notes)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: rhysd/action-setup-vim@v1
