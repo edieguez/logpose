@@ -656,7 +656,8 @@ Completion in notes ~
 In a journal note, `[[` offers every note and task to link (inserted in
 `link_style`); a name in the frontmatter's `attendees:` or `with:` line
 offers people; `@` in the text offers people (pages and everyone mentioned)
-as `@handle`, matching any part of the name.
+as `@handle`, matching any part of the name. Nothing is offered inside a
+code block, where `@decorator` and `[[` are code.
 
 No setup is needed. In a journal note, on the first Insert mode, logpose
 adds its source to whichever completion plugin is loaded:

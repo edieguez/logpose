@@ -55,13 +55,21 @@ local function person_item(p, i, new_text, range, filter)
   }
 end
 
---- Completion items for the text before the cursor.
----@param line string the current line
----@param col integer cursor column (0-based, bytes)
----@param row integer cursor row (0-based)
+--- Is `row` (0-based) inside a fenced code block?
+---@param bufnr integer
+---@param row integer
+---@return boolean
+local function in_code(bufnr, row)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, row + 1, false)
+  return require("logpose.markdown").code_rows(lines)[row + 1] == true
+end
+
+---@param line string
+---@param col integer
+---@param row integer
 ---@param bufnr integer
 ---@return table[]
-function M.items(line, col, row, bufnr)
+local function items_at(line, col, row, bufnr)
   local source = vim.api.nvim_buf_get_name(bufnr)
   local links = require("logpose.links").complete_items(line, col, row, source)
   if #links > 0 then
@@ -117,6 +125,22 @@ function M.items(line, col, row, bufnr)
   local range = { start = { line = row, character = at - 1 }, ["end"] = { line = row, character = col } }
   for i, p in ipairs(people.match(people.known(root), handle, project)) do
     table.insert(out, person_item(p, i, "@" .. p.slug, range, "@" .. p.slug .. " " .. people.plain(p.name)))
+  end
+  return out
+end
+
+--- Completion items for the text before the cursor; none in a code block, where `@decorator`
+--- and `[[` are code.
+---@param line string the current line
+---@param col integer cursor column (0-based, bytes)
+---@param row integer cursor row (0-based)
+---@param bufnr integer
+---@return table[]
+function M.items(line, col, row, bufnr)
+  local out = items_at(line, col, row, bufnr)
+  -- checked only when there is something to offer: most keys typed offer nothing
+  if #out > 0 and in_code(bufnr, row) then
+    return {}
   end
   return out
 end

@@ -1586,6 +1586,10 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
   (`'modifiable'` off) before it makes the task, and takes the task back (deletes the file) if
   the `→ [[task]]` line still can't be added. **Tests** (`test_taskfile.lua`): a
   `nomodifiable` note; a failing `nvim_buf_set_lines`.
+- **No completion in code blocks.** `completion.items` offers nothing on a row inside a fenced
+  code block (`markdown.code_rows`), so `@decorator` and `[[` in code don't open the menu. The
+  rows are only scanned when there is something to offer. **Tests** (`test_people.lua`): `@` and
+  `[[` in a fence offer nothing; after it they do.
 
 ## 5. Command reference (final state)
 

@@ -237,6 +237,38 @@ T["in a note: attendees, with: and @mentions complete people"] = function()
   eq(child.lua_get("require('logpose.completion.cmp').new():get_position_encoding_kind()"), "utf-8")
 end
 
+T["nothing completes in a code block: @decorators and [[ there are code"] = function()
+  H.write(root .. "/notes/queue-design.md", '---\ntitle: "Queue design"\n---\n')
+  local path = root .. "/notes/snippets.md"
+  H.write(path, "")
+  child.cmd("edit " .. path)
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "# Snippets",
+    "",
+    "```python",
+    "@",
+    "x = a[[",
+    "```",
+    "",
+    "ask @",
+    "see [[",
+  })
+  local function count(row, col)
+    return child.lua_get(
+      ([[#require('logpose.completion').items(vim.api.nvim_buf_get_lines(0, %d, %d, false)[1], %d, %d, 0)]]):format(
+        row,
+        row + 1,
+        col,
+        row
+      )
+    )
+  end
+  eq(count(3, 1), 0) -- @ in the code block
+  eq(count(4, 7), 0) -- [[ in the code block
+  eq(count(7, 5) > 0, true) -- after it, people again
+  eq(count(8, 6) > 0, true) -- and links
+end
+
 T["completion offers person: filters"] = function()
   eq(vim.tbl_contains(child.fn.getcompletion("Logpose find tasks ", "cmdline"), "person:bob-smith"), true)
 end

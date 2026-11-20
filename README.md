@@ -745,9 +745,10 @@ matter.
 **Completion in notes.** In a journal note, typing `[[` offers every note and task to link;
 in the frontmatter's `attendees:` and `with:` lines, typing a name (after `[` or a comma) offers
 people; and `@` in the text offers your people (everyone with a page, and everyone you've
-mentioned) as `@handle`, matching any part of the name (`@lop` finds Ana López). It works with no
-setup: in a journal note logpose adds its source to blink.cmp or nvim-cmp, whichever you use
-(unless your config lists it already), and without either it opens Neovim's own menu.
+mentioned) as `@handle`, matching any part of the name (`@lop` finds Ana López). Code blocks are
+left alone, so a Python `@decorator` doesn't open the menu. It works with no setup: in a journal
+note logpose adds its source to blink.cmp or nvim-cmp, whichever you use (unless your config lists
+it already), and without either it opens Neovim's own menu.
 
 ## Project docs
 
