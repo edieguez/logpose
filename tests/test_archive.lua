@@ -78,6 +78,42 @@ T["a buffer showing the task follows it"] = function()
   eq(child.api.nvim_buf_get_name(0), p("tasks/archive/week-2026-09-28/old.md"))
 end
 
+T["tasks that would land on the same file move nothing, and say which"] = function()
+  task("a/x", "2026-10-02")
+  task("b/x", "2026-10-02")
+  task("y", "2026-10-02")
+  child.cmd("Logpose archive!")
+  H.contains(H.read(p("tasks/a/x.md")), "status: done")
+  H.contains(H.read(p("tasks/b/x.md")), "status: done")
+  H.contains(H.read(p("tasks/y.md")), "status: done") -- not moved either: all or nothing
+  eq(vim.fn.isdirectory(p("tasks/archive")), 0)
+  local msg = child.notifications()[1].msg
+  H.contains(msg, "nothing archived")
+  H.contains(msg, "tasks/a/x.md, tasks/b/x.md → tasks/archive/week-2026-09-28/x.md")
+end
+
+T["a task already in the archive isn't replaced"] = function()
+  H.write(p("tasks/archive/week-2026-09-28/old.md"), "---\ntitle: archived\n---\n")
+  task("old", "2026-10-02")
+  child.cmd("Logpose archive!")
+  H.contains(H.read(p("tasks/old.md")), "status: done")
+  eq(H.read(p("tasks/archive/week-2026-09-28/old.md")), "---\ntitle: archived\n---\n")
+  H.contains(child.notifications()[1].msg, "tasks/old.md → tasks/archive/week-2026-09-28/old.md (already exists)")
+end
+
+T["a move that fails says how many were archived"] = function()
+  task("aaa", "2026-09-29")
+  task("zzz", "2026-10-05")
+  H.write(p("tasks/archive/week-2026-10-05"), "") -- a file where zzz's folder should go
+  local gen = child.lua_get("require('logpose.index').generation")
+  child.cmd("Logpose archive!")
+  H.contains(H.read(p("tasks/archive/week-2026-09-28/aaa.md")), "status: done")
+  H.contains(H.read(p("tasks/zzz.md")), "status: done")
+  H.contains(child.notifications()[1].msg, "archived 1 of 2 done tasks, then stopped")
+  -- what did move is known to the index
+  eq(child.lua_get("require('logpose.index').generation") > gen, true)
+end
+
 T["preview"] = MiniTest.new_set()
 
 T["preview"]["lists the moves and asks first"] = function()
@@ -92,6 +128,16 @@ T["preview"]["lists the moves and asks first"] = function()
     "q: close",
   })
   eq(H.read(p("tasks/old.md")), nil)
+end
+
+T["preview"]["a conflict is said before the preview asks"] = function()
+  task("a/x", "2026-10-02")
+  task("b/x", "2026-10-02")
+  stub_select("Archive")
+  child.cmd("Logpose archive")
+  eq(child.lua_get("_G.preview"), vim.NIL)
+  H.contains(child.notifications()[1].msg, "nothing archived")
+  H.contains(H.read(p("tasks/a/x.md")), "status: done")
 end
 
 T["preview"]["cancel moves nothing"] = function()

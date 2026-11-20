@@ -845,7 +845,8 @@ items, old open to-dos, blocked tasks, and tasks in progress for too long.
 
 **Archive.** `:Logpose archive` moves done tasks from past sprints into
 `tasks/archive/sprint-42/`, where reports and search still find them. It shows a preview and
-asks first, and running it twice is harmless.
+asks first, and running it twice is harmless. It never replaces a file: if two tasks would land
+on the same name in the archive, nothing moves and it tells you which ones to rename.
 
 ## Extras
 

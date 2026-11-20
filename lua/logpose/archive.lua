@@ -9,8 +9,10 @@ local ui = require("logpose.util.ui")
 local M = {}
 
 ---@class logpose.ArchivePlan
+---@field root string
 ---@field current logpose.Period  the current period (kept)
 ---@field tasks { from: string, to: string, key: string }[]  done task files to move
+---@field conflicts { to: string, from: string[], exists: boolean }[]  moves that would overwrite a file
 
 --- Work out what to move, entirely in memory. Nothing is written.
 ---@param root string
@@ -18,7 +20,7 @@ local M = {}
 ---@return logpose.ArchivePlan
 function M.plan(root, today)
   local current = period.of(today)
-  local plan = { current = current, tasks = {} }
+  local plan = { root = root, current = current, tasks = {}, conflicts = {} }
   local taskfile = require("logpose.taskfile")
   local done_status = config.get().board.done
   for _, t in ipairs(taskfile.list(root)) do
@@ -32,10 +34,53 @@ function M.plan(root, today)
       end
     end
   end
+  -- Tasks with the same name in different folders under tasks/ would land on the same file, and
+  -- one already in the archive would be replaced: either stops the archive before it starts.
+  local by_to, order = {}, {}
+  for _, t in ipairs(plan.tasks) do
+    if not by_to[t.to] then
+      by_to[t.to] = {}
+      table.insert(order, t.to)
+    end
+    table.insert(by_to[t.to], t.from)
+  end
+  for _, to in ipairs(order) do
+    local exists = fs.exists(to)
+    if exists or #by_to[to] > 1 then
+      table.insert(plan.conflicts, { to = to, from = by_to[to], exists = exists })
+    end
+  end
   return plan
 end
 
---- Move the tasks: refuses up front if any has unsaved changes.
+---@param plan logpose.ArchivePlan
+---@param path string
+---@return string
+local function relpath(plan, path)
+  return require("logpose.link").relpath(plan.root, path)
+end
+
+--- Why the plan can't run: the moves that would overwrite a file. Nil when there are none.
+---@param plan logpose.ArchivePlan
+---@return string?
+local function conflict_message(plan)
+  if #plan.conflicts == 0 then
+    return nil
+  end
+  local lines =
+    { "logpose: nothing archived: these tasks would overwrite a file in the archive (rename them and try again):" }
+  for _, c in ipairs(plan.conflicts) do
+    local from = vim.tbl_map(function(path)
+      return relpath(plan, path)
+    end, c.from)
+    local note = c.exists and " (already exists)" or ""
+    table.insert(lines, ("  %s → %s%s"):format(table.concat(from, ", "), relpath(plan, c.to), note))
+  end
+  return table.concat(lines, "\n")
+end
+
+--- Move the tasks. Refuses up front, moving nothing, if any has unsaved changes or would
+--- overwrite a file in the archive.
 ---@param plan logpose.ArchivePlan
 function M.execute(plan)
   local paths = vim.tbl_map(function(t)
@@ -45,25 +90,39 @@ function M.execute(plan)
   if not ok then
     error(err, 0)
   end
-  for _, t in ipairs(plan.tasks) do
-    fs.mkdir_p(vim.fs.dirname(t.to))
-    if fs.exists(t.to) then
-      error(("logpose: %s already exists (archive stopped)"):format(t.to), 0)
-    end
-    local moved, merr = (vim.uv or vim.loop).fs_rename(t.from, t.to)
-    if not moved then
-      error(("logpose: cannot move %s: %s"):format(t.from, merr), 0)
-    end
-    -- A buffer showing the task follows it to the archive.
-    local buf = fs.find_buf(t.from)
-    if buf then
-      vim.api.nvim_buf_call(buf, function()
-        vim.cmd("silent! file " .. vim.fn.fnameescape(t.to))
-        vim.cmd("silent! edit!")
-      end)
-    end
+  local conflict = conflict_message(plan)
+  if conflict then
+    error(conflict, 0)
   end
+  local uv = vim.uv or vim.loop
+  local moved = 0
+  local done, move_err = pcall(function()
+    for _, t in ipairs(plan.tasks) do
+      fs.mkdir_p(vim.fs.dirname(t.to))
+      -- checked again: a rename replaces a file that appeared since the plan was made
+      if fs.exists(t.to) then
+        error(("%s already exists"):format(relpath(plan, t.to)), 0)
+      end
+      local renamed, rename_err = uv.fs_rename(t.from, t.to)
+      if not renamed then
+        error(("cannot move %s: %s"):format(relpath(plan, t.from), rename_err), 0)
+      end
+      moved = moved + 1
+      -- A buffer showing the task follows it to the archive.
+      local buf = fs.find_buf(t.from)
+      if buf then
+        vim.api.nvim_buf_call(buf, function()
+          vim.cmd("silent! file " .. vim.fn.fnameescape(t.to))
+          vim.cmd("silent! edit!")
+        end)
+      end
+    end
+  end)
   require("logpose.index").clear_cache()
+  if not done then
+    local why = tostring(move_err):gsub("^logpose:%s*", "")
+    error(("logpose: archived %d of %d done tasks, then stopped: %s"):format(moved, #plan.tasks, why), 0)
+  end
 end
 
 ---@param plan logpose.ArchivePlan
@@ -121,6 +180,11 @@ function M.command(opts)
         vim.log.levels.INFO
       )
       return
+    end
+    -- what can't be archived is said now, not after the preview asked about it
+    local conflict = conflict_message(plan)
+    if conflict then
+      error(conflict, 0)
     end
     if opts.bang then
       M.execute(plan)

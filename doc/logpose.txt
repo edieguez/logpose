@@ -960,7 +960,9 @@ Sprints and maintenance ~
     Move done tasks from before the current period off the board, to
     `tasks/archive/{period}/`, where reports and search still find them.
     Running it again is safe. Shows a preview first; [!] skips it. Nothing
-    is moved if one of the tasks has unsaved changes.
+    is moved if one of the tasks has unsaved changes, or if one would
+    replace a file in the archive (two tasks with the same name in
+    different folders, say): it names them, so you can rename them first.
 
                                                       *:Logpose-merge-project*
 :Logpose merge-project[!] {old} {new}
