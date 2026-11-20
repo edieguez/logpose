@@ -233,7 +233,7 @@ function M.toggle_block(b)
     return
   end
   vim.ui.input(
-    { prompt = "Blocked by: " },
+    { prompt = "Blocked by (Enter for no reason): " },
     ui.safely(function(reason)
       if reason == nil then
         return

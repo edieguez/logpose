@@ -1594,6 +1594,8 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
   couldn't read (they stay in the title, as before) and `taskfile.due_warning` words the warning;
   `:Logpose capture` and `:Logpose promote` show it after their message. **Tests**
   (`test_taskfile.lua`): `from_text`, `due_warning`, capture and promote with `due:tomorow`.
+- **The board's block prompt says Enter gives no reason** (`Blocked by (Enter for no reason): `);
+  an empty reason still blocks (`blocked: yes`, shown as "blocked"). **Tests** (`test_board.lua`).
 
 ## 5. Command reference (final state)
 

@@ -265,7 +265,7 @@ board; the top bar shows the everyday ones when it has room):
 | `h` `j` `k` `l` | Move between cards and columns. The mouse works too. |
 | `H` `L` | Move the card to the previous / next column (`2L`: two on). `3gm` moves it to column 3. |
 | `x` | Done. |
-| `b` | Block (asks for the reason) or unblock. |
+| `b` | Block (asks for the reason; Enter for none) or unblock. |
 | `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
 | `K` | Peek: open the task in a floating window to read or edit it. |
 | `n` | Open the notes linked with the task (the `✎ 2` on the card). |

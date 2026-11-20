@@ -1024,7 +1024,7 @@ room, and `?` lists them all.
   {N}gm  gm     move the card to column N; without a count, pick one
   <C-j> <C-k>   move the card down / up within its column
   x             done
-  b             block (asks for the reason) / unblock
+  b             block (asks for the reason; <CR> for none) / unblock
   a             add a card to this column (with rows per project: to the
                 row you're in), in the new-task form (|logpose-edit|)
   D             delete the card (asks first)

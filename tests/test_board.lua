@@ -150,16 +150,21 @@ T["h/l/j/k move the focus; H/L, gm and x move the card; counts work"] = function
   H.contains(content, "Follow-up → In progress")
 end
 
-T["b blocks with a reason and unblocks"] = function()
+T["b blocks with a reason (or none) and unblocks"] = function()
   child.cmd("Logpose board")
   child.lua([[vim.ui.input = function(opts, cb) _G.prompt = opts.prompt; cb('needs review') end]])
   child.type_keys("lb")
-  eq(child.lua_get("_G.prompt"), "Blocked by: ")
+  eq(child.lua_get("_G.prompt"), "Blocked by (Enter for no reason): ")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "blocked: needs review")
   H.contains(screen(), "⊘ needs review")
   child.type_keys("b")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "blocked:\n")
   H.contains(H.read(root .. "/tasks/fix-flaky.md"), "unblocked")
+  -- no reason given: blocked all the same
+  child.lua([[vim.ui.input = function(opts, cb) cb('') end]])
+  child.type_keys("b")
+  H.contains(H.read(root .. "/tasks/fix-flaky.md"), "blocked: yes")
+  H.contains(screen(), "⊘ blocked")
 end
 
 --- In the new-task form (open, in insert mode on the title): type the title, set other fields
