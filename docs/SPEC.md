@@ -1582,6 +1582,10 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
   moves. A move that still fails says how many tasks were archived, and the index hears of them.
   **Tests** (`test_archive.lua`): the same name in two folders, a file already in the archive, a
   failed move, the conflict reported before the preview.
+- **Promote never leaves a task behind.** `todos.promote` refuses in a buffer that can't change
+  (`'modifiable'` off) before it makes the task, and takes the task back (deletes the file) if
+  the `→ [[task]]` line still can't be added. **Tests** (`test_taskfile.lua`): a
+  `nomodifiable` note; a failing `nvim_buf_set_lines`.
 
 ## 5. Command reference (final state)
 

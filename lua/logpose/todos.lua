@@ -146,6 +146,9 @@ function M.promote(root)
   if not todo or vim.trim(todo.text) == "" then
     error("logpose: no to-do on this line (a `- [ ]` line)", 0)
   end
+  if not vim.bo[buf].modifiable then
+    error("logpose: promote adds a link under the to-do, but this buffer can't be changed ('modifiable' is off)", 0)
+  end
   local index = require("logpose.index")
   local note_item = index.index_lines(note, vim.api.nvim_buf_get_lines(buf, 0, -1, false), root)[1]
   local project = note_item.project or require("logpose.project").resolve(root)
@@ -170,7 +173,13 @@ function M.promote(root)
   -- the task, which links back with `From:`
   -- (on a line of its own under the item, so long lines stay within markdownlint's limit)
   local cont = string.rep(" ", #todo.indent + 2) .. "→ " .. link.make(note, path, "task", root)
-  vim.api.nvim_buf_set_lines(buf, row, row, false, { cont })
+  local added, add_err = pcall(vim.api.nvim_buf_set_lines, buf, row, row, false, { cont })
+  if not added then
+    -- a task nothing links to would be lost: take it back
+    os.remove(path)
+    index.clear_cache()
+    error(("logpose: couldn't add the link under the to-do, so no task was made: %s"):format(add_err), 0)
+  end
   if not was_modified then
     vim.api.nvim_buf_call(buf, function()
       vim.cmd("silent write")

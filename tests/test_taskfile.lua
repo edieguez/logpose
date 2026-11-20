@@ -297,6 +297,29 @@ T["promote turns a to-do into a linked task"] = function()
   H.contains(child.notifications()[#child.notifications()].msg, "no to-do on this line")
 end
 
+T["promote in a buffer that can't change makes no task"] = function()
+  H.write(root .. "/notes/ideas.md", "# Ideas\n\n- [ ] write the probe\n")
+  child.cmd("edit " .. root .. "/notes/ideas.md")
+  child.bo.modifiable = false
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.cmd("Logpose promote")
+  H.contains(child.notifications()[#child.notifications()].msg, "this buffer can't be changed")
+  eq(vim.fn.glob(root .. "/tasks/*.md", true, true), {})
+end
+
+T["promote takes the task back when the link can't be added"] = function()
+  H.write(root .. "/notes/ideas.md", "# Ideas\n\n- [ ] write the probe\n")
+  child.cmd("edit " .. root .. "/notes/ideas.md")
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.lua([[vim.api.nvim_buf_set_lines = function() error("E565: Not allowed to change text") end]])
+  child.cmd("Logpose promote")
+  local msg = child.notifications()[#child.notifications()].msg
+  H.contains(msg, "couldn't add the link under the to-do, so no task was made")
+  H.contains(msg, "E565")
+  eq(vim.fn.glob(root .. "/tasks/*.md", true, true), {})
+  eq(child.bo.modified, false)
+end
+
 T["config rejects bad columns"] = function()
   local err = function(opts)
     return child.lua_get(("select(2, pcall(require('logpose').setup, %s))"):format(opts))
