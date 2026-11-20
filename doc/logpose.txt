@@ -796,7 +796,8 @@ Tasks ~
     Create a task in `tasks.capture_status` (Backlog) for the active
     project, or the one named with `+name` in {text} (`+none`: no project).
     `#tags` and `due:` (a date, `today`, `tomorrow`, `fri`, `+3d`) go into
-    the frontmatter. <Tab> completes `+projects`, `#tags` and `due:`. The
+    the frontmatter; a `due:` that isn't a date stays in the title, with a
+    warning. <Tab> completes `+projects`, `#tags` and `due:`. The
     message after it names the project and how it was chosen; |:Logpose-edit|
     `last` fixes a wrong one. [!] opens the new file. Without {text}: the
     new-task form (|logpose-edit|), to set the title, column, project, tags,

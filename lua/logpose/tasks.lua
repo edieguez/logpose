@@ -40,7 +40,7 @@ end
 ---@return string path
 function M.capture_file(text, root, project, open, source)
   local taskfile = require("logpose.taskfile")
-  local title, tags, due, explicit = taskfile.from_text(text)
+  local title, tags, due, explicit, unread = taskfile.from_text(text)
   if explicit ~= nil then
     project, source = explicit or nil, nil
   end
@@ -64,6 +64,10 @@ function M.capture_file(text, root, project, open, source)
     ),
     vim.log.levels.INFO
   )
+  local warning = taskfile.due_warning(unread)
+  if warning then
+    require("logpose.util.ui").notify(warning, vim.log.levels.WARN)
+  end
   return path
 end
 

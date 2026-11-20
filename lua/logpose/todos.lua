@@ -152,7 +152,7 @@ function M.promote(root)
   local index = require("logpose.index")
   local note_item = index.index_lines(note, vim.api.nvim_buf_get_lines(buf, 0, -1, false), root)[1]
   local project = note_item.project or require("logpose.project").resolve(root)
-  local title, tags, due, explicit = taskfile.from_text(todo.text)
+  local title, tags, due, explicit, unread = taskfile.from_text(todo.text)
   if explicit ~= nil then
     project = explicit or nil
   end
@@ -193,6 +193,10 @@ function M.promote(root)
     ),
     vim.log.levels.INFO
   )
+  local warning = taskfile.due_warning(unread)
+  if warning then
+    ui.notify(warning, vim.log.levels.WARN)
+  end
   return path
 end
 

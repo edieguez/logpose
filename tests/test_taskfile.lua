@@ -86,9 +86,21 @@ T["from_text takes a +project and relative due dates"] = function()
   eq(ft("Plan project:Master-Thesis due:fri"), { "Plan", {}, "2026-10-16", "master-thesis" }) -- a Thursday
   eq(ft("Bump deps due:+3d +acme"), { "Bump deps", {}, "2026-10-18", "acme" })
   eq(ft("Tidy up +none"), { "Tidy up", {}, vim.NIL, false })
-  -- not projects: C++, +1, a word with + inside; not dates: due:someday
+  -- not projects: C++, +1, a word with + inside; not dates: due:someday (kept, and reported)
   eq(ft("Fix C++ build +1 a+b"), { "Fix C++ build +1 a+b", {} })
-  eq(ft("Decide due:someday"), { "Decide due:someday", {} })
+  eq(ft("Decide due:someday"), { "Decide due:someday", {}, vim.NIL, vim.NIL, { "due:someday" } })
+end
+
+T["due_warning names the due: words that aren't dates"] = function()
+  local function warn(list)
+    return child.lua_get(("require('logpose.taskfile').due_warning(%s)"):format(vim.inspect(list)))
+  end
+  eq(warn({}), vim.NIL)
+  eq(
+    warn({ "due:tomorow" }),
+    "logpose: “due:tomorow” isn't a date, so it stayed in the title (due: takes a date, today, tomorrow, fri or +3d)"
+  )
+  H.contains(warn({ "due:a", "due:b" }), "“due:a”, “due:b” aren't dates, so they stayed in the title")
 end
 
 T["set_status on a CRLF file keeps one frontmatter block"] = function()
@@ -233,6 +245,20 @@ T["+name in a capture picks the project; :Logpose edit last fixes a wrong one"] 
   eq(child.bo.filetype, "logpose-edit")
 end
 
+T["capture warns about a due: it can't read, and keeps it in the title"] = function()
+  child.cmd("Logpose capture Call the bank due:tomorow")
+  local path = vim.fn.glob(root .. "/tasks/*.md", true, true)[1]
+  local t = fm(path)
+  eq({ t.title, t.due }, { "Call the bank due:tomorow", nil })
+  local n = child.notifications()
+  H.contains(n[1].msg, "captured “Call the bank due:tomorow”")
+  H.contains(n[2].msg, "“due:tomorow” isn't a date, so it stayed in the title")
+  eq(n[2].level, vim.log.levels.WARN)
+  -- a date it reads says nothing more
+  child.cmd("Logpose capture Call the bank again due:tomorrow")
+  eq(#child.notifications(), 3)
+end
+
 T["capture completes +projects, #tags and due:"] = function()
   H.write(root .. "/projects/thesis.md", '---\ntitle: "Thesis"\nproject: thesis\n---\n')
   H.write(root .. "/tasks/x.md", "---\ntitle: x\nstatus: todo\ntags: [perf]\n---\n")
@@ -295,6 +321,17 @@ T["promote turns a to-do into a linked task"] = function()
   child.api.nvim_win_set_cursor(0, { 6, 0 })
   child.cmd("Logpose promote")
   H.contains(child.notifications()[#child.notifications()].msg, "no to-do on this line")
+end
+
+T["promote warns about a due: it can't read"] = function()
+  H.write(root .. "/notes/ideas.md", "# Ideas\n\n- [ ] call the bank due:tomorow\n")
+  child.cmd("edit " .. root .. "/notes/ideas.md")
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.cmd("Logpose promote")
+  local n = child.notifications()
+  H.contains(n[#n - 1].msg, "promoted to a task")
+  H.contains(n[#n].msg, "“due:tomorow” isn't a date, so it stayed in the title")
+  eq(n[#n].level, vim.log.levels.WARN)
 end
 
 T["promote in a buffer that can't change makes no task"] = function()

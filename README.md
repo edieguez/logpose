@@ -224,7 +224,7 @@ row with `s`), and saving creates it.
 names one with `+name` (`+none` for no project). `due:` takes a date, `today`, `tomorrow`, a
 weekday (`fri`) or `+3d`, and `<Tab>` completes `+projects`, `#tags` and `due:`. The message
 after it says where the task went (`→ acme (this repo)`); if that's wrong, `:Logpose edit last`
-fixes it.
+fixes it. A `due:` that isn't a date (`due:tomorow`) stays in the title, and a warning says so.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
 shows its title and, under it, `◆ project · due Tue ✎ 2 #tags`. The project is in its own colour,

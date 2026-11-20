@@ -1590,6 +1590,10 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
   code block (`markdown.code_rows`), so `@decorator` and `[[` in code don't open the menu. The
   rows are only scanned when there is something to offer. **Tests** (`test_people.lua`): `@` and
   `[[` in a fence offer nothing; after it they do.
+- **A `due:` that isn't a date is reported.** `taskfile.from_text` returns the `due:` words it
+  couldn't read (they stay in the title, as before) and `taskfile.due_warning` words the warning;
+  `:Logpose capture` and `:Logpose promote` show it after their message. **Tests**
+  (`test_taskfile.lua`): `from_text`, `due_warning`, capture and promote with `due:tomorow`.
 
 ## 5. Command reference (final state)
 

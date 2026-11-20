@@ -384,9 +384,10 @@ function M.take_project(s)
 end
 
 --- Split a checkbox text into a clean title, its #tags, a `due:` date (`due:2026-10-20`,
---- `due:tomorrow`, `due:+3d`, `due:fri`) and a project (`+acme`, see `M.take_project`).
+--- `due:tomorrow`, `due:+3d`, `due:fri`) and a project (`+acme`, see `M.take_project`). A `due:`
+--- that isn't a date stays in the title, and comes back in `unread` (nil when there's none).
 ---@param s string
----@return string title, string[] tags, string? due, string|false|nil project
+---@return string title, string[] tags, string? due, string|false|nil project, string[]? unread
 function M.from_text(s)
   local index = require("logpose.index")
   -- A carried-over item ends in "(from [[previous note]])": that link isn't part of the task.
@@ -395,11 +396,13 @@ function M.from_text(s)
   local project
   s, project = M.take_project(s)
   local tags = index.tags_in(s)
-  local due
+  local due, unread
   local title = (" " .. s)
     :gsub("(%s)due:(%S+)", function(lead, expr)
       local iso = date.resolve_due(expr)
       if not iso then
+        unread = unread or {}
+        table.insert(unread, "due:" .. expr)
         return nil -- not a date: keep the text as it is
       end
       due = iso
@@ -411,7 +414,25 @@ function M.from_text(s)
   if title == "" then
     title = vim.trim(original)
   end
-  return title, tags, due, project
+  return title, tags, due, project, unread
+end
+
+--- What to say about the `due:` words `M.from_text` couldn't read as dates (nil: nothing).
+---@param unread? string[]
+---@return string?
+function M.due_warning(unread)
+  if not unread or #unread == 0 then
+    return nil
+  end
+  local quoted = vim.tbl_map(function(w)
+    return "“" .. w .. "”"
+  end, unread)
+  local one = #unread == 1
+  return ("logpose: %s %s, so %s in the title (due: takes a date, today, tomorrow, fri or +3d)"):format(
+    table.concat(quoted, ", "),
+    one and "isn't a date" or "aren't dates",
+    one and "it stayed" or "they stayed"
+  )
 end
 
 ---@class logpose.NewTask
