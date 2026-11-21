@@ -1,5 +1,6 @@
 --- What logpose's screens (the board, the lists, today, projects, help windows) share: drawing
---- lines of highlighted chunks into a locked buffer, default highlight links, and leaving.
+--- lines of highlighted chunks into a locked buffer, default highlight links, window options,
+--- and leaving.
 local M = {}
 
 ---@alias logpose.Chunk { [1]: string, [2]?: string }
@@ -96,6 +97,48 @@ vim.api.nvim_create_autocmd("ColorScheme", {
     end
   end,
 })
+
+--- A screen's window options: nothing that takes columns or draws over it (line numbers, the
+--- sign, fold and status columns, colour and cursor columns, list characters, spell checking),
+--- whatever your editor sets for files.
+M.WINDOW_OPTIONS = {
+  number = false,
+  relativenumber = false,
+  signcolumn = "no",
+  foldcolumn = "0",
+  statuscolumn = "",
+  colorcolumn = "",
+  cursorcolumn = false,
+  list = false,
+  spell = false,
+  foldenable = false,
+}
+
+local window_group = vim.api.nvim_create_augroup("logpose.screen.window", { clear = true })
+
+--- Give `win` a screen's window options (`M.WINDOW_OPTIONS`, then `extra`) for `buf`, the screen
+--- it shows. They're the screen's own, as with `:setlocal`: a note opened in that window afterwards
+--- has your options. Any other window that starts showing `buf` gets them too.
+---@param buf integer
+---@param win integer
+---@param extra? table<string, any>  more, e.g. `{ wrap = false, cursorline = true }`
+function M.window(buf, win, extra)
+  local opts = vim.tbl_extend("force", M.WINDOW_OPTIONS, extra or {})
+  local function apply(w)
+    for name, value in pairs(opts) do
+      pcall(vim.api.nvim_set_option_value, name, value, { scope = "local", win = w })
+    end
+  end
+  apply(win)
+  vim.api.nvim_clear_autocmds({ group = window_group, buffer = buf })
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = window_group,
+    buffer = buf,
+    callback = function()
+      apply(vim.api.nvim_get_current_win())
+    end,
+  })
+end
 
 --- Leave a screen: its window shows the buffer you were in before (or an empty one).
 ---@param buf integer the screen's buffer

@@ -862,14 +862,7 @@ function M.show(model, opts)
       require("cmp").setup.buffer({ enabled = false })
     end)
   end
-  vim.wo[win].wrap = false
-  vim.wo[win].number = false
-  vim.wo[win].relativenumber = false
-  vim.wo[win].signcolumn = "no"
-  vim.wo[win].foldcolumn = "0"
-  vim.wo[win].cursorline = true
-  vim.wo[win].list = false
-  vim.wo[win].spell = false
+  require("logpose.util.screen").window(buf, win, { wrap = false, cursorline = true })
 
   ---@type logpose.EditForm
   local f = {

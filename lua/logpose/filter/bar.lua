@@ -43,17 +43,12 @@ function M.open(opts)
   local parent = opts.win
   local win = vim.api.nvim_open_win(buf, true, { split = "below", win = parent, height = 1 })
   vim.wo[win].winfixheight = true
-  vim.wo[win].wrap = false
-  vim.wo[win].number = false
-  vim.wo[win].relativenumber = false
-  vim.wo[win].signcolumn = "no"
-  vim.wo[win].cursorline = false
-  vim.wo[win].spell = false
-  vim.wo[win].foldcolumn = "0"
-  -- the prompt, like Vim's `/`: "Filter people › "
-  vim.wo[win].statuscolumn = "%#LogposeFilterTitle# " .. opts.title:gsub("%%", "%%%%") .. " › %*"
-  vim.wo[win].colorcolumn = ""
-  vim.wo[win].list = false
+  require("logpose.util.screen").window(buf, win, {
+    wrap = false,
+    cursorline = false,
+    -- the prompt, like Vim's `/`: "Filter people › "
+    statuscolumn = "%#LogposeFilterTitle# " .. opts.title:gsub("%%", "%%%%") .. " › %*",
+  })
   if package.loaded["cmp"] then
     pcall(function()
       require("cmp").setup.buffer({ enabled = false })

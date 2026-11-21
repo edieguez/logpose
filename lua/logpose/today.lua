@@ -161,7 +161,7 @@ end
 ---@return integer buf
 function M.open(root, opts)
   local buf = ui.screen_buf("logpose://today", "markdown")
-  require("logpose.util.ui").show(buf)
+  require("logpose.util.screen").window(buf, require("logpose.util.ui").show(buf))
   render(buf, root)
   if opts and opts.focus == "standup" then
     for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do

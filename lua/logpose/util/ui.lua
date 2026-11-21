@@ -101,6 +101,7 @@ function M.scratch(lines, opts)
   vim.cmd(opts.height and ("botright %dsplit"):format(opts.height) or "botright split")
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, buf)
+  require("logpose.util.screen").window(buf, win)
   vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true, silent = true })
   return win
 end

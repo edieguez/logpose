@@ -445,23 +445,14 @@ function M.clamp(b)
   b.focus.row = math.max(1, math.min(b.focus.row, math.max(count, 1)))
 end
 
---- Window options that would eat columns, scroll sideways or draw over the board.
-M.WINDOW_OPTIONS = {
+--- Window options that would eat columns, scroll sideways or draw over the board: a screen's
+--- (`screen.WINDOW_OPTIONS`), and no wrapping, cursorline or sideways scrolling.
+M.WINDOW_OPTIONS = vim.tbl_extend("force", require("logpose.util.screen").WINDOW_OPTIONS, {
   wrap = false,
   -- the focused card has its own background; a cursorline would draw a band across the board
   cursorline = false,
-  number = false,
-  relativenumber = false,
-  signcolumn = "no",
-  foldcolumn = "0",
-  statuscolumn = "",
-  colorcolumn = "",
-  list = false,
-  spell = false,
-  cursorcolumn = false,
-  foldenable = false,
   sidescrolloff = 0,
-}
+})
 
 --- Apply `M.WINDOW_OPTIONS` to a window showing the board.
 ---@param win integer

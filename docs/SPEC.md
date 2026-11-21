@@ -1650,6 +1650,16 @@ nobody worked).
   note) is re-pointed or removed. Honours `daily.links` / `series.links`. **Tests**
   (`test_relink.lua`).
 
+## C22 — Fixes (0.58.1)
+
+- **Screens keep your file settings out.** `screen.window(buf, win, extra)` gives a screen's window
+  `screen.WINDOW_OPTIONS` (no line numbers, sign, fold or status column, colour or cursor column,
+  list characters or spell checking), local to the screen's buffer (`:setlocal`), and again in any
+  window that starts showing it (`BufWinEnter`). The board's options build on it; the lists, today,
+  projects, help windows, the edit form, the filter bar and previews (`ui.scratch`) use it. The
+  lists set `wrap` and `cursorline` for the whole window, so a note opened from a list kept them.
+  **Tests** (`test_screen_windows.lua`).
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |

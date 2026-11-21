@@ -39,8 +39,7 @@ function M.open(title, lines)
     footer = " q close ",
     footer_pos = "right",
   })
-  vim.wo[win].wrap = false
-  vim.wo[win].cursorline = false
+  require("logpose.util.screen").window(buf, win, { wrap = false, cursorline = false })
   require("logpose.util.modal").guard(win)
   for _, lhs in ipairs({ "q", "<Esc>", "?" }) do
     vim.keymap.set("n", lhs, function()

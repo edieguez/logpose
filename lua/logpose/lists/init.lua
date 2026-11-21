@@ -344,7 +344,7 @@ function M.render(s, keep)
   local lines, rows = M.build(s, width)
   s.rows = rows
   if win ~= -1 then
-    vim.wo[win].winbar = s.winbar
+    vim.wo[win][0].winbar = s.winbar -- the list's, not the window's: a note opened there has none
   end
   local texts = screen.draw(s.buf, ns, lines)
   if keep and win ~= -1 then
@@ -436,8 +436,8 @@ function M.open(root, view, opts)
   opts = opts or {}
   local buf = ui.screen_buf("logpose://" .. view.name, view.filetype or ("logpose-" .. view.name))
   local win = ui.show(buf)
-  vim.wo[win].wrap = false
-  vim.wo[win].cursorline = true
+  -- rows span the window, and the line you're on is highlighted
+  require("logpose.util.screen").window(buf, win, { wrap = false, cursorline = true })
   local project = opts.project
   if project == nil then
     project = require("logpose.project").resolve(root)

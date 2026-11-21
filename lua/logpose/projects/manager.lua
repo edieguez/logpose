@@ -248,9 +248,8 @@ end
 ---@return integer buf
 function M.open(root)
   local buf = ui.screen_buf("logpose://projects", "logpose-projects")
-  require("logpose.util.ui").show(buf)
-  vim.wo[0][0].wrap = false
-  vim.wo[0][0].cursorline = true
+  local win = require("logpose.util.ui").show(buf)
+  require("logpose.util.screen").window(buf, win, { wrap = false, cursorline = true })
   vim.b[buf].logpose_expanded = {}
   render(buf, root)
 
