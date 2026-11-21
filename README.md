@@ -147,7 +147,8 @@ under `## Meetings`. Today's new note starts with what's still open from the las
 another day, made ahead of time or after the fact, starts from the template):
 
 - open to-dos, from anywhere in that note, under `## To-dos` (marked `- [>]` in the old note, so
-  each lives in one place);
+  each lives in one place). Nested to-dos stay nested, and a checklist in a code block is left
+  alone;
 - the lines under `## Blockers`, which hold until you delete them.
 
 `:Logpose daily prev` and `next` go to the note before or after the one you're in (or today's),

@@ -140,8 +140,9 @@ The copied standup is grouped by project (`standup.group_by_project`).
 The daily note (|:Logpose-daily|) is a scratchpad for the day. Meetings link
 themselves under `## Meetings`. Today's new note starts with what's still
 open from the most recent one: its open to-dos, from anywhere in it, under
-`## To-dos` (marked `- [>]` in the old note, so each lives in one place),
-and the lines under `## Blockers`, which hold until you delete them. A note
+`## To-dos` (marked `- [>]` in the old note, so each lives in one place;
+nested ones stay nested, and code blocks are left alone), and the lines
+under `## Blockers`, which hold until you delete them. A note
 for another day (made ahead of time, or after the fact) starts from the
 template: what's open stays with the day it belongs to.
 

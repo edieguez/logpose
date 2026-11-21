@@ -1623,6 +1623,10 @@ nobody worked).
   under `## Meetings`, after the carried sections, so a note made later still lists them
   (`meeting.daily_item` builds the line for both). The form's preview says "…, once that's
   made". **Tests** (`test_meeting.lua`, `test_new_note.lua`, `test_standup.lua`).
+- **Carrying leaves code alone and keeps nesting.** `daily.open_todos` skips fenced code
+  (`markdown.code_rows`) and indents a carried to-do two spaces per carried to-do it sat in (one
+  under a to-do that stays behind moves up a level); `daily.blockers` ignores headings in code and
+  carries a code block under `## Blockers` whole. **Tests** (`test_standup.lua`).
 
 ## 5. Command reference (final state)
 

@@ -233,6 +233,69 @@ T["a new daily note"]["only today's carries: a note for another day leaves the t
   H.contains(H.read(d("2026-10-14")), "## To-dos\n\n- [ ] write ADR #acme")
 end
 
+T["a new daily note"]["code blocks stay code; nested to-dos keep their nesting"] = function()
+  H.write(
+    d("2026-10-13"),
+    lines(
+      "# 2026-10-13 daily notes",
+      "",
+      "## Notes",
+      "",
+      "- [ ] release 1.2",
+      "  - [ ] bump the version",
+      "  - [x] changelog",
+      "    - [ ] under a checked one",
+      "- [x] done",
+      "  - [ ] left open",
+      "",
+      "PR template:",
+      "",
+      "```markdown",
+      "## Blockers",
+      "- [ ] tests added",
+      "```",
+      "",
+      "## Blockers",
+      "",
+      "- the staging VM",
+      "",
+      "```sh",
+      "ssh staging",
+      "",
+      "uptime",
+      "```"
+    )
+  )
+  child.cmd("Logpose daily")
+  local new = H.read(d("2026-10-14"))
+  H.contains(
+    new,
+    lines(
+      "## To-dos",
+      "",
+      "- [ ] release 1.2",
+      "  - [ ] bump the version",
+      "  - [ ] under a checked one",
+      "- [ ] left open",
+      "",
+      "## Blockers",
+      "",
+      "- the staging VM",
+      "",
+      "```sh",
+      "ssh staging",
+      "",
+      "uptime",
+      "```",
+      ""
+    )
+  )
+  eq(new:find("tests added", 1, true), nil)
+  local old = H.read(d("2026-10-13"))
+  H.contains(old, "```markdown\n## Blockers\n- [ ] tests added\n```") -- the code block is untouched
+  H.contains(old, "- [>] release 1.2\n  - [>] bump the version\n  - [x] changelog\n    - [>] under a checked one")
+end
+
 T["a new daily note"]["without a previous note: the template, and the day's meetings"] = function()
   vim.fn.delete(d("2026-10-13"))
   child.cmd("Logpose daily")

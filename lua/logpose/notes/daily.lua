@@ -115,34 +115,61 @@ end
 ---@return string[] carried, integer[] rows
 function M.open_todos(lines)
   local todos = require("logpose.todos")
+  local code = require("logpose.markdown").code_rows(lines) -- a checklist in a code block is code
   local link_of = {}
   for _, t in ipairs(todos.linked(lines)) do
     link_of[t.row] = t.link_text
   end
   local out, rows = {}, {}
+  -- A carried to-do stays under the carried to-dos it was nested in; under one that stays behind
+  -- (checked, or a plain item) it moves up a level. The list items above the line, innermost last:
+  local above = {} ---@type { indent: integer, carried: boolean }[]
   for i, line in ipairs(lines) do
-    local t = todos.parse(line)
-    if t and not t.checked and vim.trim(t.text) ~= "" then
-      table.insert(out, "- [ ] " .. t.text)
-      if link_of[i] then
-        table.insert(out, "  " .. link_of[i])
+    local indent, rest = line:match("^(%s*)(.-)%s*$")
+    local width = #(indent:gsub("\t", "    "))
+    local item = rest:match("^[-*+]%s") or rest:match("^%d+[.)]%s")
+    if code[i] or rest == "" then
+      -- neither ends a list nor is in one
+    elseif line:match("^#+%s") then
+      above = {}
+    elseif item or width == 0 then
+      while #above > 0 and above[#above].indent >= width do
+        table.remove(above)
       end
-      table.insert(rows, i)
+    end
+    if item and not code[i] then
+      local t = todos.parse(line)
+      local carried = t ~= nil and not t.checked and vim.trim(t.text) ~= ""
+      if carried then
+        local depth = 0
+        for _, a in ipairs(above) do
+          depth = depth + (a.carried and 1 or 0)
+        end
+        local pad = string.rep("  ", depth)
+        table.insert(out, pad .. "- [ ] " .. t.text)
+        if link_of[i] then
+          table.insert(out, pad .. "  " .. link_of[i])
+        end
+        table.insert(rows, i)
+      end
+      table.insert(above, { indent = width, carried = carried })
     end
   end
   return out, rows
 end
 
---- The lines under a note's `## Blockers` heading (they hold until you remove them).
+--- The lines under a note's `## Blockers` heading (they hold until you remove them). A heading
+--- in a code block is code; a code block under the heading comes along whole.
 ---@param lines string[]
 ---@return string[]
 function M.blockers(lines)
+  local code = require("logpose.markdown").code_rows(lines)
   local out, inside = {}, false
-  for _, l in ipairs(lines) do
-    local h = l:match("^##%s+(.-)%s*$")
-    if h or l:match("^#%s") then
-      inside = h ~= nil and h:lower() == "blockers"
-    elseif inside and vim.trim(l) ~= "" then
+  for i, l in ipairs(lines) do
+    local h2 = not code[i] and l:match("^##%s+(.-)%s*$") or nil
+    if h2 or (not code[i] and l:match("^#%s")) then
+      inside = h2 ~= nil and h2:lower() == "blockers"
+    elseif inside and (code[i] or vim.trim(l) ~= "") then
       table.insert(out, l)
     end
   end
