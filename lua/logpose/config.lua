@@ -110,6 +110,8 @@ M.defaults = {
     carry_over = true,
     --- Mark carried items in the previous note as `- [>]` so they aren't listed twice.
     mark_carried = true,
+    --- Link each meeting to the ones before and after it in the series (`previous:`/`next:`).
+    links = true,
   },
   daily = {
     --- A new daily note starts with the previous one's open to-dos (under `## To-dos`)...
@@ -336,6 +338,7 @@ local function validate(opts)
   check("series", opts.series, "table")
   check("series.carry_over", opts.series.carry_over, "boolean")
   check("series.mark_carried", opts.series.mark_carried, "boolean")
+  check("series.links", opts.series.links, "boolean")
   check("daily", opts.daily, "table")
   check("daily.carry_over", opts.daily.carry_over, "boolean")
   check("daily.mark_carried", opts.daily.mark_carried, "boolean")

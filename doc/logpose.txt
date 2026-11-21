@@ -191,9 +191,11 @@ closes without creating anything. An existing note is opened, untouched.
                                                     *logpose-meeting-series*
 Series ~
 Meetings with the same type and title (or the same person, for 1:1s) form a
-series within a project. A new note in a series starts with
-`Previous: [[…]]` and a `## Carried over` section holding the previous note's
-open to-dos. In the old note, those are marked `- [>]`.
+series within a project. Each note links the meetings before and after it in
+the series, in its frontmatter (`previous:` and `next:`, as daily notes do;
+`gx` follows them). A new note starts with a `## Carried over` section
+holding the previous note's open to-dos. In the old note, those are marked
+`- [>]`.
 
 Options: `meeting_types`, `default_meeting_type`, `meeting_filename`,
 `meeting_subdir`, `series`.
@@ -1243,7 +1245,8 @@ Notes and meetings ~
                  Default "{project}".
   series         (table)       `carry_over` (true): carry the previous
                  meeting's open to-dos. `mark_carried` (true): mark
-                 them `- [>]` in the previous note.
+                 them `- [>]` in the previous note. `links` (true):
+                 `previous:`/`next:` links to the meetings around it.
   daily          (table)       `carry_over` (true): a new daily note
                  starts with the previous one's open to-dos and blockers.
                  `mark_carried` (true): mark carried to-dos `- [>]`.

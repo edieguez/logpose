@@ -50,11 +50,10 @@ T["a new 1:1 links the previous one and carries open follow-ups"] = function()
     new,
     table.concat({
       "series: 1on1-ana",
+      'previous: "[[meetings/2026-10-07 - 1-1-ana|1:1 Ana 2026-10-07]]"',
       "created: 2026-10-14T10:30",
       "modified: 2026-10-14T10:30",
       "---",
-      "Previous: [[meetings/2026-10-07 - 1-1-ana|1:1 Ana 2026-10-07]]",
-      "",
       "## Carried over",
       "",
       "- [ ] send feedback (from [[meetings/2026-10-07 - 1-1-ana|2026-10-07]])",
@@ -67,8 +66,9 @@ T["a new 1:1 links the previous one and carries open follow-ups"] = function()
   -- cursor still lands under ## Topics
   eq(child.api.nvim_get_current_line(), "")
   eq(child.fn.getline(child.fn.line(".") - 1), "## Topics")
-  -- carried items are marked as migrated in the old note
+  -- carried items are marked as migrated in the old note, which links to the new one
   H.contains(H.read(old), "- [>] send feedback\n- [x] done item\n- [>] book room\n")
+  H.contains(H.read(old), 'series: 1on1-ana\nnext: "[[meetings/2026-10-14 - 1-1-ana|1:1 Ana 2026-10-14]]"\ncreated: ')
 end
 
 T["carried items aren't listed twice by :Logpose actions"] = function()
@@ -88,7 +88,7 @@ T["a different person starts a new series"] = function()
   answer("Bob")
   child.cmd("Logpose meeting 1on1")
   local new = H.read(m("2026-10-14 - 1-1-bob.md"))
-  eq(new:find("Previous:", 1, true), nil)
+  eq(new:find("previous:", 1, true), nil)
   eq(new:find("Carried over", 1, true), nil)
 end
 
@@ -97,10 +97,13 @@ T["series are project-scoped"] = function()
   child.cmd("Logpose meeting retro 2026-10-07")
   child.cmd("Logpose project thesis")
   child.cmd("Logpose meeting retro")
-  eq(H.read(m("thesis/2026-10-14 - retro.md")):find("Previous:", 1, true), nil)
+  eq(H.read(m("thesis/2026-10-14 - retro.md")):find("previous:", 1, true), nil)
   child.cmd("Logpose project acme")
   child.cmd("Logpose meeting retro")
-  H.contains(H.read(m("acme/2026-10-14 - retro.md")), "Previous: [[meetings/acme/2026-10-07 - retro|Retro 2026-10-07]]")
+  H.contains(
+    H.read(m("acme/2026-10-14 - retro.md")),
+    'previous: "[[meetings/acme/2026-10-07 - retro|Retro 2026-10-07]]"'
+  )
 end
 
 T["an item carried twice keeps one, current origin"] = function()
@@ -111,17 +114,34 @@ T["an item carried twice keeps one, current origin"] = function()
   child.cmd("Logpose meeting 1on1")
   local new = H.read(m("2026-10-14 - 1-1-ana.md"))
   H.contains(new, "- [ ] send feedback (from [[meetings/2026-10-10 - 1-1-ana|2026-10-10]])\n")
-  H.contains(new, "Previous: [[meetings/2026-10-10 - 1-1-ana|1:1 Ana 2026-10-10]]")
+  H.contains(new, 'previous: "[[meetings/2026-10-10 - 1-1-ana|1:1 Ana 2026-10-10]]"')
   H.contains(H.read(m("2026-10-10 - 1-1-ana.md")), "- [>] send feedback (from")
 end
 
-T["the most recent earlier note is the previous one"] = function()
+T["a note made in between links the notes around it, and they link it"] = function()
   first_one_on_one()
   answer("Ana")
-  child.cmd("Logpose meeting 1on1 2026-10-21") -- a later note must not count
+  child.cmd("Logpose meeting 1on1 2026-10-21")
+  answer("Ana")
+  child.cmd("Logpose meeting 1on1") -- the 14th, between the 7th and the 21st
+  H.contains(
+    H.read(m("2026-10-14 - 1-1-ana.md")),
+    'previous: "[[meetings/2026-10-07 - 1-1-ana|1:1 Ana 2026-10-07]]"\n'
+      .. 'next: "[[meetings/2026-10-21 - 1-1-ana|1:1 Ana 2026-10-21]]"\n'
+  )
+  H.contains(H.read(m("2026-10-07 - 1-1-ana.md")), 'next: "[[meetings/2026-10-14 - 1-1-ana|1:1 Ana 2026-10-14]]"')
+  H.contains(H.read(m("2026-10-21 - 1-1-ana.md")), 'previous: "[[meetings/2026-10-14 - 1-1-ana|1:1 Ana 2026-10-14]]"')
+end
+
+T["series.links = false leaves the links out, and still carries"] = function()
+  local old = first_one_on_one()
+  setup("{ series = { links = false } }")
   answer("Ana")
   child.cmd("Logpose meeting 1on1")
-  H.contains(H.read(m("2026-10-14 - 1-1-ana.md")), "Previous: [[meetings/2026-10-07 - 1-1-ana|")
+  local new = H.read(m("2026-10-14 - 1-1-ana.md"))
+  eq(new:find("previous:", 1, true), nil)
+  H.contains(new, "## Carried over")
+  eq(H.read(old):find("next:", 1, true), nil)
 end
 
 T["carry_over = false only links"] = function()
@@ -130,7 +150,7 @@ T["carry_over = false only links"] = function()
   answer("Ana")
   child.cmd("Logpose meeting 1on1")
   local new = H.read(m("2026-10-14 - 1-1-ana.md"))
-  H.contains(new, "Previous: ")
+  H.contains(new, "previous: ")
   eq(new:find("Carried over", 1, true), nil)
   H.contains(H.read(old), "- [ ] send feedback\n")
 end

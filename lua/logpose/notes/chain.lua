@@ -1,6 +1,6 @@
---- Previous and next links between notes that follow each other: daily notes, by date. They're
---- links in the frontmatter (`previous:`, `next:`): a new note gets both, and its neighbours are
---- pointed at it.
+--- Previous and next links between notes that follow each other: daily notes, by date, and the
+--- meetings of a series. They're links in the frontmatter (`previous:`, `next:`): a new note gets
+--- both, and its neighbours are pointed at it.
 local fs = require("logpose.util.fs")
 
 local M = {}
@@ -17,6 +17,21 @@ M.ORDER = { "series", "previous", "next", "created", "modified" }
 ---@return string
 function M.daily_label(iso)
   return require("logpose.util.date").weekday_name(iso):sub(1, 3) .. " " .. iso
+end
+
+--- How a link to a meeting reads: "Retro 2026-10-08".
+---@param title string
+---@param iso? string
+---@return string
+function M.meeting_label(title, iso)
+  return iso and (title .. " " .. iso) or title
+end
+
+--- A meeting from the index, as a neighbour.
+---@param it? logpose.Item
+---@return logpose.ChainLink?
+function M.meeting_link(it)
+  return it and { file = it.file, label = M.meeting_label(it.title, it.date) } or nil
 end
 
 --- The value of `from`'s link to `to`: the link, or false when there's no neighbour (no key).

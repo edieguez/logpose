@@ -706,7 +706,8 @@ previous one.
 ### F5.2 Meeting series (in `notes/meeting.lua`)
 - On creation, the previous note is the most recent earlier meeting with the same `series`
   (frontmatter; project-scoped since F1.6). If found:
-  - `Previous: [[…|<title> <date>]]` is inserted right after the title heading;
+  - `Previous: [[…|<title> <date>]]` is inserted right after the title heading (since 0.58.0:
+    `previous:`/`next:` in the frontmatter, C21);
   - with `series.carry_over` (default), a `## Carried over` section follows with the previous
     note's open tasks, each `- [ ] text (from [[…|<date>]])`; an older `(from …)` is replaced,
     so an item carried several times keeps one, current, origin;
@@ -1635,6 +1636,12 @@ nobody worked).
   `modified:` stays; an unsaved note is changed in its buffer). The index counts the two keys'
   links (backlinks, `:Logpose links`); `gx` follows them. `daily.links = false` turns them off.
   **Tests** (`test_daily.lua`, `test_frontmatter.lua`, `test_standup.lua`).
+- **Series link both ways, in the frontmatter.** `meeting.build` puts `previous:`/`next:` after
+  `series:` (`meeting.next`: the earliest later note of the series, for a note made after the
+  fact) instead of the `Previous:` line; the body only gets `## Carried over`. `meeting.write`
+  points the notes around it at it. The form's preview says "link the previous …" / "link the
+  next …". `series.links = false` turns them off. **Tests** (`test_series.lua`,
+  `test_new_note.lua`).
 
 ## 5. Command reference (final state)
 

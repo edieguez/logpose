@@ -214,13 +214,15 @@ early: the daily note links the day's meetings when it's made. Running the same 
 on the same day opens the existing note instead of making a second one.
 
 **Series.** Meetings with the same type and title (or the same person, for 1:1s) form a series
-within a project. A new note in a series starts with a `Previous: [[…]]` link and a
-`## Carried over` section holding the previous note's open to-dos. In the old note, those
-are marked `- [>]`.
+within a project. Each note links the meetings before and after it in the series, in its
+frontmatter (`previous:` and `next:`, as daily notes do), so you can follow the series with
+`gx`. A new note starts with a `## Carried over` section holding the previous note's open
+to-dos. In the old note, those are marked `- [>]`.
 
 > **Configure:** start new meetings on another type with `default_meeting_type = "retro"`; add your own types in `meeting_types`
 > (`standup = { label = "Standup", title = "Standup" }`), remove one (`retro = false`), or set
-> `ask_attendees = true` on a type. Turn off carrying with `series = { carry_over = false }`.
+> `ask_attendees = true` on a type. Turn off carrying with `series = { carry_over = false }`, and
+> the links with `series = { links = false }`.
 
 ## Tasks and the board
 
@@ -1173,7 +1175,7 @@ doc_types = {                          -- project docs, in projects/<project>/
   runbook  = { label = "Runbook", template = "runbook", order = 30 },
   doc      = { label = "Doc", template = "doc", order = 40 },
 },
-series = { carry_over = true, mark_carried = true },
+series = { carry_over = true, mark_carried = true, links = true },
 daily = { carry_over = true, mark_carried = true, links = true },  -- carry open to-dos and blockers; link the notes around
 standup = { group_by_project = true },
 timestamps = { created = true, modified = true },  -- created:/modified: in frontmatter

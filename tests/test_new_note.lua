@@ -152,6 +152,25 @@ T["meeting"]["the preview says what a series carries over; a date picks the day"
   H.contains(H.read(root .. "/meetings/2026-10-08 - retro.md"), "- [>] ship it")
 end
 
+T["meeting"]["between two of a series, the preview says it links both"] = function()
+  for _, iso in ipairs({ "2026-10-08", "2026-10-29" }) do
+    H.write(
+      root .. "/meetings/" .. iso .. " - retro.md",
+      ('---\ntype: retro\ndate: %s\ntitle: "Retro"\nseries: retro\n---\n## Went well\n'):format(iso)
+    )
+  end
+  child.cmd("Logpose meeting 2026-10-22")
+  set("type", "retro")
+  eq(drawn().below, {
+    "saving will:",
+    "• create meetings/2026-10-22 - retro.md",
+    "• link it from the daily note of Thu 22 Oct, once that's made",
+    "• link the previous Retro (Thu 8 Oct)",
+    "• link the next Retro (Thu 29 Oct)",
+    "• then open it to write",
+  })
+end
+
 T["meeting"]["one that exists is opened, not overwritten"] = function()
   H.write(root .. "/meetings/2026-10-15 - retro.md", "mine\n")
   child.cmd("Logpose meeting")

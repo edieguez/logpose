@@ -689,17 +689,28 @@ local function new_note_effects(model, r, ctx)
       out,
       ("link it from the daily note of %s%s"):format(date.short(note.date), later and ", once that's made" or "")
     )
+    local function when(it)
+      return it.date and (" (" .. date.short(it.date) .. ")") or ""
+    end
+    local links = config.get().series.links
     if note.previous then
       local n = #note.carried
-      local when = note.previous.date and (" (" .. date.short(note.previous.date) .. ")") or ""
       if n > 0 then
         table.insert(
           out,
-          ("carry over %d open to-do%s from %s%s"):format(n, n == 1 and "" or "s", note.previous.title, when)
+          ("carry over %d open to-do%s from %s%s"):format(
+            n,
+            n == 1 and "" or "s",
+            note.previous.title,
+            when(note.previous)
+          )
         )
-      else
-        table.insert(out, ("link the previous %s%s"):format(note.previous.title, when))
+      elseif links then
+        table.insert(out, ("link the previous %s%s"):format(note.previous.title, when(note.previous)))
       end
+    end
+    if note.next and links then
+      table.insert(out, ("link the next %s%s"):format(note.next.title, when(note.next)))
     end
   elseif model.kind == "doc" then
     local title = vim.trim(type(v.title) == "string" and v.title or "")

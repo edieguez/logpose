@@ -80,6 +80,7 @@ end
 ---@field content string
 ---@field cursor integer[]
 ---@field previous? logpose.Item  previous note in the series
+---@field next? logpose.Item      next note in the series (when this one is made after the fact)
 ---@field carried logpose.Item[]   open to-dos carried over from it
 ---@field agenda? { page: string, items: string[], name: string }  a 1:1's items from the person's page
 
@@ -201,17 +202,29 @@ function M.build(root, key, input, iso, project, attendees, extra)
     table.insert(frontmatter, "tags: " .. fmt.render("tags", extra.tags))
   end
   table.insert(frontmatter, "series: " .. series)
-  vim.list_extend(frontmatter, require("logpose.timestamps").lines())
-  table.insert(frontmatter, "---")
 
   local dir = M.dir(root, project)
   local path = fs.titled_path(title, function(n)
     return fs.join(dir, M.filename(iso, n and (slug .. "-" .. n) or slug, key))
   end)
+  local previous, carried = M.previous(root, series, iso, path)
+  local next_note = M.next(root, series, iso, path)
+  -- the meetings before and after it in the series, linked from the frontmatter
+  if config.get().series.links then
+    local chain = require("logpose.notes.chain")
+    for _, n in ipairs({ { "previous", previous }, { "next", next_note } }) do
+      local other = chain.meeting_link(n[2])
+      if other then
+        table.insert(frontmatter, fmt.line(n[1], chain.value(root, path, other)))
+      end
+    end
+  end
+  vim.list_extend(frontmatter, require("logpose.timestamps").lines())
+  table.insert(frontmatter, "---")
+
   local body = vim.split(rendered.text, "\n", { plain = true })
   local cursor = { rendered.cursor[1], rendered.cursor[2] }
-  local previous, carried = M.previous(root, series, iso, path)
-  if previous then
+  if previous and #carried > 0 then
     local inserted = M.series_lines(path, previous, carried, root)
     -- Right after the title heading (or at the top).
     local h = 0
@@ -256,6 +269,7 @@ function M.build(root, key, input, iso, project, attendees, extra)
     content = content,
     cursor = final_cursor,
     previous = previous,
+    next = next_note,
     carried = carried,
     agenda = agenda,
   }
@@ -289,15 +303,33 @@ function M.previous(root, series, iso, path)
   return best, open
 end
 
---- "Previous: …" and the "## Carried over" section for a new note at `path`.
+--- Earliest later note of `series` (a note made after the fact goes before it).
+---@param root string
+---@param series string
+---@param iso string
+---@param path string the new note (excluded)
+---@return logpose.Item?
+function M.next(root, series, iso, path)
+  local best
+  for _, it in ipairs(require("logpose.index").build(root)) do
+    if it.kind == "note" and it.file_type == "meeting" and it.series == series and it.date and it.file ~= path then
+      local later = it.date > iso or (it.date == iso and it.file > path)
+      if later and (not best or it.date < best.date or (it.date == best.date and it.file < best.file)) then
+        best = it
+      end
+    end
+  end
+  return best
+end
+
+--- The "## Carried over" section for a new note at `path`: the previous note's open to-dos.
 ---@param path string
 ---@param previous logpose.Item
 ---@param carried logpose.Item[]
 ---@param root string
 ---@return string[]
 function M.series_lines(path, previous, carried, root)
-  local label = previous.date and (previous.title .. " " .. previous.date) or previous.title
-  local lines = { "", "Previous: " .. link.make(path, previous.file, label, root) }
+  local lines = {}
   if #carried > 0 then
     vim.list_extend(lines, { "", "## Carried over" })
     local from = link.make(path, previous.file, previous.date or previous.title, root)
@@ -512,6 +544,15 @@ function M.write(root, note, no_open)
     require("logpose.util.ui").notify(
       "logpose: couldn't mark carried items in the previous note: " .. tostring(mark_err),
       vim.log.levels.WARN
+    )
+  end
+  if config.get().series.links and (note.previous or note.next) then
+    local chain = require("logpose.notes.chain")
+    chain.link_neighbours(
+      root,
+      { file = note.path, label = chain.meeting_label(note.title, note.date) },
+      chain.meeting_link(note.previous),
+      chain.meeting_link(note.next)
     )
   end
   if note.agenda then
