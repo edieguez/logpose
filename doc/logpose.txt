@@ -1091,7 +1091,8 @@ match; `or` gives either one (`and` binds tighter), `not` or a leading `-`
 the opposite (also of a group: `-(a or b)`), and parentheses group: >
   (type:retro or type:review) @ana -#draft
 <
-  project:{name}          the item's project, or a `#{name}` tag
+  project:{name}          the item's project, or a `#{name}` tag (`p:` for
+                          short)
   #{tag}  tag:{tag}       tagged items
   @{name}  person:{name}  involves the person (attendee, 1:1, @mention),
                           under any of their names
@@ -1105,6 +1106,8 @@ the opposite (also of a group: `-(a or b)`), and parentheses group: >
   week:{spec}             a whole week or sprint: current, -N, +N, a date,
   sprint:{spec}           or a sprint number (needs `period.sprint.anchor`)
   section:{name}          lines under a `## ` heading containing {name}
+  title:{words}           words in the title
+  text:{words}            words in the text
   {key}:{value}           any frontmatter field containing {value} (case
                           and accents ignored): `room:lisboa`, `role:lead`
   attendees:{name}        meetings with the person, by any of their names
@@ -1319,6 +1322,7 @@ the plugin's. Shipped: daily, meeting, planning, refinement, review, retro,
   {title} {type} {type_label} the note's title and meeting type
   {project} {series}          the active project and meeting series
   {attendees}                 the meeting's attendees
+  {status}                    a task's column (`Backlog`)
   {cursor}                    where the cursor lands (removed)
 
 Unknown variables are left as they are.
