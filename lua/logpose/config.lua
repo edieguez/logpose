@@ -237,8 +237,16 @@ M.defaults = {
 --- Keys whose default is nil (so they're known even though absent from `defaults`).
 M.optional_keys = { root = true, me = true, ["period.sprint.anchor"] = true, ["tickets.url"] = true }
 
---- Keys whose values are open-ended tables (no unknown-key warnings inside).
-M.open_keys = { meeting_types = true, doc_types = true, ["projects.paths"] = true, views = true }
+--- Keys whose values are open-ended tables (no unknown-key warnings inside): ones you add your
+--- own entries to, and lists whose default is empty (`{}` reads as a table of keys).
+M.open_keys = {
+  meeting_types = true,
+  doc_types = true,
+  ["projects.paths"] = true,
+  views = true,
+  ["people.contacts"] = true,
+  ["board.collapsed"] = true,
+}
 
 ---@type logpose.Config?
 M.options = nil

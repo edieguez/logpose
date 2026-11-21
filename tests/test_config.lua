@@ -42,6 +42,18 @@ T["setup"]["accepts valid options silently"] = function()
   eq(#child.notifications(), 0)
 end
 
+T["setup"]["your own entries in open-ended options aren't unknown keys"] = function()
+  child.lua([[require("logpose").setup({
+    board = { collapsed = { "done" } },
+    people = { contacts = { slack = { label = "Slack", show = "@{value}" } } },
+    meeting_types = { standup = { label = "Standup", title = "Standup" } },
+    views = { acme = "tasks open project:acme" },
+  })]])
+  eq(child.notifications(), {})
+  eq(child.lua_get("require('logpose.config').get().board.collapsed"), { "done" })
+  eq(child.lua_get("require('logpose.config').get().people.contacts.email.label"), "Email") -- still there
+end
+
 T["setup"]["rejects invalid values"] = function()
   MiniTest.expect.error(function()
     child.lua([[require("logpose").setup({ link_style = "html" })]])
