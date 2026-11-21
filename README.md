@@ -1261,9 +1261,10 @@ To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]` carried to 
 
 ## Troubleshooting
 
-- **Start with `:checkhealth logpose`.** It shows the journal root and how it was found, the
-  active project, the current week or sprint, which folders exist, the picker in use, and
-  whether usage stats are on.
+- **Start with `:checkhealth logpose`.** It shows the journal root and how it was found (and
+  whether logpose can write to it), the active project, the current week or sprint, which folders
+  exist, how many notes and tasks there are and how long indexing them takes, the picker in use,
+  and whether usage stats are on.
 - **"Wrong project" or "no tasks on the board":** check the active project in the health report.
   `:Logpose project auto` unpins a project (or `none`), and `p` on the board shows all projects.
 - **A file wasn't changed:** logpose never overwrites a file with unsaved changes. It edits the

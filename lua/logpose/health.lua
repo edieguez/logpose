@@ -37,6 +37,13 @@ function M.check()
     saved = "saved by :Logpose init",
   })[source] or source
   h.ok(("%s (%s)"):format(vim.fn.fnamemodify(root, ":~"), how))
+  local uv = vim.uv or vim.loop
+  if not uv.fs_access(root, "W") then
+    h.error(
+      ("%s can't be written to: logpose can't save notes or tasks there"):format(vim.fn.fnamemodify(root, ":~")),
+      { "Check the folder's owner and permissions: ls -ld " .. vim.fn.shellescape(root) }
+    )
+  end
   if source == "buffer" or source == "cwd" then
     h.info("Run :Logpose init (or set `root`) so commands work from any buffer, e.g. a work repo.")
   end
@@ -73,6 +80,25 @@ function M.check()
     table.insert(parts, ("%s %d"):format(c.label, counts[c.key] or 0))
   end
   h.ok("Tasks: " .. table.concat(parts, " · "))
+
+  h.start("logpose: journal size")
+  local index = require("logpose.index")
+  index.forget_build() -- measured, not reused from a moment ago
+  local started = uv.hrtime()
+  local items = index.build(root)
+  local ms = math.floor((uv.hrtime() - started) / 1e6 + 0.5)
+  local notes, tasks = 0, 0
+  for _, it in ipairs(items) do
+    if it.kind == "task" then
+      tasks = tasks + 1
+    elseif index.is_file(it) then
+      notes = notes + 1
+    end
+  end
+  local function count(n, word)
+    return ("%d %s%s"):format(n, word, n == 1 and "" or "s")
+  end
+  h.info(("%s and %s, indexed in %d ms"):format(count(notes, "note"), count(tasks, "task"), ms))
 
   h.start("logpose: journal paths")
   local keys = vim.tbl_keys(config.get().dirs)

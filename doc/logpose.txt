@@ -1333,9 +1333,11 @@ carried to a newer note.
 ==============================================================================
 11. HEALTH AND TROUBLESHOOTING                                *logpose-health*
 
-`:checkhealth logpose` reports the Neovim version, the journal root and how
-it was found, the active project, the current week or sprint, which journal
-folders exist, the picker in use and whether usage stats are on.
+`:checkhealth logpose` reports the Neovim version, the journal root, how it
+was found and whether it can be written to, the active project, the current
+week or sprint, which journal folders exist, how many notes and tasks there
+are and how long indexing them takes, the picker in use and whether usage
+stats are on.
 
   Wrong project, or an empty board: check the active project in the health
   report. `:Logpose project auto` unpins a project; `p` on the board

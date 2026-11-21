@@ -1596,6 +1596,11 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
   (`test_taskfile.lua`): `from_text`, `due_warning`, capture and promote with `due:tomorow`.
 - **The board's block prompt says Enter gives no reason** (`Blocked by (Enter for no reason): `);
   an empty reason still blocks (`blocked: yes`, shown as "blocked"). **Tests** (`test_board.lua`).
+- **`:checkhealth` says more.** An error when the journal root can't be written to
+  (`uv.fs_access(root, "W")`), and the journal's size: notes and tasks, and how long a fresh
+  `index.build` took (`index.forget_build()` first). **Tests** (`test_health.lua`).
+- **CI jobs time out** after 10 minutes (`timeout-minutes`), so a stuck child Neovim can't hang a
+  run.
 
 ## 5. Command reference (final state)
 
