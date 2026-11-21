@@ -39,6 +39,11 @@ end
 T["a note without frontmatter gets one"] = function()
   eq(fm.set({ "# hi" }, { title = "Hi", tags = { "x" } }), { "---", "tags: [x]", 'title: "Hi"', "---", "# hi" })
   eq(fm.set({ "# hi" }, { due = "" }), { "# hi" })
+  -- in rank order when given
+  eq(
+    fm.set({ "# hi" }, { next = "[[b]]", previous = "[[a]]" }, { order = { "previous", "next" } }),
+    { "---", 'previous: "[[a]]"', 'next: "[[b]]"', "---", "# hi" }
+  )
 end
 
 T["read lists keys in order with their values"] = function()

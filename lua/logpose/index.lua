@@ -355,6 +355,14 @@ function M.index_lines(path, lines, root)
     links = {},
   }
   note.fields = fm -- every frontmatter key, for filters (`role:lead`, `attendees:ana`)
+  -- the notes before and after it (daily notes, meetings in a series), linked from the frontmatter
+  for j = 2, body - 2 do
+    if lines[j]:match("^previous:") or lines[j]:match("^next:") then
+      for _, l in ipairs(M.links_in(lines[j])) do
+        table.insert(note.links, { target = l.target, style = l.style, lnum = j, text = vim.trim(lines[j]) })
+      end
+    end
+  end
   if file_type == "task" then
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due

@@ -278,21 +278,43 @@ function M.ensure(iso, root)
   -- the day's meetings, planned before its note was made, are linked from it
   table.insert(sections, { "Meetings", M.meeting_items(root, path, iso) })
   text, cursor = with_sections(text, cursor, sections)
-  local stamps = require("logpose.timestamps").lines()
-  if #stamps > 0 and text:sub(1, 4) ~= "---\n" then
-    -- No title here: the note's `# heading` stays its title (markdownlint MD025).
-    local fm = vim.list_extend({ "---" }, stamps)
-    table.insert(fm, "---")
-    text = table.concat(fm, "\n") .. "\n" .. text
-    cursor = cursor and { cursor[1] + #fm, cursor[2] } or cursor
+  -- the notes before and after it, linked from the frontmatter
+  local chain = require("logpose.notes.chain")
+  local links, prev_link, next_link = {}, nil, nil
+  if config.get().daily.links then
+    prev_link, next_link = chain.daily_neighbours(root, iso)
+    links = { previous = chain.value(root, path, prev_link), next = chain.value(root, path, next_link) }
   end
-  text, cursor = require("logpose.markdown").tidy_text(text, cursor)
+  local lines = vim.split(text, "\n", { plain = true })
+  local before = #lines
+  if lines[1] == "---" then
+    lines = chain.apply(lines, links) -- the template's own frontmatter (it keeps its timestamps)
+  else
+    -- No title here: the note's `# heading` stays its title (markdownlint MD025).
+    local fmt = require("logpose.frontmatter")
+    local fm = { "---" }
+    for _, key in ipairs({ "previous", "next" }) do
+      if links[key] then
+        table.insert(fm, fmt.line(key, links[key]))
+      end
+    end
+    vim.list_extend(fm, require("logpose.timestamps").lines())
+    if #fm > 1 then
+      table.insert(fm, "---")
+      lines = vim.list_extend(fm, lines)
+    end
+  end
+  cursor = { cursor[1] + #lines - before, cursor[2] }
+  text, cursor = require("logpose.markdown").tidy_text(table.concat(lines, "\n"), cursor)
   local ok, err = fs.write_file(path, text, { tidy = true })
   if not ok then
     error(err, 0)
   end
   if after_write then
     after_write()
+  end
+  if prev_link or next_link then
+    chain.link_neighbours(root, { file = path, label = chain.daily_label(iso) }, prev_link, next_link)
   end
   return path, true, cursor
 end

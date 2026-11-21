@@ -113,6 +113,59 @@ T["from a buffer that isn't a daily note, prev and next go from today"] = functi
   eq(bufname(), daily_path("2026-10-20"))
 end
 
+T["previous and next"] = MiniTest.new_set()
+
+T["previous and next"]["a new note links the one before it, which links back"] = function()
+  H.write(daily_path("2026-10-12"), "---\nmodified: 2026-10-12T18:00\n---\n# Mon\n")
+  child.cmd("Logpose daily")
+  H.contains(
+    H.read(daily_path("2026-10-14")),
+    '---\nprevious: "[[daily/daily-2026-10-12|Mon 2026-10-12]]"\ncreated: 2026-10-14T10:30\n'
+  )
+  -- linking isn't an edit: Monday's note keeps its modified:
+  eq(
+    H.read(daily_path("2026-10-12")),
+    '---\nnext: "[[daily/daily-2026-10-14|Wed 2026-10-14]]"\nmodified: 2026-10-12T18:00\n---\n# Mon\n'
+  )
+  eq(child.api.nvim_win_get_cursor(0), { 10, 0 }) -- still under ## Notes
+end
+
+T["previous and next"]["a note made in between links both, and they link it"] = function()
+  H.write(daily_path("2026-10-12"), "# Mon\n")
+  child.cmd("Logpose daily")
+  child.cmd("Logpose daily 2026-10-13") -- after the fact
+  H.contains(
+    H.read(daily_path("2026-10-13")),
+    'previous: "[[daily/daily-2026-10-12|Mon 2026-10-12]]"\nnext: "[[daily/daily-2026-10-14|Wed 2026-10-14]]"\n'
+  )
+  eq(H.read(daily_path("2026-10-12")), '---\nnext: "[[daily/daily-2026-10-13|Tue 2026-10-13]]"\n---\n# Mon\n')
+  H.contains(H.read(daily_path("2026-10-14")), 'previous: "[[daily/daily-2026-10-13|Tue 2026-10-13]]"\n')
+end
+
+T["previous and next"]["gx follows them, and they count as links"] = function()
+  H.write(daily_path("2026-10-12"), "# Mon\n")
+  child.cmd("Logpose daily")
+  child.bo.filetype = "markdown"
+  child.api.nvim_win_set_cursor(0, { 2, 20 }) -- on the link in previous:
+  child.type_keys("gx")
+  eq(bufname(), daily_path("2026-10-12"))
+  local from = child.lua_get(
+    ("vim.tbl_map(function(l) return vim.fs.basename(l.from) end, require('logpose.links').backlinks(%q, %q))"):format(
+      root,
+      daily_path("2026-10-12")
+    )
+  )
+  eq(from, { "daily-2026-10-14.md" })
+end
+
+T["previous and next"]["daily.links = false leaves them out"] = function()
+  child.lua(("require('logpose').setup({ root = %q, daily = { links = false } })"):format(root))
+  H.write(daily_path("2026-10-12"), "# Mon\n")
+  child.cmd("Logpose daily")
+  eq(H.read(daily_path("2026-10-14")):find("previous:", 1, true), nil)
+  eq(H.read(daily_path("2026-10-12")), "# Mon\n")
+end
+
 T["rejects invalid dates"] = function()
   child.cmd("Logpose daily 2026-02-30")
   H.contains(child.notifications()[1].msg, 'invalid date "2026-02-30"')

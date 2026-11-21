@@ -154,8 +154,20 @@ another day, made ahead of time or after the fact, starts from the template):
 `:Logpose daily prev` and `next` go to the note before or after the one you're in (or today's),
 skipping the days you didn't write one: they never make a note, except today's.
 
+**Each daily note links the ones around it**, in its frontmatter, so you can follow what's been
+happening day by day (`gx` on a link, or the links in Obsidian):
+
+```yaml
+previous: "[[daily/daily-2026-10-13|Tue 2026-10-13]]"
+next: "[[daily/daily-2026-10-15|Thu 2026-10-15]]"
+```
+
+A new note links the one before it, and that one gets a `next:` link back; a note made in
+between is linked both ways. Adding a link doesn't change a note's `modified:` date.
+
 > **Configure:** `daily = { carry_over = false }` starts each note empty; `mark_carried = false`
-> leaves the old note alone; `standup = { group_by_project = false }` copies a flat list.
+> leaves the old note alone; `links = false` leaves out the links; and
+> `standup = { group_by_project = false }` copies a flat list.
 
 ## Meetings
 
@@ -1162,7 +1174,7 @@ doc_types = {                          -- project docs, in projects/<project>/
   doc      = { label = "Doc", template = "doc", order = 40 },
 },
 series = { carry_over = true, mark_carried = true },
-daily = { carry_over = true, mark_carried = true },  -- open to-dos and blockers carry to the next note
+daily = { carry_over = true, mark_carried = true, links = true },  -- carry open to-dos and blockers; link the notes around
 standup = { group_by_project = true },
 timestamps = { created = true, modified = true },  -- created:/modified: in frontmatter
 ```

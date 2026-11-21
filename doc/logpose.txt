@@ -142,11 +142,20 @@ themselves under `## Meetings`. Today's new note starts with what's still
 open from the most recent one: its open to-dos, from anywhere in it, under
 `## To-dos` (marked `- [>]` in the old note, so each lives in one place;
 nested ones stay nested, and code blocks are left alone), and the lines
-under `## Blockers`, which hold until you delete them. A note
-for another day (made ahead of time, or after the fact) starts from the
-template: what's open stays with the day it belongs to.
+under `## Blockers`, which hold until you delete them. A note for another
+day (made ahead of time, or after the fact) starts from the template: what's
+open stays with the day it belongs to.
 
-Options: `daily` (`carry_over`, `mark_carried`), `standup`.
+Each daily note links the ones before and after it in its frontmatter, so
+you can follow the days (`gx` on a link): >yaml
+  previous: "[[daily/daily-2026-10-13|Tue 2026-10-13]]"
+  next: "[[daily/daily-2026-10-15|Thu 2026-10-15]]"
+<
+A new note links the one before it, and that one gets a `next:` link back;
+a note made in between is linked both ways. Adding a link doesn't change a
+note's `modified:`.
+
+Options: `daily` (`carry_over`, `mark_carried`, `links`), `standup`.
 
 ------------------------------------------------------------------------------
 MEETINGS                                                    *logpose-meetings*
@@ -1238,6 +1247,8 @@ Notes and meetings ~
   daily          (table)       `carry_over` (true): a new daily note
                  starts with the previous one's open to-dos and blockers.
                  `mark_carried` (true): mark carried to-dos `- [>]`.
+                 `links` (true): `previous:`/`next:` links to the daily
+                 notes around it, in the frontmatter.
   standup        (table)       `group_by_project` (true): group the
                  copied standup by project.
   timestamps     (table)       `created` (true), `modified` (true): add

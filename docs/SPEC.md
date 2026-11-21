@@ -1627,6 +1627,14 @@ nobody worked).
   (`markdown.code_rows`) and indents a carried to-do two spaces per carried to-do it sat in (one
   under a to-do that stays behind moves up a level); `daily.blockers` ignores headings in code and
   carries a code block under `## Blockers` whole. **Tests** (`test_standup.lua`).
+- **Previous/next links, in the frontmatter** (`notes/chain.lua`): `previous:` and `next:` hold
+  links (quoted: `"[[daily/daily-2026-10-13|Tue 2026-10-13]]"`, labels `Ddd YYYY-MM-DD`), after
+  `series` and before the timestamps (`chain.ORDER`; `frontmatter.set` now orders the keys of a
+  new frontmatter by rank too). `daily.ensure` links the notes around the new one
+  (`chain.daily_neighbours`) and points them at it (`chain.link_neighbours`: a raw update, so
+  `modified:` stays; an unsaved note is changed in its buffer). The index counts the two keys'
+  links (backlinks, `:Logpose links`); `gx` follows them. `daily.links = false` turns them off.
+  **Tests** (`test_daily.lua`, `test_frontmatter.lua`, `test_standup.lua`).
 
 ## 5. Command reference (final state)
 

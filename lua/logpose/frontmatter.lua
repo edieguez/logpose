@@ -108,17 +108,29 @@ end
 --- Set keys in a note's lines and return them (a new table). `changes` maps a key to its value,
 --- or to `false` to remove the key. An existing key is rewritten where it is; a new one goes
 --- before the first key ranked after it in `opts.order`, else at the end (new empty values are
---- skipped). Lines outside the frontmatter are left alone; a note without frontmatter gets one.
+--- skipped). Lines outside the frontmatter are left alone; a note without frontmatter gets one,
+--- its keys in `opts.order` (then by name).
 ---@param lines string[]
 ---@param changes table<string, any>
 ---@param opts? { order?: string[] }
 ---@return string[]
 function M.set(lines, changes, opts)
   opts = opts or {}
+  local rank = {}
+  for i, k in ipairs(opts.order or {}) do
+    rank[k] = i
+  end
+  local function before(a, b)
+    local ra, rb = rank[a] or math.huge, rank[b] or math.huge
+    if ra ~= rb then
+      return ra < rb
+    end
+    return a < b
+  end
   local close = M.close(lines)
   if not close then
     local keys = vim.tbl_keys(changes)
-    table.sort(keys)
+    table.sort(keys, before)
     local fm = { "---" }
     for _, key in ipairs(keys) do
       if changes[key] ~= false and not empty(changes[key]) then
@@ -150,23 +162,13 @@ function M.set(lines, changes, opts)
     i = i + 1
   end
   -- new keys
-  local rank = {}
-  for i, k in ipairs(opts.order or {}) do
-    rank[k] = i
-  end
   local new = {}
   for key, v in pairs(changes) do
     if not done[key] and v ~= false and not empty(v) then
       table.insert(new, key)
     end
   end
-  table.sort(new, function(a, b)
-    local ra, rb = rank[a] or math.huge, rank[b] or math.huge
-    if ra ~= rb then
-      return ra < rb
-    end
-    return a < b
-  end)
+  table.sort(new, before)
   for _, key in ipairs(new) do
     local at = #out + 1
     if rank[key] then

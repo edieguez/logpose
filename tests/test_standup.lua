@@ -176,12 +176,17 @@ T["a new daily note"] = MiniTest.new_set()
 
 -- today's meeting (in the fixtures), linked from the note made for the day
 local planning = "- acme: [[meetings/acme/2026-10-14 - planning|Planning]]"
+-- and the note before it, in the frontmatter
+local previous = { "---", 'previous: "[[daily/daily-2026-10-13|Tue 2026-10-13]]"', "---" }
 
 T["a new daily note"]["carries open to-dos (from anywhere in the note) and blockers"] = function()
   child.cmd("Logpose daily")
   eq(
     H.read(d("2026-10-14")),
     lines(
+      previous[1],
+      previous[2],
+      previous[3],
       "# 2026-10-14 daily notes",
       "",
       "## To-dos",
@@ -201,7 +206,7 @@ T["a new daily note"]["carries open to-dos (from anywhere in the note) and block
       "## Notes"
     )
   )
-  eq(child.api.nvim_win_get_cursor(0)[1], 19) -- under ## Notes, a blank line apart
+  eq(child.api.nvim_win_get_cursor(0)[1], 22) -- under ## Notes, a blank line apart
   local prev = H.read(d("2026-10-13"))
   H.contains(prev, "- [x] review PR #acme\n- [>] write ADR #acme\n  → [[tasks/adr|task]]\n- [>] call bank")
   -- now today's note is the plan
@@ -212,7 +217,21 @@ end
 T["a new daily note"]["carry_over = false and mark_carried = false"] = function()
   setup("{ daily = { carry_over = false } }")
   child.cmd("Logpose daily")
-  eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Meetings", "", planning, "", "## Notes"))
+  eq(
+    H.read(d("2026-10-14")),
+    lines(
+      previous[1],
+      previous[2],
+      previous[3],
+      "# 2026-10-14 daily notes",
+      "",
+      "## Meetings",
+      "",
+      planning,
+      "",
+      "## Notes"
+    )
+  )
   vim.fn.delete(d("2026-10-14"))
   setup("{ daily = { mark_carried = false } }")
   child.cmd("Logpose daily")
@@ -222,9 +241,9 @@ end
 
 T["a new daily note"]["only today's carries: a note for another day leaves the to-dos where they are"] = function()
   child.cmd("Logpose daily 2026-10-15") -- tomorrow
-  eq(H.read(d("2026-10-15")), lines("# 2026-10-15 daily notes", "", "## Notes"))
+  H.contains(H.read(d("2026-10-15")), "---\n# 2026-10-15 daily notes\n\n## Notes\n")
   child.cmd("Logpose daily 2026-10-12") -- the day before the last note
-  eq(H.read(d("2026-10-12")), lines("# 2026-10-12 daily notes", "", "## Notes"))
+  H.contains(H.read(d("2026-10-12")), "---\n# 2026-10-12 daily notes\n\n## Notes\n")
   local prev = H.read(d("2026-10-13"))
   H.contains(prev, "- [ ] write ADR #acme")
   eq(prev:find("[>]", 1, true), nil)

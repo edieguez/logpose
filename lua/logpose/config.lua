@@ -116,6 +116,8 @@ M.defaults = {
     carry_over = true,
     --- ...and marks them `- [>]` in the previous note so each lives in one place.
     mark_carried = true,
+    --- Link each daily note to the ones before and after it (`previous:`/`next:` frontmatter).
+    links = true,
   },
   standup = {
     --- Group the copied standup by project.
@@ -337,6 +339,7 @@ local function validate(opts)
   check("daily", opts.daily, "table")
   check("daily.carry_over", opts.daily.carry_over, "boolean")
   check("daily.mark_carried", opts.daily.mark_carried, "boolean")
+  check("daily.links", opts.daily.links, "boolean")
   check("standup", opts.standup, "table")
   check("standup.group_by_project", opts.standup.group_by_project, "boolean")
   check("review", opts.review, "table")
