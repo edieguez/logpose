@@ -138,10 +138,12 @@ The copied standup is grouped by project (`standup.group_by_project`).
 
                                                                *logpose-daily*
 The daily note (|:Logpose-daily|) is a scratchpad for the day. Meetings link
-themselves under `## Meetings`. A new note starts with what's still open
-from the most recent one: its open to-dos, from anywhere in it, under
+themselves under `## Meetings`. Today's new note starts with what's still
+open from the most recent one: its open to-dos, from anywhere in it, under
 `## To-dos` (marked `- [>]` in the old note, so each lives in one place),
-and the lines under `## Blockers`, which hold until you delete them.
+and the lines under `## Blockers`, which hold until you delete them. A note
+for another day (made ahead of time, or after the fact) starts from the
+template: what's open stays with the day it belongs to.
 
 Options: `daily` (`carry_over`, `mark_carried`), `standup`.
 
@@ -764,10 +766,11 @@ Daily work ~
                                                               *:Logpose-daily*
 :Logpose daily [{day}]
     Open the daily note for {day}: `today` (default), `prev`, `next` or a
-    date (YYYY-MM-DD), creating it from the `daily` template and the
-    previous note's open to-dos and blockers (|logpose-daily|). `prev` and `next` step by
-    |logpose-workdays| from the daily note in the current buffer, or from
-    today. An existing note is opened, never overwritten.
+    date (YYYY-MM-DD), creating it from the `daily` template (today's also
+    gets the previous note's open to-dos and blockers, |logpose-daily|).
+    `prev` and `next` step by |logpose-workdays| from the daily note in the
+    current buffer, or from today. An existing note is opened, never
+    overwritten.
 
                                                             *:Logpose-standup*
 :Logpose standup[!] [{date}]

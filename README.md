@@ -143,7 +143,8 @@ items and the notes you edited lately. `<CR>` opens anything; `d` opens the dail
 board.
 
 **The daily note is a scratchpad** for the day: write whatever you like. Meetings link themselves
-under `## Meetings`. A new note starts with what's still open from the last one:
+under `## Meetings`. Today's new note starts with what's still open from the last one (a note for
+another day, made ahead of time or after the fact, starts from the template):
 
 - open to-dos, from anywhere in that note, under `## To-dos` (marked `- [>]` in the old note, so
   each lives in one place);

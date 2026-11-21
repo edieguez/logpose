@@ -1602,6 +1602,18 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
 - **CI jobs time out** after 10 minutes (`timeout-minutes`), so a stuck child Neovim can't hang a
   run.
 
+## C21 — Daily notes that keep to their day; previous/next links (0.58.0)
+
+**Goal.** Daily notes and meeting series read as a chain you can follow, and making or visiting a
+note never moves work out of the day it belongs to. Before, any new daily note carried over from
+the note before it: peeking at tomorrow (`next`), planning a meeting for a later day or stepping
+back over a day off made a note that took today's open to-dos (or copied blockers into a day
+nobody worked).
+
+- **Only today's note carries over.** `daily.ensure` carries (and marks `[>]`) only when the note
+  is for `date.today()`; a note for another day starts from the template. **Tests**
+  (`test_standup.lua`): tomorrow's and an earlier day's notes carry nothing; today's still does.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |

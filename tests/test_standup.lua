@@ -208,9 +208,22 @@ T["a new daily note"]["carry_over = false and mark_carried = false"] = function(
   eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Notes"))
   vim.fn.delete(d("2026-10-14"))
   setup("{ daily = { mark_carried = false } }")
-  child.cmd("Logpose daily 2026-10-15")
-  H.contains(H.read(d("2026-10-15")), "- [ ] write ADR #acme")
+  child.cmd("Logpose daily")
+  H.contains(H.read(d("2026-10-14")), "- [ ] write ADR #acme")
   eq(H.read(d("2026-10-13")):find("[>]", 1, true), nil)
+end
+
+T["a new daily note"]["only today's carries: a note for another day leaves the to-dos where they are"] = function()
+  child.cmd("Logpose daily 2026-10-15") -- tomorrow
+  eq(H.read(d("2026-10-15")), lines("# 2026-10-15 daily notes", "", "## Notes"))
+  child.cmd("Logpose daily 2026-10-12") -- the day before the last note
+  eq(H.read(d("2026-10-12")), lines("# 2026-10-12 daily notes", "", "## Notes"))
+  local prev = H.read(d("2026-10-13"))
+  H.contains(prev, "- [ ] write ADR #acme")
+  eq(prev:find("[>]", 1, true), nil)
+  -- today's note still gets them
+  child.cmd("Logpose daily")
+  H.contains(H.read(d("2026-10-14")), "## To-dos\n\n- [ ] write ADR #acme")
 end
 
 T["a new daily note"]["without a previous note: the template"] = function()

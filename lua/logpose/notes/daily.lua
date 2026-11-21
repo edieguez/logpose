@@ -1,7 +1,7 @@
 --- Daily notes: `:Logpose daily [today|prev|next|YYYY-MM-DD]`. A scratchpad for the day: write
---- anything; meetings link themselves under `## Meetings`. A new note starts with the open to-dos
---- of the previous one under `## To-dos` (marked `- [>]` there, so each lives in one place) and its
---- `## Blockers`, which hold until you remove them.
+--- anything; meetings link themselves under `## Meetings`. Today's new note starts with the open
+--- to-dos of the previous one under `## To-dos` (marked `- [>]` there, so each lives in one place)
+--- and its `## Blockers`, which hold until you remove them.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
@@ -173,9 +173,10 @@ function M.ensure(iso, root)
   end
   local rendered = template.render(template.load("daily", root), template.vars(iso))
   local text, cursor = rendered.text, rendered.cursor or { 1, 0 }
-  -- the previous note's open to-dos and blockers come along
+  -- the previous note's open to-dos and blockers come along, into today's note only: a note made
+  -- ahead of time (or after the fact) would take them from the day they belong to
   local after_write
-  local prev = config.get().daily.carry_over and M.previous(root, iso)
+  local prev = config.get().daily.carry_over and iso == date.today() and M.previous(root, iso)
   local prev_lines = prev and fs.current_lines(prev)
   if prev_lines then
     local carried, rows = M.open_todos(prev_lines)
