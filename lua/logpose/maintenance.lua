@@ -64,6 +64,7 @@ end
 ---@field content? string  new content (nil when only moved)
 ---@field count integer
 ---@field move_to? string
+---@field raw? boolean     bookkeeping, not an edit: the note's `modified:` stays
 
 --- Plan a tag rename over every note.
 ---@param root string
@@ -329,7 +330,7 @@ function M.apply(changes)
   end
   for _, c in ipairs(changes) do
     if c.content then
-      local wrote, werr = fs.write_file(c.path, c.content)
+      local wrote, werr = fs.write_file(c.path, c.content, { raw = c.raw })
       if not wrote then
         error(werr, 0)
       end

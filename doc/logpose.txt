@@ -153,7 +153,8 @@ you can follow the days (`gx` on a link): >yaml
 <
 A new note links the one before it, and that one gets a `next:` link back;
 a note made in between is linked both ways. Adding a link doesn't change a
-note's `modified:`.
+note's `modified:`. |:Logpose-relink| adds or fixes the links everywhere:
+for notes made before logpose linked them, or after you delete one.
 
 Options: `daily` (`carry_over`, `mark_carried`, `links`), `standup`.
 
@@ -195,7 +196,8 @@ series within a project. Each note links the meetings before and after it in
 the series, in its frontmatter (`previous:` and `next:`, as daily notes do;
 `gx` follows them). A new note starts with a `## Carried over` section
 holding the previous note's open to-dos. In the old note, those are marked
-`- [>]`.
+`- [>]`. |:Logpose-relink| links older series too, moving the `Previous:`
+line older notes start with into the frontmatter.
 
 Options: `meeting_types`, `default_meeting_type`, `meeting_filename`,
 `meeting_subdir`, `series`.
@@ -1012,6 +1014,15 @@ Sprints and maintenance ~
     `with:` entries and `@mentions` using the old name are rewritten.
     Without {new name}, asks for it. Preview and [!] as for
     |:Logpose-rename-tag|.
+
+                                                             *:Logpose-relink*
+:Logpose relink[!]
+    Add or fix the `previous:`/`next:` links of every daily note and every
+    meeting of a series (|logpose-daily|, |logpose-meeting-series|): for
+    notes made before logpose linked them, or after one was deleted. A
+    series note's old `Previous: [[…]]` line moves into the frontmatter.
+    It's bookkeeping: `modified:` stays. Preview and [!] as for
+    |:Logpose-rename-tag|; files with unsaved changes stop it.
 
                                                                *:Logpose-init*
 :Logpose init [{dir}]

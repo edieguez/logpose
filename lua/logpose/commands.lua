@@ -183,6 +183,11 @@ M.builtin = {
     complete_fn = "complete_projects",
     desc = "logpose: merge one project into another",
   },
+  relink = {
+    module = "logpose.notes.chain",
+    complete = false,
+    desc = "logpose: add or fix the previous/next links of daily notes and meeting series",
+  },
   edit = { module = "logpose.edit", desc = "logpose: edit the details (frontmatter) of this note or task" },
   capture = { module = "logpose.tasks", fn = "capture_command", desc = "logpose: new task (on the board, in Backlog)" },
   find = {

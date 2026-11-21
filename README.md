@@ -163,7 +163,9 @@ next: "[[daily/daily-2026-10-15|Thu 2026-10-15]]"
 ```
 
 A new note links the one before it, and that one gets a `next:` link back; a note made in
-between is linked both ways. Adding a link doesn't change a note's `modified:` date.
+between is linked both ways. Adding a link doesn't change a note's `modified:` date. For notes
+made before logpose linked them (or after you delete one), `:Logpose relink` adds or fixes the
+links everywhere, daily notes and meeting series alike, after showing what it will change.
 
 > **Configure:** `daily = { carry_over = false }` starts each note empty; `mark_carried = false`
 > leaves the old note alone; `links = false` leaves out the links; and
@@ -217,7 +219,8 @@ on the same day opens the existing note instead of making a second one.
 within a project. Each note links the meetings before and after it in the series, in its
 frontmatter (`previous:` and `next:`, as daily notes do), so you can follow the series with
 `gx`. A new note starts with a `## Carried over` section holding the previous note's open
-to-dos. In the old note, those are marked `- [>]`.
+to-dos. In the old note, those are marked `- [>]`. `:Logpose relink` links older series too,
+moving the `Previous:` line older notes start with into the frontmatter.
 
 > **Configure:** start new meetings on another type with `default_meeting_type = "retro"`; add your own types in `meeting_types`
 > (`standup = { label = "Standup", title = "Standup" }`), remove one (`retro = false`), or set
@@ -986,6 +989,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `rename-project[!] OLD NEW` | Rename a project everywhere. |
 | `merge-project[!] OLD NEW` | Merge one project into another. |
 | `rename-person[!] HANDLE [NEW NAME]` | Rename a person everywhere (asks for the name if not given). |
+| `relink[!]` | Add or fix the previous/next links of daily notes and meeting series. `!` skips the preview. |
 | `init [DIR]` | Choose or create the journal folder. |
 | `stats[!] [DAYS]` | Usage stats. `!` resets them. |
 
