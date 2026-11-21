@@ -74,8 +74,8 @@ local function list_tasks(root, line1, line2)
     local it = items[i]
     local name = it and it.bufnr and it.bufnr > 0 and vim.api.nvim_buf_get_name(it.bufnr) or ""
     if name ~= "" then
-      local p = fs.normalize(name)
-      if not seen[p] and taskfile.is_task_file(p, root) then
+      local p = fs.in_root(name, root)
+      if p and not seen[p] and taskfile.is_task_file(p, root) then
         seen[p] = true
         table.insert(out, p)
       end
@@ -108,9 +108,9 @@ function M.command(opts)
       return
     end
     local path = vim.api.nvim_buf_get_name(0)
-    local p = path ~= "" and fs.normalize(path) or ""
-    local in_journal = vim.bo.buftype == "" and p:match("%.md$") ~= nil and vim.startswith(p, fs.normalize(root) .. "/")
-    if want_last or not in_journal then
+    -- written from the root, so a note opened through a symlink is the journal's all the same
+    local p = path ~= "" and vim.bo.buftype == "" and path:match("%.md$") and fs.in_root(path, root) or nil
+    if want_last or not p then
       if last and fs.exists(last) then
         M.open(last, { root = root })
         return

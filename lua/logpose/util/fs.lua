@@ -84,7 +84,13 @@ end
 ---@return string
 function M.canonical(path)
   local abs = M.normalize(path)
-  return uv.fs_realpath(abs) or abs
+  local real = uv.fs_realpath(abs)
+  if real then
+    return real
+  end
+  -- not there (yet): its folder's real path, so a new note compares like the notes beside it
+  local dir = uv.fs_realpath(vim.fs.dirname(abs))
+  return dir and M.join(dir, vim.fs.basename(abs)) or abs
 end
 local canonical = M.canonical
 
@@ -94,6 +100,25 @@ local canonical = M.canonical
 ---@return boolean
 function M.inside(path, dir)
   return vim.startswith(canonical(path), canonical(dir) .. "/")
+end
+
+--- `path` written from `root`, when it's inside that folder: a note opened by its real path in a
+--- journal set up through a symlink (or the other way round) then reads like the journal's own
+--- files, as the index, links and file types spell them. Nil when it's outside the journal.
+---@param path string
+---@param root string
+---@return string?
+function M.in_root(path, root)
+  local p = M.normalize(path)
+  local r = (M.normalize(root):gsub("/+$", ""))
+  if vim.startswith(p, r .. "/") then
+    return p
+  end
+  local real_p, real_r = canonical(p), canonical(r)
+  if vim.startswith(real_p, real_r .. "/") then
+    return r .. real_p:sub(#real_r + 1)
+  end
+  return nil
 end
 
 --- Loaded buffer showing `path`, if any.

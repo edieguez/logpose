@@ -179,13 +179,14 @@ end
 ---@param _ logpose.CommandOpts
 function M.done_command(_)
   config.with_root(ui.safely(function(root)
-    local path = vim.api.nvim_buf_get_name(0)
+    local name = vim.api.nvim_buf_get_name(0)
+    local path = name ~= "" and fs.in_root(name, root) or nil
     local taskfile = require("logpose.taskfile")
-    if path == "" or not taskfile.is_task_file(fs.normalize(path), root) then
+    if not path or not taskfile.is_task_file(path, root) then
       error("logpose: :Logpose done works in a task file (a to-do is checked off with :Logpose check)", 0)
     end
     local done = config.get().board.done
-    if taskfile.set_status(fs.normalize(path), done) then
+    if taskfile.set_status(path, done) then
       ui.notify("logpose: moved to " .. taskfile.label(done), vim.log.levels.INFO)
     else
       ui.notify("logpose: already " .. taskfile.label(done), vim.log.levels.INFO)

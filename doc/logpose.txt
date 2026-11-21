@@ -1382,7 +1382,8 @@ stats are on.
   A file wasn't changed: logpose never overwrites a file with unsaved
   changes. It edits the open buffer instead, or refuses and says so. Writes
   are atomic: a failed save (a full disk) leaves the old file as it was, and
-  a symlinked note is written through to its target.
+  a symlinked note is written through to its target. A journal reached
+  through a symlink works like any other.
 
   "state.json couldn't be read": the saved state (the journal from
   |:Logpose-init|, recent projects) was corrupt. It was moved to

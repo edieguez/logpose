@@ -259,7 +259,8 @@ function M.command(opts)
     end
     local project = opts.args[1]
     if not project then
-      local file = vim.api.nvim_buf_get_name(0)
+      local name = vim.api.nvim_buf_get_name(0)
+      local file = name ~= "" and fs.in_root(name, root) or name
       local index = require("logpose.index")
       if index.file_type(file, root) == "project" then
         project = vim.fn.fnamemodify(file, ":t:r")

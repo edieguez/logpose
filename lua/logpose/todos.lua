@@ -120,7 +120,8 @@ function M.check_command(opts)
   end
   ui.notify("logpose: " .. table.concat(parts, ", "), vim.log.levels.INFO)
   if root and file ~= "" then
-    require("logpose.sync").todos_changed(root, require("logpose.util.fs").normalize(file), changes)
+    local fs = require("logpose.util.fs")
+    require("logpose.sync").todos_changed(root, fs.in_root(file, root) or fs.normalize(file), changes)
   end
 end
 
@@ -133,10 +134,13 @@ function M.promote(root)
   local config = require("logpose.config")
   local taskfile = require("logpose.taskfile")
   local buf = vim.api.nvim_get_current_buf()
-  local note = vim.api.nvim_buf_get_name(buf)
-  if note == "" or vim.bo[buf].buftype ~= "" then
+  local name = vim.api.nvim_buf_get_name(buf)
+  if name == "" or vim.bo[buf].buftype ~= "" then
     error("logpose: :Logpose promote works on a to-do in a journal note", 0)
   end
+  -- written from the root (through a symlink too), so the links both ways are the journal's
+  local fs = require("logpose.util.fs")
+  local note = fs.in_root(name, root) or fs.normalize(name)
   if taskfile.is_task_file(note, root) and not M.parse(vim.api.nvim_get_current_line()) then
     error("logpose: this is a task already; promote works on a to-do in a note", 0)
   end
@@ -206,19 +210,20 @@ end
 ---@param opts logpose.CommandOpts
 function M.promote_command(opts)
   require("logpose.config").with_root(ui.safely(function(root)
-    local path = vim.api.nvim_buf_get_name(0)
+    local fs = require("logpose.util.fs")
+    local name = vim.api.nvim_buf_get_name(0)
+    local path = name ~= "" and (fs.in_root(name, root) or fs.normalize(name)) or nil
     local taskfile = require("logpose.taskfile")
     local on_todo = M.parse(vim.api.nvim_get_current_line()) ~= nil and (opts.range or 0) == 0
-    if path ~= "" and taskfile.is_task_file(path, root) and not on_todo then
-      require("logpose.notes.from_task").command(root, require("logpose.util.fs").normalize(path), opts)
+    if path and taskfile.is_task_file(path, root) and not on_todo then
+      require("logpose.notes.from_task").command(root, path, opts)
       return
     end
-    local norm = path ~= "" and require("logpose.util.fs").normalize(path)
-    if norm and not on_todo and require("logpose.index").file_type(norm, root) == "doc" then
+    if path and not on_todo and require("logpose.index").file_type(path, root) == "doc" then
       if vim.bo.modified then
         error("logpose: save the doc first", 0)
       end
-      require("logpose.notes.doc").promote_ask(root, norm, opts.bang)
+      require("logpose.notes.doc").promote_ask(root, path, opts.bang)
       return
     end
     M.promote(root)

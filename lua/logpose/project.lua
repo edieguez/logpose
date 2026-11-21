@@ -37,6 +37,21 @@ local function is_within(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
+--- "Is `ctx` inside this folder?", through symlinks too: the paths as written first, their real
+--- paths when that fails (`ctx`'s worked out once).
+---@param ctx string
+---@return fun(dir: string): boolean
+local function within(ctx)
+  local real_ctx
+  return function(dir)
+    if is_within(ctx, dir) then
+      return true
+    end
+    real_ctx = real_ctx or fs.canonical(ctx)
+    return is_within(real_ctx, fs.canonical(dir))
+  end
+end
+
 --- Active project: set explicitly (a project, or none at all) -> `projects.paths` -> a project
 --- page's `paths:` -> git repo -> none.
 --- Detection never applies inside the journal itself. With no project chosen (`:Logpose project
@@ -52,7 +67,8 @@ function M.resolve(root)
   end
 
   local ctx = context_path()
-  if root and is_within(ctx, fs.normalize(root)) then
+  local inside = within(ctx)
+  if root and inside(fs.normalize(root)) then
     return nil
   end
 
@@ -60,7 +76,7 @@ function M.resolve(root)
   local best, best_len
   for dir, name in pairs(opts.paths) do
     local d = fs.normalize(dir):gsub("/+$", "")
-    if is_within(ctx, d) and (not best_len or #d > best_len) then
+    if inside(d) and (not best_len or #d > best_len) then
       best, best_len = name, #d
     end
   end
@@ -72,7 +88,7 @@ function M.resolve(root)
     for name, page in pairs(M.pages(root)) do
       for _, dir in ipairs(page.paths) do
         local d = fs.normalize(dir):gsub("/+$", "")
-        if is_within(ctx, d) and (not best_len or #d > best_len) then
+        if inside(d) and (not best_len or #d > best_len) then
           best, best_len = name, #d
         end
       end

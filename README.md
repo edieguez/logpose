@@ -1716,7 +1716,8 @@ To-dos (checkboxes in notes): `- [ ]` open, `- [x]` checked, `- [>]` carried to 
 > [!IMPORTANT]
 > logpose never overwrites a file with unsaved changes: it edits the open buffer instead, or
 > refuses and tells you. Writes are atomic, so a failed save (a full disk) leaves the old file as
-> it was, and a symlinked note is written through to its target.
+> it was, and a symlinked note is written through to its target. A journal reached through a
+> symlink (`~/journal` pointing into a synced folder, say) works like any other.
 
 | Problem | What to do |
 |---|---|

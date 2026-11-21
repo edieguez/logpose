@@ -106,6 +106,28 @@ T["check_writable reports the first dirty file"] = function()
   H.contains(res[2], "b.md")
 end
 
+T["in_root writes a path from the root, through a symlink either way"] = function()
+  local dir = H.tmpdir()
+  H.write(dir .. "/real/tasks/a.md", "")
+  vim.uv.fs_symlink(dir .. "/real", dir .. "/link")
+  local function in_root(path, root)
+    return child.lua_get(("require('logpose.util.fs').in_root(%q, %q)"):format(path, root))
+  end
+  eq(in_root(dir .. "/real/tasks/a.md", dir .. "/real"), dir .. "/real/tasks/a.md") -- as written
+  eq(in_root(dir .. "/real/tasks/a.md", dir .. "/link/"), dir .. "/link/tasks/a.md") -- the journal is a link
+  eq(in_root(dir .. "/link/tasks/a.md", dir .. "/real"), dir .. "/real/tasks/a.md") -- the note's path is
+  eq(in_root(dir .. "/real/tasks/new.md", dir .. "/link"), dir .. "/link/tasks/new.md") -- not saved yet
+  eq(in_root(dir .. "/elsewhere/a.md", dir .. "/link"), vim.NIL)
+  eq(in_root(dir .. "/realness/a.md", dir .. "/real"), vim.NIL) -- a folder that only starts the same
+end
+
+T["canonical resolves the folder of a file that isn't there yet"] = function()
+  local dir = H.tmpdir()
+  vim.fn.mkdir(dir .. "/real", "p")
+  vim.uv.fs_symlink(dir .. "/real", dir .. "/link")
+  eq(child.lua_get(("require('logpose.util.fs').canonical(%q)"):format(dir .. "/link/new.md")), dir .. "/real/new.md")
+end
+
 T["read_lines keeps a trailing empty line"] = function()
   local dir = H.tmpdir()
   H.write(dir .. "/x.md", "a\nb\n")

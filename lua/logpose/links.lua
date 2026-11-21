@@ -214,7 +214,9 @@ local function current()
   if file == "" then
     error("logpose: the current buffer is not a file", 0)
   end
-  return config.root(), fs.normalize(file)
+  local root = config.root()
+  -- written from the root, as the links in the index are (through a symlink too)
+  return root, fs.in_root(file, root) or fs.normalize(file)
 end
 
 function M.backlinks_command()
@@ -287,6 +289,9 @@ function M.complete_items(line, col, row, source)
   local root = config.resolve_root()
   if not root then
     return {}
+  end
+  if source ~= "" then
+    source = fs.in_root(source, root) or fs.normalize(source) -- links are relative to its place
   end
   local items = {}
   for i, c in ipairs(M.candidates(root, source)) do

@@ -47,7 +47,7 @@ end
 ---@return { file: string, row: integer, checked: boolean }[]
 function M.todos_of(root, task)
   local todos = require("logpose.todos")
-  task = fs.normalize(task)
+  task = fs.in_root(task, root) or fs.normalize(task)
   -- the notes holding to-dos made into tasks (from the index: only those links get resolved)
   local files, out = {}, {}
   for _, it in ipairs(require("logpose.index").build(root)) do
@@ -57,8 +57,9 @@ function M.todos_of(root, task)
   end
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     -- and notes with unsaved changes (a to-do promoted but not saved yet)
-    if vim.bo[buf].modified and vim.api.nvim_buf_get_name(buf):match("%.md$") then
-      files[fs.normalize(vim.api.nvim_buf_get_name(buf))] = true
+    local name = vim.api.nvim_buf_get_name(buf)
+    if vim.bo[buf].modified and name:match("%.md$") then
+      files[fs.in_root(name, root) or fs.normalize(name)] = true
     end
   end
   local names
@@ -219,8 +220,8 @@ function M.on_write(buf)
   if not root or path == "" or not vim.bo[buf].modified then
     return
   end
-  path = fs.normalize(path)
-  if not fs.inside(path, root) or not fs.exists(path) then
+  path = fs.in_root(path, root) -- as the index writes the journal's files, through a symlink too
+  if not path or not fs.exists(path) then
     return
   end
   local old = fs.read_lines(path) or {}

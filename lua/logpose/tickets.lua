@@ -127,7 +127,8 @@ function M.gx()
     local links = require("logpose.links")
     local link = links.at(line, col)
     if link and (link.style == "wiki" or not plugin) then
-      local path = links.follow(root, fs.normalize(vim.api.nvim_buf_get_name(buf)), line, col)
+      local name = vim.api.nvim_buf_get_name(buf)
+      local path = links.follow(root, fs.in_root(name, root) or fs.normalize(name), line, col)
       if path then
         vim.cmd.edit(vim.fn.fnameescape(path))
         return
