@@ -1,8 +1,28 @@
-import re, sys, html, pathlib
+import base64, re, sys, html, pathlib
 from playwright.sync_api import sync_playwright
 d = pathlib.Path(sys.argv[1])
 views = [("board", "~/journal — :Logpose board"), ("today", ":Logpose today"), ("projects", ":Logpose projects"), ("edit", ":Logpose edit — Fix flaky checkout test"), ("notes", ":Logpose notes"), ("meetings", ":Logpose meetings"), ("people", ":Logpose people")]
 out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
+# DejaVu Sans Mono, embedded so the shots look the same on any system (screenshots.sh fetches it): a
+# system's monospace font may lack box drawing in bold (macOS's Menlo does), which breaks the borders.
+# In italic text, arrows, box drawing and symbols stay upright: the oblique faces lack some (✓ ✎ ☐).
+ttf = next(d.glob("dejavu-fonts-ttf-*/ttf"), None)
+if ttf is None:
+    sys.exit(f"shot.py: no DejaVu fonts in {d} (screenshots.sh downloads them)")
+def face(file, weight, style, unicode_range=None):
+    data = base64.b64encode((ttf / file).read_bytes()).decode()
+    extra = f" unicode-range:{unicode_range};" if unicode_range else ""
+    return (f"@font-face {{ font-family:'DejaVu Sans Mono'; font-weight:{weight}; font-style:{style};"
+            f" src:url(data:font/ttf;base64,{data});{extra} }}")
+symbols = "U+2190-21FF, U+2500-27BF"
+fonts = "\n".join([
+    face("DejaVuSansMono.ttf", "normal", "normal"),
+    face("DejaVuSansMono-Bold.ttf", "bold", "normal"),
+    face("DejaVuSansMono-Oblique.ttf", "normal", "italic"),
+    face("DejaVuSansMono-BoldOblique.ttf", "bold", "italic"),
+    face("DejaVuSansMono.ttf", "normal", "italic", symbols),
+    face("DejaVuSansMono-Bold.ttf", "bold", "italic", symbols),
+])
 with sync_playwright() as p:
     b = p.chromium.launch()
     pg = b.new_page(device_scale_factor=2, viewport={"width": 1600, "height": 900})
@@ -17,6 +37,7 @@ with sync_playwright() as p:
             left, _, right = winbar.strip().partition("  ")
             wb = f'<div class="winbar"><b>{html.escape(left.split(" · ")[0])}</b> · {html.escape(" · ".join(left.split(" · ")[1:]))}<span>{html.escape(right.strip())}</span></div>'
         page = f"""<!doctype html><meta charset=utf-8><style>
+        {fonts}
         body {{ margin:0; background:transparent; }}
         .win {{ display:inline-block; margin:24px; min-width:560px; border-radius:10px; overflow:hidden;
                box-shadow: 0 12px 32px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06); }}
@@ -63,6 +84,7 @@ with sync_playwright() as p:
             page = page.replace("<pre>", '<pre style="position:static">').replace("</pre></div></div>", "</pre>" + menu + "</div></div>")
             page = page.replace(".term {", ".term { position:relative;", 1)
         pg.set_content(page)
+        pg.evaluate("document.fonts.ready.then(() => true)")
         pg.locator(".win").screenshot(path=str(out / f"{name}.png"), omit_background=True)
         print("wrote", name)
     b.close()
