@@ -684,7 +684,11 @@ local function new_note_effects(model, r, ctx)
       return { "open the existing " .. rel(note.path) }
     end
     table.insert(out, "create " .. rel(note.path))
-    table.insert(out, "link it from the daily note of " .. date.short(note.date))
+    local later = note.date > date.today() and not fs.exists(require("logpose.notes.daily").path(note.date, model.root))
+    table.insert(
+      out,
+      ("link it from the daily note of %s%s"):format(date.short(note.date), later and ", once that's made" or "")
+    )
     if note.previous then
       local n = #note.carried
       local when = note.previous.date and (" (" .. date.short(note.previous.date) .. ")") or ""

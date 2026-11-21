@@ -1618,6 +1618,11 @@ nobody worked).
   today's; past either end it says so. `workdays` no longer plays a part. Supersedes F1.2's
   workday stepping. **Tests** (`test_daily.lua`): Monday → Friday's note, stepping over gaps,
   `next` reaching today, both ends, from a buffer that isn't a daily note.
+- **A meeting on a later day doesn't make that day's daily note.** `meeting.link_in_daily` skips
+  a missing note dated after today; `daily.ensure` links the day's meetings (from the index)
+  under `## Meetings`, after the carried sections, so a note made later still lists them
+  (`meeting.daily_item` builds the line for both). The form's preview says "…, once that's
+  made". **Tests** (`test_meeting.lua`, `test_new_note.lua`, `test_standup.lua`).
 
 ## 5. Command reference (final state)
 

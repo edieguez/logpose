@@ -436,14 +436,32 @@ function M.insert_under_heading(lines, heading, item, marker)
   return out
 end
 
---- Add a link to the meeting under `## Meetings` in that day's daily note.
+--- The line linking a meeting from a daily note: `- acme: [[meetings/acme/…|Retro]]`.
+---@param root string
+---@param daily_path string
+---@param path string the meeting note
+---@param title string
+---@param project? string
+---@return string
+function M.daily_item(root, daily_path, path, title, project)
+  local prefix = project and (project .. ": ") or ""
+  return "- " .. prefix .. link.make(daily_path, path, title, root)
+end
+
+--- Add a link to the meeting under `## Meetings` in that day's daily note. A later day's note
+--- isn't made for it: the daily note links the day's meetings when it's made.
 ---@param root string
 ---@param note logpose.MeetingNote
 ---@return "file"|"buffer"|nil changed
 function M.link_in_daily(root, note)
-  local daily_path = daily.ensure(note.date, root)
-  local prefix = note.project and (note.project .. ": ") or ""
-  local item = "- " .. prefix .. link.make(daily_path, note.path, note.title, root)
+  local daily_path = daily.path(note.date, root)
+  if not fs.exists(daily_path) then
+    if note.date > date.today() then
+      return nil
+    end
+    daily_path = daily.ensure(note.date, root) -- made with the day's meetings, this one too
+  end
+  local item = M.daily_item(root, daily_path, note.path, note.title, note.project)
   local target = link.target(daily_path, note.path, root)
   -- Exact target match, so "retro" doesn't match "retro-2" or another project's "retro".
   local function marker(line)

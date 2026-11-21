@@ -160,8 +160,10 @@ Meeting notes from a template, linked from your daily note.
   adhoc                   asks for a title
 
 The note gets frontmatter (type, date, title, attendees, tags, series,
-project) and a link under `## Meetings` in that day's daily note. Running the
-same command again on the same day opens the existing note.
+project) and a link under `## Meetings` in that day's daily note. A meeting
+on a later day doesn't make that day's note early: a new daily note links
+the day's meetings. Running the same command again on the same day opens
+the existing note.
 
                                                          *logpose-new-meeting*
 New-meeting form ~

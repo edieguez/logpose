@@ -183,6 +183,28 @@ T["{time} in the filename"]["can open the existing note instead"] = function()
   eq(vim.fn.filereadable(meeting("2026-10-14 1100 - retro.md")), 0)
 end
 
+T["a meeting on a later day is linked when that day's note is made"] = function()
+  child.cmd("Logpose daily")
+  child.api.nvim_buf_set_lines(0, -1, -1, false, { "- [ ] prepare the demo" })
+  child.cmd("write")
+  child.cmd("Logpose meeting retro 2026-10-16")
+  eq(H.read(daily("2026-10-16")), nil) -- not made ahead of time
+  H.contains(H.read(daily()), "- [ ] prepare the demo") -- so today's to-dos stay today's
+  H.freeze(child, 2026, 10, 16)
+  child.cmd("Logpose daily")
+  local d = H.read(daily("2026-10-16"))
+  H.contains(d, "## To-dos\n\n- [ ] prepare the demo\n\n## Meetings\n\n- [[meetings/2026-10-16 - retro|Retro]]\n")
+  eq(child.fn.getline(child.fn.line(".") - 2), "## Notes") -- the cursor is still under ## Notes
+end
+
+T["a meeting today makes today's note, linked once"] = function()
+  child.cmd("Logpose meeting retro")
+  local d = H.read(daily())
+  local _, count = d:gsub("%[%[meetings/2026%-10%-14 %- retro|Retro%]%]", "")
+  eq(count, 1)
+  H.contains(d, "## Meetings\n\n- [[meetings/2026-10-14 - retro|Retro]]\n\n## Notes")
+end
+
 T["accepts a date for backfilling"] = function()
   child.cmd("Logpose meeting retro 2026-10-12")
   eq(child.api.nvim_buf_get_name(0), meeting("2026-10-12 - retro.md"))

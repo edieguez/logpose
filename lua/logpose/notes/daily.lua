@@ -149,7 +149,29 @@ function M.blockers(lines)
   return out
 end
 
---- Put carried sections (`## To-dos`, `## Blockers`) right after the note's title.
+--- Links to the meetings of `iso`, as they go under a daily note's `## Meetings`.
+---@param root string
+---@param path string the daily note
+---@param iso string
+---@return string[]
+function M.meeting_items(root, path, iso)
+  local meetings = {}
+  for _, it in ipairs(require("logpose.index").build(root)) do
+    if it.kind == "note" and it.file_type == "meeting" and it.date == iso then
+      table.insert(meetings, it)
+    end
+  end
+  table.sort(meetings, function(a, b)
+    return a.file < b.file
+  end)
+  local meeting = require("logpose.notes.meeting")
+  return vim.tbl_map(function(it)
+    return meeting.daily_item(root, path, it.file, it.title, it.project)
+  end, meetings)
+end
+
+--- Put sections (`## To-dos`, `## Blockers`, `## Meetings`) right after the note's title; empty
+--- ones are left out.
 ---@param text string
 ---@param cursor integer[]
 ---@param sections { [1]: string, [2]: string[] }[]
@@ -216,15 +238,19 @@ function M.ensure(iso, root)
   local after_write
   local prev = config.get().daily.carry_over and iso == date.today() and M.previous(root, iso)
   local prev_lines = prev and fs.current_lines(prev)
+  local sections = {}
   if prev_lines then
     local carried, rows = M.open_todos(prev_lines)
-    text, cursor = with_sections(text, cursor, { { "To-dos", carried }, { "Blockers", M.blockers(prev_lines) } })
+    vim.list_extend(sections, { { "To-dos", carried }, { "Blockers", M.blockers(prev_lines) } })
     if #rows > 0 then
       after_write = function()
         mark_carried(prev, rows)
       end
     end
   end
+  -- the day's meetings, planned before its note was made, are linked from it
+  table.insert(sections, { "Meetings", M.meeting_items(root, path, iso) })
+  text, cursor = with_sections(text, cursor, sections)
   local stamps = require("logpose.timestamps").lines()
   if #stamps > 0 and text:sub(1, 4) ~= "---\n" then
     -- No title here: the note's `# heading` stays its title (markdownlint MD025).

@@ -196,8 +196,9 @@ With a type on the command line, it skips the form:
 | `adhoc` | a title, with completion of past titles | what you type |
 
 Each note gets frontmatter (type, date, title, attendees, project, tags) and a link under
-`## Meetings` in that day's daily note. Running the same command again on the same day opens
-the existing note instead of making a second one.
+`## Meetings` in that day's daily note. A meeting on a later day doesn't make that day's note
+early: the daily note links the day's meetings when it's made. Running the same command again
+on the same day opens the existing note instead of making a second one.
 
 **Series.** Meetings with the same type and title (or the same person, for 1:1s) form a series
 within a project. A new note in a series starts with a `Previous: [[…]]` link and a

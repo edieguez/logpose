@@ -174,6 +174,9 @@ end
 
 T["a new daily note"] = MiniTest.new_set()
 
+-- today's meeting (in the fixtures), linked from the note made for the day
+local planning = "- acme: [[meetings/acme/2026-10-14 - planning|Planning]]"
+
 T["a new daily note"]["carries open to-dos (from anywhere in the note) and blockers"] = function()
   child.cmd("Logpose daily")
   eq(
@@ -191,10 +194,14 @@ T["a new daily note"]["carries open to-dos (from anywhere in the note) and block
       "",
       "- waiting on VPN access",
       "",
+      "## Meetings",
+      "",
+      planning,
+      "",
       "## Notes"
     )
   )
-  eq(child.api.nvim_win_get_cursor(0)[1], 15) -- under ## Notes, a blank line apart
+  eq(child.api.nvim_win_get_cursor(0)[1], 19) -- under ## Notes, a blank line apart
   local prev = H.read(d("2026-10-13"))
   H.contains(prev, "- [x] review PR #acme\n- [>] write ADR #acme\n  → [[tasks/adr|task]]\n- [>] call bank")
   -- now today's note is the plan
@@ -205,7 +212,7 @@ end
 T["a new daily note"]["carry_over = false and mark_carried = false"] = function()
   setup("{ daily = { carry_over = false } }")
   child.cmd("Logpose daily")
-  eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Notes"))
+  eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Meetings", "", planning, "", "## Notes"))
   vim.fn.delete(d("2026-10-14"))
   setup("{ daily = { mark_carried = false } }")
   child.cmd("Logpose daily")
@@ -226,10 +233,10 @@ T["a new daily note"]["only today's carries: a note for another day leaves the t
   H.contains(H.read(d("2026-10-14")), "## To-dos\n\n- [ ] write ADR #acme")
 end
 
-T["a new daily note"]["without a previous note: the template"] = function()
+T["a new daily note"]["without a previous note: the template, and the day's meetings"] = function()
   vim.fn.delete(d("2026-10-13"))
   child.cmd("Logpose daily")
-  eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Notes"))
+  eq(H.read(d("2026-10-14")), lines("# 2026-10-14 daily notes", "", "## Meetings", "", planning, "", "## Notes"))
 end
 
 return T

@@ -143,7 +143,7 @@ T["meeting"]["the preview says what a series carries over; a date picks the day"
   eq(drawn().below, {
     "saving will:",
     "• create meetings/2026-10-22 - retro.md",
-    "• link it from the daily note of Thu 22 Oct",
+    "• link it from the daily note of Thu 22 Oct, once that's made",
     "• carry over 2 open to-dos from Retro (Thu 8 Oct)",
     "• then open it to write",
   })
