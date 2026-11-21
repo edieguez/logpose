@@ -425,7 +425,7 @@ with that title exists, the write-up is added to its end. On a to-do inside a ta
 
 ![The notes list: a topic note and two project pages, grouped by type, with linked tasks, projects and tags](docs/images/notes.png)
 
-![The people list: names, roles, how to reach them, when you last met, open to-dos and projects, in banded rows across the window](docs/images/people.png)
+![The people list: everyone your notes mention, when you last met them, their open to-dos and projects, and a hint to merge a first name into a full one, in banded rows across the window](docs/images/people.png)
 
 Each is a list grouped under headings, newest or most relevant first, with what matters at a
 glance. Rows are laid out as a table across the window: the title (or name) takes the room, the
