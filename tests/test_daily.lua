@@ -67,25 +67,50 @@ T["works from a buffer in another repo"] = function()
   eq(bufname(), daily_path("2026-10-14"))
 end
 
-T["prev on a Monday opens Friday"] = function()
+T["prev on a Monday opens Friday's note"] = function()
+  H.write(daily_path("2026-10-08"), "# Thu\n")
+  H.write(daily_path("2026-10-09"), "# Fri\n")
   H.freeze(child, 2026, 10, 12)
   child.cmd("Logpose daily prev")
   eq(bufname(), daily_path("2026-10-09"))
 end
 
-T["prev/next step from the daily note in the current buffer"] = function()
-  child.cmd("Logpose daily 2026-10-09")
+T["prev/next step between the notes there are, from the one in the current buffer"] = function()
+  for _, iso in ipairs({ "2026-10-05", "2026-10-08", "2026-10-12" }) do
+    H.write(daily_path(iso), "# " .. iso .. "\n")
+  end
+  child.cmd("edit " .. daily_path("2026-10-08"))
   child.cmd("Logpose daily next")
   eq(bufname(), daily_path("2026-10-12"))
   child.cmd("Logpose daily prev")
   child.cmd("Logpose daily prev")
-  eq(bufname(), daily_path("2026-10-08"))
+  eq(bufname(), daily_path("2026-10-05"))
+  -- the days in between (a weekend, a day off) never get a note
+  eq(vim.fn.readdir(root .. "/daily"), { "daily-2026-10-05.md", "daily-2026-10-08.md", "daily-2026-10-12.md" })
 end
 
-T["respects custom workdays"] = function()
-  child.lua(("require('logpose').setup({ root = %q, workdays = { 1, 3, 5 } })"):format(root))
-  child.cmd("Logpose daily next") -- Wed -> Fri
-  eq(bufname(), daily_path("2026-10-16"))
+T["next reaches today's note, making it if needed; past either end it says so"] = function()
+  H.write(daily_path("2026-10-12"), "# Mon\n")
+  child.cmd("edit " .. daily_path("2026-10-12"))
+  child.cmd("Logpose daily next")
+  eq(bufname(), daily_path("2026-10-14"))
+  H.contains(H.read(daily_path("2026-10-14")), "# 2026-10-14 daily notes")
+  child.cmd("Logpose daily next")
+  H.contains(child.notifications()[1].msg, "no daily note after Wed 14 Oct")
+  child.cmd("edit " .. daily_path("2026-10-12"))
+  child.cmd("Logpose daily prev")
+  H.contains(child.notifications()[2].msg, "no daily note before Mon 12 Oct")
+  eq(bufname(), daily_path("2026-10-12"))
+end
+
+T["from a buffer that isn't a daily note, prev and next go from today"] = function()
+  H.write(daily_path("2026-10-12"), "# Mon\n")
+  H.write(daily_path("2026-10-20"), "# a week on\n")
+  child.cmd("Logpose daily prev")
+  eq(bufname(), daily_path("2026-10-12"))
+  child.cmd("enew")
+  child.cmd("Logpose daily next")
+  eq(bufname(), daily_path("2026-10-20"))
 end
 
 T["rejects invalid dates"] = function()
@@ -117,7 +142,7 @@ T["{sprint} names the current sprint when an anchor is set"] = function()
       root
     )
   )
-  child.cmd("Logpose daily next")
+  child.cmd("Logpose daily 2026-10-15")
   H.contains(H.read(daily_path("2026-10-15")), "---\n# 2026-10-15 sprint-43\n")
 end
 

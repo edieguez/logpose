@@ -1613,6 +1613,11 @@ nobody worked).
 - **Only today's note carries over.** `daily.ensure` carries (and marks `[>]`) only when the note
   is for `date.today()`; a note for another day starts from the template. **Tests**
   (`test_standup.lua`): tomorrow's and an earlier day's notes carry nothing; today's still does.
+- **`prev`/`next` move between the notes there are** (`daily.dates`), plus today's, from the
+  note in the current buffer (or today): days without a note are skipped and no note is made but
+  today's; past either end it says so. `workdays` no longer plays a part. Supersedes F1.2's
+  workday stepping. **Tests** (`test_daily.lua`): Monday → Friday's note, stepping over gaps,
+  `next` reaching today, both ends, from a buffer that isn't a daily note.
 
 ## 5. Command reference (final state)
 

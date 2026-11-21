@@ -29,23 +29,67 @@ function M.date_of(path)
   return nil
 end
 
---- Turn a command argument into a date. `prev`/`next` step by workdays from the
---- current buffer's daily note (or today).
+--- The dates of the daily notes there are, oldest first.
+---@param root string
+---@return string[]
+function M.dates(root)
+  local dir = config.path("daily", root)
+  local out = {}
+  if fs.is_dir(dir) then
+    for name, kind in vim.fs.dir(dir) do
+      local d = (kind == "file" or kind == "link") and M.date_of(name)
+      if d then
+        table.insert(out, d)
+      end
+    end
+  end
+  table.sort(out)
+  return out
+end
+
+--- Is `arg` something `:Logpose daily` takes?
 ---@param arg? string
----@return string
-function M.resolve_date(arg)
-  if arg == nil or arg == "" or arg == "today" then
-    return date.today()
-  end
-  if arg == "prev" or arg == "next" then
-    local base = M.date_of(vim.api.nvim_buf_get_name(0)) or date.today()
-    local workdays = config.get().workdays
-    return arg == "prev" and date.prev_workday(base, workdays) or date.next_workday(base, workdays)
-  end
-  if date.is_iso(arg) then
-    return arg
+local function check_arg(arg)
+  if arg == nil or arg == "" or arg == "today" or arg == "prev" or arg == "next" or date.is_iso(arg) then
+    return
   end
   error(("logpose: invalid date %q (use today, prev, next or YYYY-MM-DD)"):format(arg), 0)
+end
+
+--- Turn a command argument into a date. `prev`/`next` go to the daily note before or after
+--- `base` (the one in the current buffer, or today), among the notes there are and today's, so
+--- they never make a note for a day you didn't write one.
+---@param arg? string
+---@param root string
+---@param base? string
+---@return string
+function M.resolve_date(arg, root, base)
+  check_arg(arg)
+  local today = date.today()
+  if arg == nil or arg == "" or arg == "today" then
+    return today
+  end
+  if arg == "prev" or arg == "next" then
+    base = base or today
+    local stops = M.dates(root)
+    if not vim.tbl_contains(stops, today) then
+      table.insert(stops, today) -- today's note is always there to go to
+      table.sort(stops)
+    end
+    local pick
+    for _, d in ipairs(stops) do
+      if arg == "prev" and d < base then
+        pick = d
+      elseif arg == "next" and d > base and not pick then
+        pick = d
+      end
+    end
+    if not pick then
+      error(("logpose: no daily note %s %s"):format(arg == "prev" and "before" or "after", date.short(base, today)), 0)
+    end
+    return pick
+  end
+  return arg
 end
 
 --- Most recent daily note before `iso`.
@@ -53,16 +97,10 @@ end
 ---@param iso string
 ---@return string? path, string? date
 function M.previous(root, iso)
-  local dir = config.path("daily", root)
   local best
-  if fs.is_dir(dir) then
-    for name, kind in vim.fs.dir(dir) do
-      if kind == "file" then
-        local d = M.date_of(name)
-        if d and d < iso and (not best or d > best) then
-          best = d
-        end
-      end
+  for _, d in ipairs(M.dates(root)) do
+    if d < iso then
+      best = d
     end
   end
   if not best then
@@ -245,9 +283,11 @@ end
 --- Create (if needed) and open the daily note. Offers onboarding when there's no journal yet.
 ---@param arg? string today|prev|next|YYYY-MM-DD
 function M.open(arg)
-  local iso = M.resolve_date(arg) -- resolve now: `prev`/`next` depend on the current buffer
+  check_arg(arg)
+  -- read now: `prev`/`next` go from the daily note in the current buffer
+  local base = M.date_of(vim.api.nvim_buf_get_name(0))
   config.with_root(ui.safely(function(root)
-    M.open_date(iso, root)
+    M.open_date(M.resolve_date(arg, root, base), root)
   end))
 end
 

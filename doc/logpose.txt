@@ -768,9 +768,10 @@ Daily work ~
     Open the daily note for {day}: `today` (default), `prev`, `next` or a
     date (YYYY-MM-DD), creating it from the `daily` template (today's also
     gets the previous note's open to-dos and blockers, |logpose-daily|).
-    `prev` and `next` step by |logpose-workdays| from the daily note in the
-    current buffer, or from today. An existing note is opened, never
-    overwritten.
+    `prev` and `next` go to the daily note before or after the one in the
+    current buffer (or today), among the notes there are and today's: days
+    without a note are skipped, and no note is made but today's. An
+    existing note is opened, never overwritten.
 
                                                             *:Logpose-standup*
 :Logpose standup[!] [{date}]
@@ -1153,8 +1154,8 @@ General ~
   keymaps        (boolean|table)  false. See |logpose-keymaps|.
                                                             *logpose-workdays*
   workdays       (integer[])   ISO weekdays you work (Monday = 1).
-                 Default Monday to Friday. Used by `daily prev/next`, the
-                 standup and the sprint day count.
+                 Default Monday to Friday. Used by the standup and the
+                 sprint day count.
   picker         (string)      "auto" (default), "snacks", "fzf_lua",
                  "telescope" or "select".
   link_style     ("wiki"|"markdown")  Format of links logpose writes.

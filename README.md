@@ -150,6 +150,9 @@ another day, made ahead of time or after the fact, starts from the template):
   each lives in one place);
 - the lines under `## Blockers`, which hold until you delete them.
 
+`:Logpose daily prev` and `next` go to the note before or after the one you're in (or today's),
+skipping the days you didn't write one: they never make a note, except today's.
+
 > **Configure:** `daily = { carry_over = false }` starts each note empty; `mark_carried = false`
 > leaves the old note alone; `standup = { group_by_project = false }` copies a flat list.
 
@@ -911,7 +914,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `today` | The day at a glance: the standup, then what's coming up. |
-| `daily [today\|prev\|next\|DATE]` | Open (and create) a daily note. `prev`/`next` step by workday. |
+| `daily [today\|prev\|next\|DATE]` | Open (and create) a daily note. `prev`/`next` go to the note before or after, skipping days without one. |
 | `standup[!] [DATE]` | The today screen on the standup; `!` copies it; a date shows that day's. |
 | `meeting [TYPE] [DATE]` | New meeting note. Without a type, the new-meeting form. |
 
