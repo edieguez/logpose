@@ -1719,6 +1719,11 @@ years).
 ## 7. Release notes
 
 Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
+- 0.58.0: `:Logpose daily prev`/`next` go to the daily note before or after (the notes there are,
+  and today's) instead of stepping by workdays, so they never make a note but today's; only
+  today's note carries over open to-dos and blockers. A series links its meetings with
+  `previous:`/`next:` in the frontmatter instead of a `Previous:` line in the body; run
+  `:Logpose relink` once to move old ones and link older notes.
 - 0.49.0: the standup is computed (task logs, meetings, checked to-dos) and shown on the today
   screen; daily notes are scratchpads (`## Notes`; carried to-dos under `## To-dos`, blockers
   under `## Blockers`); `standup.sections`, `standup.carry_forward` and `standup.mark_carried`
