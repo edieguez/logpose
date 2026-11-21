@@ -1751,7 +1751,8 @@ daylight-saving changes. The suite takes seconds. CI runs Neovim 0.10, stable an
 `scripts/screenshots.sh` regenerates the images in this README from a demo journal.
 
 The design and roadmap are in [`docs/SPEC.md`](docs/SPEC.md). Releases are tagged
-`MAJOR.MINOR.PATCH`; `git tag -n` lists what each one added.
+`MAJOR.MINOR.PATCH`; `git tag -n` lists what each one added, and the spec's
+[release notes](docs/SPEC.md#7-release-notes) list them all.
 
 ## License
 

@@ -58,14 +58,13 @@ capture/done, sprint-aware archives and reports.
   other half: processing the INBOX, section- and person-aware retrieval, evergreen notes and
   links, saved views, and keeping tags/projects tidy.
 - **M3 (F6–F8): Scrum layer.** Standup prefill, period reports with a review section, ticket links.
-  (F6 shipped before M2.5; F7 and F8 followed it.) Done as of 0.17.0.
-- **Last: T1 local usage telemetry**, once there are features to measure. Done in 0.18.0.
-- **B1 Kanban board & task files**, from the first week of real use (0.20.0).
+  (F6 shipped before M2.5; F7 and F8 followed it.) Done as of 1.0.0.
+- **Last: T1 local usage telemetry**, once there are features to measure. Done in 1.1.0.
+- **B1 Kanban board & task files**, from the first week of real use (1.3.0).
 
-**Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix). Each completed feature
-bumps the minor version (0.1.0 = F0+F1, 0.2.0 = F1.5, 0.3.0 = F1.6, 0.4.0 = F2, 0.5.0 = F2.1, 0.6.0 = F3, 0.7.0 = F4, 0.8.0 = F5, 0.9.0 = F6, 0.10.0 = O1, 0.11.0 = O2, 0.12.0 = O3, 0.13.0 = O4, 0.14.0 = O5, 0.15.0 = O6, 0.16.0 = F7,
-0.17.0 = F8, 0.18.0 = T1, 0.19.0 = live search and previews, 0.20.0 = B1, 0.21.0 = markdownlint-clean notes, 0.22.0 = timestamps, board look and delete, 0.23.0 = peek, scrolling columns, WIP limits and age, 0.23.1 = board resize fixes, 0.24.0 = command menu, statusline, board undo, 0.25.0 = today, keymaps preset, titled notifications, board extras, 0.25.1 = docs rewrite, 0.26.0 = project manager, project completion and board-follows-project fixes, 0.27.0 = project switcher, project pages as registry, moving tasks between projects, merging projects, 0.28.0 = switching opens the board, 0.28.1 = board and projects split into modules, tests 40× faster, 0.28.2 = caching for big journals, 0.29.0 = frontmatter editor, 0.30.0 = capture picks the project, form rework, bulk edits, 0.30.1 = completion menu closes after a choice, 0.30.2 = <CR> accepts from the menu, nvim-cmp off in the form, 0.31.0 = the edit form stays open after saving, 0.32.0 = card redesign, 0.32.1 = automatic project colours, no cursorline on the board, 0.33.0 = borders tinted with the project's colour, 0.34.0 = column-coloured borders by default again, tags as chips, 0.35.0 = shared date wording and frontmatter writer; triage, move and the switcher removed, 0.36.0 = new-task form, 0.37.0 = linked notes on cards, recently edited notes on today, 0.38.0 = tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed, 0.39.0 = notes screen, 0.40.0 = new-note forms, 0.40.1 = gx follows note links, 0.40.2 = promoted to-dos start in Backlog, 0.40.3 = gx works alongside a markdown plugin's, 0.41.0 = notes from tasks; promoted to-dos keep their text, 0.42.0 = people: a list, forgiving matching, completion in notes, 0.43.0 = people pages and the people screen, 0.44.0 = to-dos and their tasks in step, 0.45.0 = "no project" mode, 0.46.0 = filter language with or/not/fields; meetings, notes and people lists, 0.47.0 = filter bar, help windows, lists polish, 0.48.0 = counts work on the board and the lists, 0.49.0 = the standup on the today screen; daily notes as scratchpads, 0.50.0 = Next 1:1 items; screens share their drawing, 0.51.0 = lists as tables across the window, banded rows, the filter bar below, 0.52.0 = completion in notes with no setup, 0.53.0 = new meetings start as Ad-hoc, 0.53.1 = dialogs keep the focus, 0.54.0 = project docs, 0.55.0 = project pages as hubs, 0.56.0 = links in the notes list, docs promoted to lasting notes, 0.57.0 = archived projects move to projects/archive/, 0.57.1 = fixes from a code review, 0.58.0 = daily notes keep to their day; previous/next links, 0.58.1 = screens keep to themselves; symlinked journals); fixes bump the patch;
-1.0.0 once M3 is done.
+**Releases.** Annotated tags in `MAJOR.MINOR.PATCH` form (no `v` prefix): each completed feature
+bumps the minor version, and fixes bump the patch. Versions stayed 0.x until M3 was done: 1.0.0 is
+F8, the feature that completed it. Every release is listed in §7.
 
 ---
 
@@ -78,7 +77,7 @@ No keymaps are set by default; suggested ones go in the README.
 **Dates.** ISO `YYYY-MM-DD` strings everywhere; compare them lexicographically. All date
 arithmetic goes through `util/date.lua`, anchored at **12:00 local time** to avoid DST bugs.
 
-**Tasks, notes and to-dos** (0.38.0; the words every command, screen, search and doc uses).
+**Tasks, notes and to-dos** (1.21.0; the words every command, screen, search and doc uses).
 - A **task** is a task file in `tasks/` (B1): frontmatter with `status`, `project`, `tags`,
   `due`, `blocked`…, shown on the board. Done tasks of past periods move to
   `tasks/archive/<period>/`.
@@ -372,24 +371,24 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   changed or cleared) → longest `projects.paths` prefix of the current buffer/cwd → the git repo
   name (slugified) of the current buffer/cwd, unless that repo is the journal itself → none.
 - `:Logpose project [name|none]`: set or clear; no argument → pick from known projects or type
-  a new one. Completion lists known projects. **Known projects** (0.26.0): the pinned one,
+  a new one. Completion lists known projects. **Known projects** (1.9.0): the pinned one,
   `projects.paths`, project pages (`projects/*.md`), subdirectories of `meetings/`, and the
   `project:` of any note or task; archived projects are left out (search still lists them).
 - Switching (or archiving, renaming) fires `User LogposeProjectChanged`; an open board
   re-resolves its project and redraws, and the statusline cache is cleared.
-- **Project pages are the registry** (0.27.0): `projects/<name>.md` frontmatter holds `title`
+- **Project pages are the registry** (1.10.0): `projects/<name>.md` frontmatter holds `title`
   (display name), `description`, `paths` (repo folders: detection checks them after
   `projects.paths` and before the git repo, source `page`), `color` (hex or highlight group,
   used for the project's cards and lanes on the board), `archived` and `merged_into`.
-- **Switcher** (`:Logpose project` without a name, `P` on the board, 0.27.0): the picker
+- **Switcher** (`:Logpose project` without a name, `P` on the board, 1.10.0): the picker
   lists the active project, then recently switched-to ones (`recent_projects` in state), then
   the rest by activity; each item previews the project's details (below). "+ New project…"
   creates a page and switches; "Auto-detect" unpins.
 - Switching to a project (manager `<CR>`, `:Logpose project <name>`) shows its board
   unless `projects.open_board = false` or the current buffer is already a board, which follows
-  the switch itself (0.28.0). Unpinning doesn't open it.
+  the switch itself (1.11.0). Unpinning doesn't open it.
 - **Project manager** (`:Logpose projects`, `projects/`: `summary`, `manager`; the switcher was
-  removed in 0.35.0; 0.26.0, reworked in 0.27.0): one
+  removed in 1.18.0; 1.9.0, reworked in 1.10.0): one
   row per project with open tasks (and how many are in the start column), overdue, due soon
   (3 days), blocked, meetings, notes, and the newest change as "3d ago"; most recently active
   first; no change for `review.stale_days` fades the row. `<Tab>` expands a project in place:
@@ -398,7 +397,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   page, `t` open tasks, `f` notes, `a` add (name, then repo folder, suggested from the
   previous window's repo), `p` link a repo folder, `R` rename, `M` merge, `D` archive, `U`
   restore, `A` show archived, `r` refresh, `q` close, `?` help.
-- **Frontmatter editor** (`:Logpose edit`, 0.29.0, reworked in 0.30.0; `e` on the board and in
+- **Frontmatter editor** (`:Logpose edit`, 1.12.0, reworked in 1.13.0; `e` on the board and in
   the project manager). `edit/fields.lua` is the model: fields per note type (plus keys the note
   has), `check(kind, key, text)` returning a normalised value, an error message or a note (never
   throwing, so the form checks as you type), `collect` (all fields → values, errors, notes,
@@ -415,7 +414,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   `status`/`project`/`blocked` through `taskfile.set_*` (logged), and moves a meeting to its new
   project's folder (`series`, links via `maintenance.rewrite_links`, the daily `- project:` label,
   the emptied folder). A project page's `project` is refused (rename with `R`).
-- **Consolidation** (0.35.0): one way to word dates (`util/date`: `due` for due dates
+- **Consolidation** (1.18.0): one way to word dates (`util/date`: `due` for due dates
   everywhere they're shown, `relative`, `short`, one `MONTHS` table), one frontmatter writer
   (`frontmatter.lua`: `quote`, `render`, `line`, `read`, `set` with `false` to remove and an
   optional key order; used by task files, project pages, meeting and topic notes and the edit
@@ -423,14 +422,14 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   `:Logpose move` (the edit form and `m`), the project switcher (`:Logpose project` without a
   name and `P` open the manager; switching shows the existing board via `board.show`, keeping
   its filter, marks and folds) and the `<leader>jw` key.
-- **New-task form** (0.36.0): `:Logpose capture` without text and `a` on the board open
+- **New-task form** (1.19.0): `:Logpose capture` without text and `a` on the board open
   `fields.load_new` (title, status, project, tags, due, blocked, `context`) seeded with the
   column / detected project / lane. The title's emptiness isn't an error until save
   (`give the task a title`); `fields.new_effects` describes the task to be created; `save.create`
   makes it with `taskfile.create` (context as the body, `set_blocked` after) and announces a
   project only when it's new. The form then reloads as an edit of the created file. On the
   board the creation and each later save are separate undo steps.
-- **Linked notes** (0.37.0): `links.related(root, items)` maps each task file to the notes linked
+- **Linked notes** (1.20.0): `links.related(root, items)` maps each task file to the notes linked
   with it both ways (non-task notes linking to it; non-task notes it links to), resolving only
   links whose target name matches a task file (or that leave a task), newest first. `collect`
   stores it as `it.related`; `cards.details` adds `✎ N` (`LogposeBoardNotes`) after the project,
@@ -439,7 +438,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   daily, meeting, topic and other notes (not tasks or project pages) edited within seven days, excluding
   today's daily note, with `date.ago`. The edit form notes attendees not yet in the journal
   (`new: Maria`).
-- **Card design** (0.32.0, `board/cards.lua`): colour only where it means something. Borders use
+- **Card design** (1.15.0, `board/cards.lua`): colour only where it means something. Borders use
   `LogposeBoardBorder` (`board.border = "column"` restores column colours); the focused card has
   a heavy border in Normal's foreground plus `LogposeBoardFocusBg` (CursorLine) under its rows,
   drawn by the view at a low priority so other colours stay on top. `cards.state` decides the
@@ -449,22 +448,22 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   the end: the due text (`cards.due_text`: `overdue Nd`, `due today`/`due tomorrow`, the weekday
   within a week, else `due D Mon`) and idle time always; then the project (shortened, or only
   its colour mark below six cells; left off on a one-project board and in rows per project);
-  then whole tags. Projects without a `color:` get one automatically (0.32.1,
+  then whole tags. Projects without a `color:` get one automatically (1.15.1,
   `project.palette`/`auto_hl`): highlight groups every scheme defines, minus greys (low
   chroma) and hues within 20° of one already kept or of the board's meaning colours (error, warn,
   ok); handed out as a set over the journal's projects (hash slot, else the next free one) so they
   differ while there are enough colours. The board window turns `cursorline` off. `board.border`: "column" (the
-  default again since 0.34.0, after trying the others in use), "project" (`cards.project_border`
+  default again since 1.17.0, after trying the others in use), "project" (`cards.project_border`
   mixes the project's colour 60/40 with Normal's background; otherwise the colour itself) or
-  "neutral". Tags are chips (0.34.0): ` #tag ` in `LogposeBoardTag`, Normal's foreground on a
+  "neutral". Tags are chips (1.17.0): ` #tag ` in `LogposeBoardTag`, Normal's foreground on a
   background mixed 22% toward it (`Visual` without true colours), set apart by a space.
-- **Bulk edits** (0.30.0): `v` marks cards on the board (`b.marked`, by file; pruned to visible
+- **Bulk edits** (1.13.0): `v` marks cards on the board (`b.marked`, by file; pruned to visible
   cards on render; `V`/`<Esc>` clear). `H` `L` `1`–`9` `x` `b` `m` `e` act on every marked card as
   one undo step (`actions.targets`, `with_card`). `e` with marks, or `:'<,'>Logpose edit` in a
   quickfix list, opens `fields.load_bulk`: shared values filled in, differing ones empty (= keep);
   `none` clears project/due/blocked; `tags` takes `+a -b` (per-task add/remove) or a list
   (replace). `save.bulk` applies per task, skipping tasks that already hold the value.
-- **Capture picks the project** (0.30.0): `taskfile.take_project` reads `+name` /
+- **Capture picks the project** (1.13.0): `taskfile.take_project` reads `+name` /
   `project:name` (`+none` = none; `+` must start a word and be followed by a letter) in capture,
   the board's `a`, promote and migrate. `due:` goes through `date.resolve_due` (also weekday
   names). The prompt and the confirmation name the project and why (`tasks.describe_project`:
@@ -472,9 +471,9 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   edit last` reopen the last capture. With rows per project, `a` uses the row under the cursor
   (`view.lane_at_cursor`, from `b.lane_rows`). `tasks.complete_text` completes `+`, `#`, `due:`
   for the command line and (`complete_input`, customlist) for `vim.ui.input` prompts.
-- **Moving tasks** (0.27.0): `m` on the board (undoable) and the edit form's `project` set
-  `project:` and log `project: old → new` (`:Logpose move` was removed in 0.35.0).
-- **Merging** (`M`, `:Logpose merge-project old new`, 0.27.0): the rename plan with `merge`:
+- **Moving tasks** (1.10.0): `m` on the board (undoable) and the edit form's `project` set
+  `project:` and log `project: old → new` (`:Logpose move` was removed in 1.18.0).
+- **Merging** (`M`, `:Logpose merge-project old new`, 1.10.0): the rename plan with `merge`:
   meeting files move into the existing folder one by one (a name clash aborts), the emptied
   folder is removed, links and series follow; if both projects have pages the old page stays
   with `archived: true` and `merged_into: new`. Renaming onto an existing project is refused
@@ -491,7 +490,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
   default to "all", with a `project` argument (`current` = active project).
 - Health shows the active project and how it was chosen.
 - Project names are slugs (`Acme API` → `acme-api`); `auto` (`detect`, `clear`) unpins and
-  detects again. `none` (0.45.0) means no project: `state.project = false`, `resolve` returns
+  detects again. `none` (1.28.0) means no project: `state.project = false`, `resolve` returns
   `nil, "none"` and detects nothing; `:Logpose meeting <type>` and `:Logpose note <title>` then
   open the new-note form (type or title filled in) so the project is picked per note.
 - The daily-link duplicate check matches the exact link target, so `retro` in two projects (or
@@ -511,7 +510,7 @@ across everything, but meetings, tasks and reports can be kept apart and filtere
 
 ## F2 — Archive (Core)
 
-> **Superseded in 0.38.0.** INBOX.md, DONE.md and their section archives are gone;
+> **Superseded in 1.21.0.** INBOX.md, DONE.md and their section archives are gone;
 > `:Logpose archive` now moves done task files of past periods to `tasks/archive/<period>/`
 > (see C1). The design below is history.
 
@@ -601,7 +600,7 @@ archive file per week, with a preview + confirm step and safe writes.
 
 ## F3 — Kanban flow: capture & done (High)
 
-> **Superseded.** Capture makes task files since B1, and since 0.38.0 there is no INBOX mode:
+> **Superseded.** Capture makes task files since B1, and since 1.21.0 there is no INBOX mode:
 > `done` finishes the task file you're in, `check` toggles to-dos (see C1). History below.
 
 **Goal.** Get items into INBOX and move finished ones to DONE without leaving the current buffer.
@@ -706,7 +705,7 @@ previous one.
 ### F5.2 Meeting series (in `notes/meeting.lua`)
 - On creation, the previous note is the most recent earlier meeting with the same `series`
   (frontmatter; project-scoped since F1.6). If found:
-  - `Previous: [[…|<title> <date>]]` is inserted right after the title heading (since 0.58.0:
+  - `Previous: [[…|<title> <date>]]` is inserted right after the title heading (since 1.41.0:
     `previous:`/`next:` in the frontmatter, C21);
   - with `series.carry_over` (default), a `## Carried over` section follows with the previous
     note's open tasks, each `- [ ] text (from [[…|<date>]])`; an older `(from …)` is replaced,
@@ -799,7 +798,7 @@ dashes for spaces (`section:open-questions`).
 
 ## O2 — Inbox triage (High)
 
-> **Removed** in 0.35.0 (triage) and 0.38.0 (INBOX). History below.
+> **Removed** in 1.18.0 (triage) and 1.21.0 (INBOX). History below.
 
 **Goal.** Process INBOX item by item instead of letting it grow.
 
@@ -928,13 +927,13 @@ records, and the links between notes.
   (disabled if `url` is nil).
 - In journal buffers only (buffer-local, via `FileType markdown` + root check): `gx` on a ticket
   ID opens the URL with `vim.ui.open`; otherwise falls through to default `gx`.
-  Since 0.40.1 `gx` is mapped in every journal note, ticket URL or not: a link under the cursor
+  Since 1.23.1 `gx` is mapped in every journal note, ticket URL or not: a link under the cursor
   (`links.at`: `[[target|label]]` anywhere on it, `[label](path)` / `[label](<path>)` to a file)
   resolved by `links.follow` opens the note (an unresolved wiki link warns); anything else calls
   the `gx` mapping the buffer had before (captured at attach: a markdown plugin's or Neovim's),
   or `vim.ui.open(<cfile>)`. `<cfile>` alone stopped at the space in
   `[[meetings/acme/2026-10-14 - retro|Retro]]`.
-  Since 0.40.3 the mapping is set in a `vim.schedule` after `FileType`, so it wraps a markdown
+  Since 1.23.3 the mapping is set in a `vim.schedule` after `FileType`, so it wraps a markdown
   plugin's buffer-local `gx` whichever loads first; with such a plugin (`maparg().buffer == 1`)
   logpose takes only wiki links and tickets and runs the plugin's mapping (expr or not) for the
   rest, so its anchors (`file.md#heading`), footnotes and URLs keep working. Checked against
@@ -960,7 +959,7 @@ Strictly local: nothing ever leaves the machine.
 **Design** (`telemetry.lua`)
 - On by default (opt-out with `telemetry = { enabled = false }`): the data is local to the
   current user and never leaves the machine. Documented in the README and health. (Opt-in
-  until 0.26.0.)
+  until 1.9.0.)
 - Recorded per event: subcommand (and scope/mode for `find`, `actions`, `report`), date, and
   whether it succeeded. No note content, paths, titles, tags or arguments beyond the
   scope/mode keyword.
@@ -998,7 +997,7 @@ a real task has. Tasks become files and the board becomes the place you see and 
 - `tasks.mode = "files"` (default) or `"inbox"` (the F3/O2 INBOX/DONE flow, unchanged).
 
 **Board** (`board/`: `text`, `cards`, `collect`, `view`, `history`, `actions`, `keys`, and
-`init`, which opens boards and re-exports the parts; split in 0.28.1): `:Logpose board [filters]`
+`init`, which opens boards and re-exports the parts; split in 1.11.1): `:Logpose board [filters]`
 - A scratch buffer (`filetype=logpose-board`) in the current window. Default columns:
   Backlog · TODO · In progress · Follow-up · Done (`board.columns`, a list of `{ key, label }`).
   Columns sit side by side; when a column would be narrower than `board.min_column_width`
@@ -1029,7 +1028,7 @@ a real task has. Tasks become files and the board becomes the place you see and 
   `## Someday` items get tag `someday`) and removes them from INBOX. Preview first; `!` skips
   it. DONE.md stays as history.
 - `:Logpose promote` on a checkbox line (meeting, daily, any note) creates a task file in
-  `tasks.promote_status` (Backlog since 0.40.2) with the note's project and a `From:` link, and turns the line
+  `tasks.promote_status` (Backlog since 1.23.2) with the note's project and a `From:` link, and turns the line
   into a link to it.
 
 **Everything else reads task files**
@@ -1061,7 +1060,7 @@ a real task has. Tasks become files and the board becomes the place you see and 
 
 ---
 
-## C1 — Tasks, notes and to-dos kept apart (0.38.0)
+## C1 — Tasks, notes and to-dos kept apart (1.21.0)
 
 **Goal.** "Task" meant three things (task files, checkboxes in notes, INBOX.md lines), so search,
 commands and screens mixed them. Keep one word per thing, everywhere.
@@ -1089,7 +1088,7 @@ commands and screens mixed them. Keep one word per thing, everywhere.
   `:Logpose archive` moves done tasks only. Reports list "Done tasks" and "Open to-dos older
   than N days".
 
-## C2 — Notes screen (0.39.0)
+## C2 — Notes screen (1.22.0)
 
 **Goal.** Tasks have the board; notes had only search. Give notes a screen to browse.
 
@@ -1110,7 +1109,7 @@ commands and screens mixed them. Keep one word per thing, everywhere.
 - Default scope is the active project (`project.resolve`); the projects screen's `f` opens it
   for that project. Keymap preset: `<leader>jl`. Highlights `LogposeNotes*`.
 
-## C3 — New-note forms (0.40.0)
+## C3 — New-note forms (1.23.0)
 
 **Goal.** Set a note's frontmatter (tags above all) while creating it, as the new-task form does
 for tasks.
@@ -1138,7 +1137,7 @@ for tasks.
   `:Logpose note` without a title, the notes screen's `a` (by section), `n`, `m`
   (`edit.open_new_note`). The edit form for existing meetings gains `tags`.
 
-## C4 — Promotion, both ways (0.41.0)
+## C4 — Promotion, both ways (1.24.0)
 
 **Goal.** "Promote" moves things up a level, and both ends link to each other: a to-do becomes a
 task, a task's write-up becomes a note.
@@ -1160,7 +1159,7 @@ task, a task's write-up becomes a note.
   `## Notes` (created before `## Log`), and with `move` loses the write-up rows (recomputed from
   its current lines). The board's `✎` count picks the note up through `links.related`.
 
-## C5 — People suggestions (0.42.0)
+## C5 — People suggestions (1.25.0)
 
 **Goal.** Suggest the right person while typing attendees, wherever that happens.
 
@@ -1180,7 +1179,7 @@ task, a task's write-up becomes a note.
   spelling so the plugins' own fuzzy filters match without accents. Triggers `[`, `@`, `,`; the
   cmp keyword pattern also takes `@handle` and words.
 
-## C6 — People pages (0.43.0)
+## C6 — People pages (1.26.0)
 
 **Goal.** A compendium of the people you work with: a page per person (name, role, how to reach
 them, your notes about them) that the rest of logpose knows about, so completion, filters and
@@ -1223,7 +1222,7 @@ them, your notes about them) that the rest of logpose knows about, so completion
   `rename-tag` (`maintenance.confirm_and_apply`).
 
 **Possible future work** (not planned yet)
-- ~~Carry a person's open "## Next 1:1" items into the next 1:1's agenda~~ (done in 0.50.0, C11).
+- ~~Carry a person's open "## Next 1:1" items into the next 1:1's agenda~~ (done in 1.33.0, C11).
 - Merge two people (`M` on the screen): fold one page into another, combining aliases, contacts
   and notes, and rewrite references like a rename.
 
@@ -1233,7 +1232,7 @@ them, your notes about them) that the rest of logpose knows about, so completion
   `:Logpose person`; `gx` on a mention and an attendee; rename moves the page and rewrites
   attendees, `with:`, mentions and links.
 
-## C7 — To-dos and their tasks in step (0.44.0)
+## C7 — To-dos and their tasks in step (1.27.0)
 
 **Goal.** A to-do made into a task (`:Logpose promote`) and the task finish and reopen together,
 so an action item doesn't stay open after its task is done.
@@ -1265,7 +1264,7 @@ so an action item doesn't stay open after its task is done.
 both ways with the column from the log, asking for unstarted tasks, hand edits saved, unsaved
 buffers, the index safety net, carrying over.
 
-## C8 — Filter language and lists (0.46.0)
+## C8 — Filter language and lists (1.29.0)
 
 **Goal.** Meetings, notes and people browsed like tasks are on the board: grouped, filtered by
 anything in their frontmatter (with `and`, `or`, `not`), and changed by moving them.
@@ -1291,7 +1290,7 @@ anything in their frontmatter (with `and`, `or`, `not`), and changed by moving t
 `lists/people.lua`; `lists/common.lua` for shared pieces)
 - One engine renders a view: entries (`collect`), filtered by project scope and the filter,
   sorted (`sorts`), grouped (`groupings[i].of(e)` → groups; an entry may be in several),
-  group headings with every row (0.47.2: no "… N more" rows to expand), `<Tab>` details,
+  group headings with every row (1.30.2: no "… N more" rows to expand), `<Tab>` details,
   folding.
 - Moving (`m`, `<`, `>`) calls the grouping's `move(s, e, from, to)`, which writes the note
   through `edit.save.note` (a meeting's project moves its file and fixes links; tags and
@@ -1311,7 +1310,7 @@ anything in their frontmatter (with `and`, `or`, `not`), and changed by moving t
 parentheses, fields, people, dates, ranges, lenient parsing), each list's rows, details,
 groupings, filters and moves, projects screen `f`.
 
-## C9 — Discoverable filters, polished lists (0.47.0)
+## C9 — Discoverable filters, polished lists (1.30.0)
 
 **Goal.** The filter language can be learned while using it, and the lists read at a glance.
 
@@ -1323,7 +1322,7 @@ groupings, filters and moves, projects screen `f`.
   (`today`, `-7d`, this month, a range), or a field's values in the journal, most used first. A
   leading `-` is kept. `CHEATSHEET` / `cheatsheet_lines()` for help windows. `:Logpose find`
   completion uses it for values.
-- `filter/bar.lua`: a one-line window under the list or board (a split since 0.51.0, see C12).
+- `filter/bar.lua`: a one-line window under the list or board (a split since 1.34.0, see C12).
   `on_change` re-applies the filter as you type (deferred 40 ms) and returns a count shown on the
   lower edge with the ignored words (lenient `query.parse`'s skipped) and, when empty, examples.
   Our own popup (`vim.fn.complete`, `completeopt=menuone,noinsert,noselect` while open; blink and
@@ -1340,7 +1339,7 @@ groupings, filters and moves, projects screen `f`.
 **Tests**: completion items (`test_lists.lua`), the bar (live list, menu, count, ignored words,
 `<Esc>` restores, `<BS>` clears), help windows, the board's bar.
 
-## C10 — The standup on the today screen (0.49.0)
+## C10 — The standup on the today screen (1.32.0)
 
 **Goal.** One place for the start of the day, and a standup that needs no upkeep: the old
 standup read Yesterday/Today/Blockers sections the daily note had to keep filled in (most notes
@@ -1370,7 +1369,7 @@ stayed empty), lost blockers overnight and ignored meetings and work that didn't
 Monday → Friday), the today screen and copying, `:Logpose standup` forms, carrying to-dos and
 blockers, options.
 
-## C11 — Next 1:1 items; screens share their plumbing (0.50.0)
+## C11 — Next 1:1 items; screens share their plumbing (1.33.0)
 
 **Next 1:1** (`people/agenda.lua`)
 - A person's page may have `## Next 1:1`; its non-blank lines are items (`find`, `items`).
@@ -1394,7 +1393,7 @@ blockers, options.
 **Tests**: `n` adds (twice, a ready-made list item kept as is), the row counts them, a 1:1 takes
 them under `## Topics` and empties the page; a template without Topics gets `## Agenda`.
 
-## C12 — Lists across the window; the filter bar below (0.51.0)
+## C12 — Lists across the window; the filter bar below (1.34.0)
 
 **Goal.** Rows use the width a wide screen gives them without getting lost, and filtering never
 hides the results.
@@ -1430,7 +1429,7 @@ hides the results.
 260-column window centred and capped, a 50-column one keeps the name; the bar is a split below
 the list with its top in view, no menu between words, `<Tab>` opens it, closing leaves one window.
 
-## C13 — Completion in notes with no setup (0.52.0)
+## C13 — Completion in notes with no setup (1.35.0)
 
 **Goal.** `@` in a journal note offers your people whatever completion setup you have, with
 nothing to configure.
@@ -1455,7 +1454,7 @@ inserts it, `completeopt` restored; a stand-in blink.cmp gets the provider and t
 once, not outside the journal; a config that has them is left alone; a stand-in nvim-cmp gets the
 buffer source. Checked by hand against blink.cmp 1.10.2.
 
-## C14 — New meetings start as Ad-hoc (0.53.0)
+## C14 — New meetings start as Ad-hoc (1.36.0)
 
 `default_meeting_type = "adhoc"` (config): the type the new-meeting form starts on.
 `meeting.default_type()` returns it when it's an enabled type, else the first by `order`. A type
@@ -1463,7 +1462,7 @@ given (`:Logpose meeting retro`, `a` in a list grouped by type) still wins.
 **Tests**: the form starts on `adhoc`; another value is used; an unknown one falls back to the
 first type.
 
-## C15 — Dialogs keep the focus (0.53.1)
+## C15 — Dialogs keep the focus (1.36.1)
 
 `util/modal.lua`: `guard(win)` pushes a dialog window on a stack (popped on its `WinClosed`).
 One `WinEnter` autocmd: when a dialog is open and a non-floating window gets the focus, the focus
@@ -1474,7 +1473,7 @@ alone (pickers, completion docs, another dialog). Guarded: the edit form, peek, 
 second `edit.open` leaves one form; a float takes the focus; after `q` the windows are free; peek
 and help do the same.
 
-## C16 — Project docs (0.54.0)
+## C16 — Project docs (1.37.0)
 
 **Goal.** A personal wiki that lasts: lasting knowledge in `notes/`, linked to projects; what
 only makes sense inside one project (decisions, specs, runbooks) in that project's folder,
@@ -1512,7 +1511,7 @@ frontmatter, cursor in Context); type and status checks, a type without statuses
 empty folder gone, no project refused); the notes list (groups and order, status, `a`, `m`);
 rename and merge move the folder and its contents.
 
-## C17 — Project pages as hubs (0.55.0)
+## C17 — Project pages as hubs (1.38.0)
 
 **Goal.** The project page is where browsing a project starts, in Neovim, Obsidian or GitHub.
 
@@ -1539,7 +1538,7 @@ or linking to the page, the latest 3 meetings of 4), `modified:` kept, a second 
 file alone; the section replaced in place with text after it kept; a new doc shows up on its own;
 a page with unsaved changes waits until saved; nothing to list: no section; `hub = false`.
 
-## C18 — Links in the notes list; docs become lasting notes (0.56.0)
+## C18 — Links in the notes list; docs become lasting notes (1.39.0)
 
 - Notes list `<Tab>` (`details(e, s)`): after the to-dos and tasks, `← Title  linked from
   path` (each linking note once, opening at the link) and `→ Title  links to path` (each target
@@ -1557,7 +1556,7 @@ a page with unsaved changes waits until saved; nothing to list: no section; `hub
 line, a link elsewhere fixed, the message; `<Tab>` shows linked-from, links-to and a missing
 link; `P` moves it and keeps the cursor on it.
 
-## C19 — Archived projects move to projects/archive/ (0.57.0)
+## C19 — Archived projects move to projects/archive/ (1.40.0)
 
 - `project.set_archived` sets or removes the flag, then `move_archive(root, name, archived)`:
   the page (`projects/<name>.md` ↔ `projects/archive/<name>.md`) and the docs folder move, every
@@ -1575,7 +1574,7 @@ link; `P` moves it and keeps the cursor on it.
 **Tests**: `test_docs.lua` (archive and restore: files, links, index, notes list, completion,
 filters, `doc.dir`, `project_page`; renaming an archived project), `test_projects.lua` (`D`/`U`).
 
-## C20 — Fixes from a code review (0.57.1)
+## C20 — Fixes from a code review (1.40.1)
 
 - **Archive never replaces a file.** `archive.plan` also lists `conflicts`: archive paths that two
   tasks would share (the same name in different folders under `tasks/`) or that exist already.
@@ -1603,7 +1602,7 @@ filters, `doc.dir`, `project_page`; renaming an archived project), `test_project
 - **CI jobs time out** after 10 minutes (`timeout-minutes`), so a stuck child Neovim can't hang a
   run.
 
-## C21 — Daily notes that keep to their day; previous/next links (0.58.0)
+## C21 — Daily notes that keep to their day; previous/next links (1.41.0)
 
 **Goal.** Daily notes and meeting series read as a chain you can follow, and making or visiting a
 note never moves work out of the day it belongs to. Before, any new daily note carried over from
@@ -1650,7 +1649,7 @@ nobody worked).
   note) is re-pointed or removed. Honours `daily.links` / `series.links`. **Tests**
   (`test_relink.lua`).
 
-## C22 — Fixes (0.58.1)
+## C22 — Fixes (1.41.1)
 
 - **Screens keep your file settings out.** `screen.window(buf, win, extra)` gives a screen's window
   `screen.WINDOW_OPTIONS` (no line numbers, sign, fold or status column, colour or cursor column,
@@ -1732,39 +1731,129 @@ years).
 - **Task files**: `taskfile.list` caches parsed tasks the same way and doesn't walk
   `tasks/archive/` unless archived tasks are asked for (the statusline, the board's refresh and
   its undo snapshots all list tasks).
-- 2-year journal, before → after 0.28.2 (warm): board move 730 → 57 ms, undo 530 → 62 ms,
+- 2-year journal, before → after 1.11.2 (warm): board move 730 → 57 ms, undo 530 → 62 ms,
   board refresh 125 → 35 ms, statusline refresh 80 → 4 ms, standup 97 → 42 ms, today 85 → 50 ms.
 
 ## 7. Release notes
 
-Per-release changes are in the annotated tags (`git tag -n`). Breaking changes so far:
-- 0.58.0: `:Logpose daily prev`/`next` go to the daily note before or after (the notes there are,
+Every release, newest first. Its notes are in its annotated tag: `git tag -n` lists them a line
+each, and `git show <version>` shows the rest.
+
+**Renumbered on 2026-11-21.** The plan was 1.0.0 once M3 was done, but releases stayed 0.x
+after F8 completed it. 1.0.0 to 1.41.1 were tagged 0.17.0 to 0.58.1 until then (1.N.P was
+0.(N+17).P), so older commits and notes use those numbers; *Was* gives the old one, and so does
+the last line of each tag's notes.
+
+| Version | Date | What | Was |
+|---|---|---|---|
+| 1.41.1 | 2026-11-21 | screens keep to themselves; symlinked journals | 0.58.1 |
+| 1.41.0 | 2026-11-20 | daily notes keep to their day; previous/next links | 0.58.0 |
+| 1.40.1 | 2026-11-20 | fixes from a code review | 0.57.1 |
+| 1.40.0 | 2026-11-09 | archived projects move to projects/archive/ | 0.57.0 |
+| 1.39.0 | 2026-11-09 | links in the notes list, docs promoted to lasting notes | 0.56.0 |
+| 1.38.0 | 2026-11-09 | project pages as hubs | 0.55.0 |
+| 1.37.0 | 2026-11-09 | project docs | 0.54.0 |
+| 1.36.1 | 2026-10-31 | dialogs keep the focus | 0.53.1 |
+| 1.36.0 | 2026-10-30 | new meetings start as Ad-hoc | 0.53.0 |
+| 1.35.0 | 2026-10-30 | completion in notes with no setup | 0.52.0 |
+| 1.34.0 | 2026-10-30 | lists as tables across the window, banded rows, the filter bar below | 0.51.0 |
+| 1.33.0 | 2026-10-23 | Next 1:1 items; screens share their drawing | 0.50.0 |
+| 1.32.0 | 2026-10-23 | the standup on the today screen; daily notes as scratchpads | 0.49.0 |
+| 1.31.0 | 2026-10-23 | counts work on the board and the lists | 0.48.0 |
+| 1.30.2 | 2026-10-23 | every entry listed | 0.47.2 |
+| 1.30.1 | 2026-10-22 | add people one after another | 0.47.1 |
+| 1.30.0 | 2026-10-21 | filter bar, help windows, lists polish | 0.47.0 |
+| 1.29.0 | 2026-10-21 | filter language with or/not/fields; meetings, notes and people lists | 0.46.0 |
+| 1.28.0 | 2026-10-21 | "no project" mode | 0.45.0 |
+| 1.27.0 | 2026-10-21 | to-dos and their tasks in step | 0.44.0 |
+| 1.26.1 | 2026-10-21 | screens open beside plugin side windows | 0.43.1 |
+| 1.26.0 | 2026-10-21 | people pages and the people screen | 0.43.0 |
+| 1.25.0 | 2026-10-21 | people: a list, forgiving matching, completion in notes | 0.42.0 |
+| 1.24.0 | 2026-10-21 | notes from tasks; promoted to-dos keep their text | 0.41.0 |
+| 1.23.3 | 2026-10-21 | gx works alongside a markdown plugin's | 0.40.3 |
+| 1.23.2 | 2026-10-21 | promoted to-dos start in Backlog | 0.40.2 |
+| 1.23.1 | 2026-10-21 | gx follows note links | 0.40.1 |
+| 1.23.0 | 2026-10-20 | new-note forms | 0.40.0 |
+| 1.22.0 | 2026-10-19 | notes screen | 0.39.0 |
+| 1.21.0 | 2026-10-19 | tasks, notes and to-dos kept apart; INBOX, DONE and migrate removed | 0.38.0 |
+| 1.20.0 | 2026-10-19 | linked notes on cards, recently edited notes on today | 0.37.0 |
+| 1.19.0 | 2026-10-19 | new-task form | 0.36.0 |
+| 1.18.0 | 2026-10-18 | shared date wording and frontmatter writer; triage, move and the switcher removed | 0.35.0 |
+| 1.17.0 | 2026-10-18 | column-coloured borders by default again, tags as chips | 0.34.0 |
+| 1.16.0 | 2026-10-18 | borders tinted with the project's colour | 0.33.0 |
+| 1.15.1 | 2026-10-18 | automatic project colours, no cursorline on the board | 0.32.1 |
+| 1.15.0 | 2026-10-18 | card redesign | 0.32.0 |
+| 1.14.0 | 2026-10-18 | the edit form stays open after saving | 0.31.0 |
+| 1.13.2 | 2026-10-18 | `<CR>` accepts from the menu, nvim-cmp off in the form | 0.30.2 |
+| 1.13.1 | 2026-10-18 | completion menu closes after a choice | 0.30.1 |
+| 1.13.0 | 2026-10-18 | capture picks the project, form rework, bulk edits | 0.30.0 |
+| 1.12.0 | 2026-10-18 | frontmatter editor | 0.29.0 |
+| 1.11.2 | 2026-10-18 | caching for big journals | 0.28.2 |
+| 1.11.1 | 2026-10-18 | board and projects split into modules, tests 40× faster | 0.28.1 |
+| 1.11.0 | 2026-10-18 | switching opens the board | 0.28.0 |
+| 1.10.0 | 2026-10-18 | project switcher, project pages as registry, moving tasks between projects, merging projects | 0.27.0 |
+| 1.9.0 | 2026-10-18 | project manager, project completion and board-follows-project fixes | 0.26.0 |
+| 1.8.1 | 2026-10-17 | docs rewrite | 0.25.1 |
+| 1.8.0 | 2026-10-17 | today, keymaps preset, titled notifications, board extras | 0.25.0 |
+| 1.7.0 | 2026-10-17 | command menu, statusline, board undo | 0.24.0 |
+| 1.6.1 | 2026-10-16 | board resize fixes | 0.23.1 |
+| 1.6.0 | 2026-10-16 | peek, scrolling columns, WIP limits and age | 0.23.0 |
+| 1.5.0 | 2026-10-16 | timestamps, board look and delete | 0.22.0 |
+| 1.4.0 | 2026-10-16 | markdownlint-clean notes | 0.21.0 |
+| 1.3.0 | 2026-10-15 | B1: Kanban board and task files | 0.20.0 |
+| 1.2.0 | 2026-10-15 | live search and previews | 0.19.0 |
+| 1.1.1 | 2026-10-15 | snacks preview fix | 0.18.1 |
+| 1.1.0 | 2026-10-15 | T1: local usage stats | 0.18.0 |
+| 1.0.0 | 2026-10-15 | F8: ticket links (M3 complete) | 0.17.0 |
+| 0.16.0 | 2026-10-15 | F7: reports |  |
+| 0.15.0 | 2026-10-15 | O6: renames and index cache (M2.5 complete) |  |
+| 0.14.0 | 2026-10-15 | O5: saved views |  |
+| 0.13.0 | 2026-10-15 | O4: topic notes and backlinks |  |
+| 0.12.0 | 2026-10-15 | O3: people |  |
+| 0.11.0 | 2026-10-15 | O2: inbox triage |  |
+| 0.10.0 | 2026-10-15 | O1: sections and relative dates |  |
+| 0.9.0 | 2026-10-15 | F6: standup prep |  |
+| 0.8.0 | 2026-10-15 | F5: action items and meeting series (M2 complete) |  |
+| 0.7.0 | 2026-10-15 | F4: search |  |
+| 0.6.0 | 2026-10-15 | F3: capture and done |  |
+| 0.5.0 | 2026-10-15 | F2.1: sprint archiving |  |
+| 0.4.0 | 2026-10-15 | F2: archive (M1 complete) |  |
+| 0.3.0 | 2026-10-15 | F1.6: projects |  |
+| 0.2.0 | 2026-10-15 | F1.5: onboarding |  |
+| 0.1.0 | 2026-10-15 | F0+F1: foundation, daily and meeting notes |  |
+
+Breaking changes so far:
+- 1.41.0: `:Logpose daily prev`/`next` go to the daily note before or after (the notes there are,
   and today's) instead of stepping by workdays, so they never make a note but today's; only
   today's note carries over open to-dos and blockers. A series links its meetings with
   `previous:`/`next:` in the frontmatter instead of a `Previous:` line in the body; run
   `:Logpose relink` once to move old ones and link older notes.
-- 0.49.0: the standup is computed (task logs, meetings, checked to-dos) and shown on the today
+- 1.32.0: the standup is computed (task logs, meetings, checked to-dos) and shown on the today
   screen; daily notes are scratchpads (`## Notes`; carried to-dos under `## To-dos`, blockers
   under `## Blockers`); `standup.sections`, `standup.carry_forward` and `standup.mark_carried`
   are gone (`daily = { carry_over, mark_carried }` replaces the last two).
-- 0.48.0: counts work everywhere (`3j`, `2L`, `2>`), so digits are no longer keys: on the
+- 1.31.0: counts work everywhere (`3j`, `2L`, `2>`), so digits are no longer keys: on the
   board `{N}gm` moves a card to column N (was `1`–`9`); on the people list `t` starts a 1:1 (was
   `1`); on the projects screen `x` means no project (was `0`).
-- 0.46.0: the notes screen became the notes list (topic notes and project pages; meetings have
+- 1.29.0: the notes screen became the notes list (topic notes and project pages; meetings have
   `:Logpose meetings`, daily notes need `type:daily`); on the people list `1` starts a 1:1 (`m`
   moves); highlight groups `LogposeNotes*`/`LogposePeople*` became `LogposeList*`.
-- 0.45.0: `:Logpose project none` means no project (nothing detected, picked per note);
+- 1.28.0: `:Logpose project none` means no project (nothing detected, picked per note);
   `:Logpose project auto` is what `none` used to do (unpin and detect).
-- 0.43.0: `people.md` and `people.file` are gone: people live in `people/<slug>.md` pages;
+- 1.26.0: `people.md` and `people.file` are gone: people live in `people/<slug>.md` pages;
   `people = { contacts = … }` configures how to reach them.
-- 0.26.0: local usage stats are on by default; `telemetry = { enabled = false }` turns them off.
-- 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.
-- 0.25.0: the board's title line moved into the window's top bar (winbar).
-- 0.24.0: `:Logpose` without a subcommand opens the command menu (it used to print usage).
-- 0.23.0: board reordering moved from `J`/`K` to `<C-j>`/`<C-k>`; `K` peeks at a card.
-- 0.22.0: new notes (daily ones too) start with `created:`/`modified:` frontmatter; task
+- 1.21.0: INBOX.md and DONE.md are gone, with their section archives, `tasks.mode`,
+  `:Logpose migrate` and the options for them (C1 lists them): tasks are files in `tasks/`, and
+  `:Logpose archive` moves done tasks only.
+- 1.18.0: `:Logpose triage`, `:Logpose move` and the project switcher were removed.
+- 1.9.0: local usage stats are on by default; `telemetry = { enabled = false }` turns them off.
+- 1.8.0: the board's title line moved into the window's top bar (winbar).
+- 1.7.0: `:Logpose` without a subcommand opens the command menu (it used to print usage).
+- 1.6.0: board reordering moved from `J`/`K` to `<C-j>`/`<C-k>`; `K` peeks at a card.
+- 1.5.0: new notes (daily ones too) start with `created:`/`modified:` frontmatter; task
   `created:` is a date-time.
-- 0.21.0: new meeting notes, topic notes, project pages and tasks have no `# Title` heading
+- 1.4.0: new meeting notes, topic notes, project pages and tasks have no `# Title` heading
   (the frontmatter title is the heading); templates have no `- [ ] ` placeholder lines.
-- 0.19.0: `:Logpose find` is live by default with a picker plugin (the filters move into the
+- 1.2.0: `:Logpose find` is live by default with a picker plugin (the filters move into the
   prompt); `search = { live = false }` restores fixed results.
+- 0.2.0: default paths are relative to the journal root and the marker is `.logpose`.

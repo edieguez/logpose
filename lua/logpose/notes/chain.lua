@@ -112,7 +112,7 @@ function M.daily_neighbours(root, iso)
   return link(prev), link(nxt)
 end
 
---- The `Previous: [[…]]` line a meeting note's body started with before 0.58.0, when the link
+--- The `Previous: [[…]]` line a meeting note's body started with before 1.41.0, when the link
 --- wasn't in the frontmatter yet: its row, if the note has one.
 ---@param lines string[]
 ---@return integer?
