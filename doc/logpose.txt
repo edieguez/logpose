@@ -34,6 +34,7 @@ CONTENTS                                                    *logpose-contents*
   6. Search filters ........................ |logpose-filters|
   7. Keymaps ............................... |logpose-keymaps|
   8. Configuration ......................... |logpose-setup|
+       Settings for each computer .......... |logpose-local-config|
   9. Templates ............................. |logpose-templates|
  10. Journal root and layout ............... |logpose-root|
  11. Health and troubleshooting ............ |logpose-health|
@@ -75,9 +76,9 @@ The board counts the notes linked with each task (`✎ 2`); `n` opens them.
 1. Create a journal: >vim
      :Logpose init
 <   Accept `~/journal` or type another folder. logpose creates `daily/`,
-   `meetings/` and `tasks/` and remembers the folder, so every command works
-   from any buffer. A folder that already has notes only gets a `.logpose`
-   marker file.
+   `meetings/` and `tasks/` and remembers the folder on this computer, so
+   every command works from any buffer. A folder that already has notes only
+   gets a `.logpose` marker file.
 
 2. If you work in sprints, give logpose the start date and number of any
    one sprint (skip this if you work in weeks): >lua
@@ -87,7 +88,9 @@ The board counts the notes linked with each task (`✎ 2`); `n` opens them.
          sprint = { anchor = "2026-10-15", first_number = 43 },
        },
      })
-<
+<  Settings that only hold on one computer, such as the folders of your
+   repos, can go in a file you don't version: |logpose-local-config|.
+
 3. Start your day: >vim
      :Logpose daily
      :Logpose board
@@ -1174,6 +1177,42 @@ To choose your own keys, map the `<Plug>` mappings: >lua
 Unknown options produce a warning; invalid values raise an error. Lists
 replace the default rather than merging with it.
 
+                                                        *logpose-local-config*
+Settings for each computer ~
+Settings that only hold on one computer (the folders of your repos, your
+handle or ticket tracker at work, a terminal with a Nerd Font) can live in a
+file you don't version, beside your shared settings. The journal chosen with
+|:Logpose-init| is already remembered for each computer.
+
+With lazy.nvim, add a second spec for logpose in `logpose.local.lua`, beside
+the file with your shared options (`lua/plugins/` in LazyVim), and add
+`*.local.lua` to your Neovim config's `.gitignore`: >lua
+  -- lua/plugins/logpose.local.lua: this computer's own settings
+  return {
+    "edieguez/logpose",
+    opts = {
+      me = "@ana",
+      projects = { paths = { ["~/work/acme-api"] = "acme" } },
+      tickets = { url = "https://acme.atlassian.net/browse/{id}" },
+    },
+  }
+<
+lazy.nvim merges every spec of a plugin, reading the files in alphabetical
+order, so `logpose.local.lua` comes after `logpose.lua` and what it sets
+wins. Write only what differs: tables merge key by key, lists replace the
+shared ones whole, and `vim.NIL` clears an option the shared file sets. The
+spec's own fields work for each computer too: `dir` runs a checkout of
+logpose there, and `enabled = false` leaves it off. The same naming works for
+any plugin.
+
+Without lazy.nvim, merge the file yourself before `setup()`; tables merge
+and lists replace here too: >lua
+  -- logpose.local.lua returns this computer's options: return { me = "@ana" }
+  local mine = vim.fn.stdpath("config") .. "/logpose.local.lua"
+  require("logpose").setup(vim.tbl_deep_extend("force", {
+    keymaps = true, -- your shared options
+  }, vim.uv.fs_stat(mine) and dofile(mine) or {}))
+<
 General ~
 
   root           (string|nil)  Journal path (`~` is expanded). Overrides
