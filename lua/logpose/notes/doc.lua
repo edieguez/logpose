@@ -143,6 +143,13 @@ local function relocate(root, path, dest, fm, body)
   local pair = maintenance.link_pair(root, path, dest)
   local changes = {}
   local lines = require("logpose.frontmatter").set(fs.read_lines(path) or {}, fm)
+  -- its own links (markdown ones are relative to where it is), before `body` adds any
+  local code = require("logpose.markdown").code_rows(lines)
+  for i, l in ipairs(lines) do
+    if not code[i] then
+      lines[i] = maintenance.rewrite_links(l, { pair }, path)
+    end
+  end
   if body then
     lines = body(lines)
   end
@@ -152,7 +159,7 @@ local function relocate(root, path, dest, fm, body)
       local flines = fs.read_lines(file) or {}
       local n = 0
       for i, l in ipairs(flines) do
-        local nl, moved = maintenance.rewrite_links(l, { pair })
+        local nl, moved = maintenance.rewrite_links(l, { pair }, file)
         if moved > 0 then
           flines[i], n = nl, n + 1
         end

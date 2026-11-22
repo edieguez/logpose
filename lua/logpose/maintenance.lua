@@ -98,13 +98,14 @@ function M.plan_tag(root, old, new)
 end
 
 --- What to rewrite when the note or folder `old` moves to `new` (absolute paths; a folder ends
---- with "/"): journal-relative paths for markdown links, `link_base`-relative ones for wiki links,
---- and, for a note whose name is unique in the journal, short `[[name]]` links.
+--- with "/"): `link_base`-relative paths for wiki links, and, for a note whose name is unique in
+--- the journal, short `[[name]]` links. Markdown links are worked out from `abs`.
 ---@param root string
 ---@param old string
 ---@param new string
+---@param files? string[] the journal's files (`index.files`), when the caller has them already
 ---@return logpose.LinkPair
-function M.link_pair(root, old, new)
+function M.link_pair(root, old, new, files)
   local link = require("logpose.link")
   local is_dir = old:sub(-1) == "/"
   local function rel(from, path)
@@ -112,11 +113,11 @@ function M.link_pair(root, old, new)
     return is_dir and (r .. "/") or r
   end
   local base = fs.join(root, config.get().link_base)
-  local pair = { rel(root, old), rel(root, new), wiki = { rel(base, old), rel(base, new) } }
+  local pair = { rel(root, old), rel(root, new), wiki = { rel(base, old), rel(base, new) }, abs = { old, new } }
   if not is_dir then
     local stem = vim.fn.fnamemodify(old, ":t:r")
     local same = 0
-    for _, f in ipairs(index.files(root)) do
+    for _, f in ipairs(files or index.files(root)) do
       same = same + (vim.fn.fnamemodify(f, ":t:r"):lower() == stem:lower() and 1 or 0)
     end
     if same == 1 then
@@ -131,19 +132,108 @@ end
 ---@field [2] string new
 ---@field wiki? string[] { old, new } relative to `link_base`
 ---@field short? string[] { old, new } file names, for `[[name]]` links
+---@field abs string[] { old, new } absolute (a folder ends with "/")
 
---- Point links at moved notes and folders (pairs from `link_pair`). A note's path must end
---- there, so projects/acme doesn't match projects/acme-api. Wiki links and relative markdown
---- links are understood.
+--- Where `path` (absolute) ends up when the notes and folders of `pairs` move: itself if it stays.
+---@param path string
+---@param pairs logpose.LinkPair[]
+---@return string
+function M.moved_path(path, pairs)
+  for _, pair in ipairs(pairs) do
+    local old, new = pair.abs[1], pair.abs[2]
+    if old:sub(-1) == "/" then
+      if vim.startswith(path, old) then
+        return new .. path:sub(#old + 1)
+      elseif path == old:sub(1, -2) then
+        return new:sub(1, -2)
+      end
+    elseif path == old then
+      return new
+    end
+  end
+  return path
+end
+
+--- `rel` (a relative path, `..` and all) from the folder `dir`, as an absolute path.
+---@param dir string
+---@param rel string
+---@return string
+local function resolve(dir, rel)
+  local out = vim.split(dir, "/", { trimempty = true })
+  for part in rel:gmatch("[^/]+") do
+    if part == ".." then
+      table.remove(out)
+    elseif part ~= "." then
+      table.insert(out, part)
+    end
+  end
+  return "/" .. table.concat(out, "/")
+end
+
+--- The markdown links of `line`, written in `file`, pointed again after the moves: each one's
+--- target, found from where `file` is, at its new place, written from where `file` will be. So
+--- links to a moved note, links in a moved note and links between notes moving together all
+--- keep working. The label, `#anchor`, title and `<…>` are kept; URLs and absolute paths left alone.
 ---@param line string
 ---@param pairs logpose.LinkPair[]
----@return string line, integer changed number of pairs that matched
-function M.rewrite_links(line, pairs)
+---@param file string
+---@return string line, integer changed links rewritten
+local function rewrite_markdown(line, pairs, file)
+  local from_dir = vim.fs.dirname(file)
+  local to_dir = vim.fs.dirname(M.moved_path(file, pairs))
+  local n = 0
+  line = line:gsub("(%]%()(.-)(%))", function(open, dest, close)
+    local angled, path, rest = false, nil, nil
+    if dest:sub(1, 1) == "<" then
+      local e = dest:find(">", 2, true)
+      if not e then
+        return nil
+      end
+      angled, path, rest = true, dest:sub(2, e - 1), dest:sub(e + 1)
+    else
+      path, rest = dest:match("^(%S*)(.*)$")
+    end
+    local anchor = path:match("#.*$") or ""
+    path = path:sub(1, #path - #anchor)
+    if path == "" or path:match("^%a[%w+.-]*:") or path:match("^[/~]") then
+      return nil -- a heading of this note, a URL or an absolute path: a move doesn't change it
+    end
+    local encoded = path:find("%%%x%x") ~= nil
+    local plain = path:gsub("%%(%x%x)", function(h)
+      return string.char(tonumber(h, 16))
+    end)
+    local target = resolve(from_dir, plain)
+    local moved = M.moved_path(target, pairs)
+    if moved == target and to_dir == from_dir then
+      return nil
+    end
+    local new = require("logpose.link").relpath(to_dir, moved)
+    if new == plain then
+      return nil
+    end
+    n = n + 1
+    if encoded then
+      new = new:gsub(" ", "%%20")
+    elseif angled or new:find("[%s()<>]") then
+      new = "<" .. new .. ">"
+    end
+    return open .. new .. anchor .. rest .. close
+  end)
+  return line, n
+end
+
+--- Point links at moved notes and folders (pairs from `link_pair`). A note's path must end
+--- there, so projects/acme doesn't match projects/acme-api. Wiki links are rewritten by their
+--- paths; markdown links, which are relative to the note they're in, need `file`: the note
+--- `line` is in, where it is now (it may be moving too).
+---@param line string
+---@param pairs logpose.LinkPair[]
+---@param file string
+---@return string line, integer changed wiki pairs matched and markdown links rewritten
+function M.rewrite_links(line, pairs, file)
   local n = 0
   for _, pair in ipairs(pairs) do
-    local o, nw = pair[1], pair[2]
-    local is_dir = o:sub(-1) == "/"
-    local tail = is_dir and "()" or "([|%]%.#)>])"
+    local tail = pair[1]:sub(-1) == "/" and "()" or "([|%]%.#)>])"
     local function wiki(from, to)
       return function(s)
         return s:gsub("%[%[" .. vim.pesc(from) .. tail, function(t)
@@ -156,19 +246,13 @@ function M.rewrite_links(line, pairs)
     if pair.short then
       line = wiki(pair.short[1], pair.short[2])(line)
     end
-    line = line:gsub("(%]%(<?[%./]*)" .. vim.pesc(o) .. tail, function(pre, t)
-      return pre .. nw .. (type(t) == "string" and t or "")
-    end)
-    if is_dir then
-      -- markdown links from sibling folders (../acme/x.md)
-      local o_base, n_base = vim.fs.basename(o:sub(1, -2)), vim.fs.basename(nw:sub(1, -2))
-      line = line:gsub("(%]%(<?%.%./)" .. vim.pesc(o_base) .. "/", "%1" .. n_base .. "/")
-    end
     if line ~= before then
       n = n + 1
     end
   end
-  return line, n
+  local m
+  line, m = rewrite_markdown(line, pairs, file)
+  return line, n + m
 end
 
 --- Plan a project rename: frontmatter `project:`, #tags, the meeting folder, the project page
@@ -284,11 +368,13 @@ function M.plan_project(root, old, new, opts)
         lines[i], n = replace_fm_tags(line, old, new)
       elseif in_fm and line:match("^series:%s*" .. vim.pesc(old) .. "/") then
         lines[i], n = line:gsub("^(series:%s*)" .. vim.pesc(old) .. "/", "%1" .. new .. "/"), 1
+      elseif in_fm and i > 1 then
+        lines[i], n = M.rewrite_links(line, rel_prefixes, path) -- previous:/next: and other links
       elseif not in_fm and not code[i] then
         lines[i], n = M.replace_tag(line, old, new)
-        -- Links into the moved folder / page (wiki paths and markdown relative paths).
+        -- Links into the moved folder / page, and the moved notes' own links.
         local moved
-        lines[i], moved = M.rewrite_links(lines[i], rel_prefixes)
+        lines[i], moved = M.rewrite_links(lines[i], rel_prefixes, path)
         n = n + moved
       end
       total = total + n

@@ -809,6 +809,14 @@ A wiki link's target is relative to the journal root (`link_base`), not to the n
 contain spaces: `[[meetings/acme/2026-10-14 - retro|Retro]]`. Code blocks are left out: a
 `#include` or `[[x]]` inside ```` ``` ```` is code, not a tag or a link.
 
+**Wiki or markdown links?** logpose reads both everywhere, so `link_style` only decides what it
+writes. Wiki links start from the journal root, so they read the same in every note, need no
+escaping for spaces and are what Obsidian uses. Markdown links are standard markdown: clickable on
+GitHub (which shows `[[…]]` as plain text) and in any previewer. Either way, when logpose moves a
+note (archiving or renaming a project, promoting or moving a doc, moving a meeting, renaming a
+person, archiving done tasks), it fixes the links to it and, for markdown links, which are
+relative to the note they're in, the links in it too.
+
 **Following links.** `gx` on a wiki link in a journal note opens the note it points to, from
 anywhere on the link (the path or the label). Everything else goes to the `gx` you already have:
 a markdown plugin's (such as markwright.nvim, which keeps following markdown links, anchors,
@@ -922,7 +930,8 @@ items, old open to-dos, blocked tasks, and tasks in progress for too long.
 **Archive.** `:Logpose archive` moves done tasks from past sprints into
 `tasks/archive/sprint-42/`, where reports and search still find them. It shows a preview and
 asks first, and running it twice is harmless. It never replaces a file: if two tasks would land
-on the same name in the archive, nothing moves and it tells you which ones to rename.
+on the same name in the archive, nothing moves and it tells you which ones to rename. Links to
+the tasks it moves follow them.
 
 ## Extras
 
@@ -1437,7 +1446,7 @@ Every option, with its default. Links lead to the guide sections where it matter
 | `affixes.daily` | `"daily-"` | Daily notes' file names: `daily-2026-10-15.md`. |
 | `affixes.week` | `"week-"` | Archive folders for weeks: `tasks/archive/week-2026-10-12/`. |
 | `affixes.sprint` | `""` | Archive folders for sprints: `tasks/archive/sprint-42/`. |
-| `link_style` | `"wiki"` | How logpose writes links: `"wiki"` (`[[notes/x\|X]]`) or `"markdown"` (`[X](../notes/x.md)`). Both are always read. |
+| `link_style` | `"wiki"` | How logpose writes links: `"wiki"` (`[[notes/x\|X]]`) or `"markdown"` (`[X](../notes/x.md)`). Both are always read, and kept working when logpose moves notes ([which to pick](#topic-notes-and-links)). |
 | `link_base` | `""` | The folder wiki-link targets are relative to (`""`: the root). |
 | `meeting_filename` | `"{date} - {slug}"` | Meeting file names, without `.md`: `{date}`, `{time}` (HHMM), `{slug}`, `{type}`. Must contain `{slug}`; add `{time}` to allow several meetings with the same title on one day. |
 | `meeting_subdir` | `"{project}"` | Subfolder of `dirs.meetings` for meeting notes; `{project}` is the active project. `""` keeps every meeting in one folder. |

@@ -342,7 +342,7 @@ function M.move_archive(root, name, archived)
     local lines = fs.read_lines(file) or {}
     local n = 0
     for i, l in ipairs(lines) do
-      local nl, moved = maintenance.rewrite_links(l, pairs_)
+      local nl, moved = maintenance.rewrite_links(l, pairs_, file)
       if moved > 0 then
         lines[i], n = nl, n + moved
       end

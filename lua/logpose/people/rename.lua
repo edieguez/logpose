@@ -118,7 +118,7 @@ function M.plan(root, old, new)
         end)
         :sub(2)
       local moved
-      line, moved = maintenance.rewrite_links(line, link_pairs)
+      line, moved = maintenance.rewrite_links(line, link_pairs, path)
       lines[k] = line
       count = count + n + moved
     end

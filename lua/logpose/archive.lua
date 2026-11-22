@@ -79,9 +79,42 @@ local function conflict_message(plan)
   return table.concat(lines, "\n")
 end
 
---- Move the tasks. Refuses up front, moving nothing, if any has unsaved changes or would
---- overwrite a file in the archive.
+--- What moving the tasks does to the journal's links: links to the tasks follow them, and so do
+--- the tasks' own (a markdown link is relative to the note it's in). A change per file.
 ---@param plan logpose.ArchivePlan
+---@return { path: string, content: string }[]
+local function link_changes(plan)
+  local maintenance = require("logpose.maintenance")
+  local markdown = require("logpose.markdown")
+  local files = require("logpose.index").files(plan.root)
+  local pairs_ = vim.tbl_map(function(t)
+    return maintenance.link_pair(plan.root, t.from, t.to, files)
+  end, plan.tasks)
+  local changes = {}
+  for _, file in ipairs(files) do
+    local lines = fs.read_lines(file) or {}
+    local code = markdown.code_rows(lines)
+    local n = 0
+    for i, l in ipairs(lines) do
+      if not code[i] then
+        local nl, m = maintenance.rewrite_links(l, pairs_, file)
+        if m > 0 then
+          lines[i], n = nl, n + m
+        end
+      end
+    end
+    if n > 0 then
+      table.insert(changes, { path = file, content = table.concat(lines, "\n") })
+    end
+  end
+  return changes
+end
+
+--- Move the tasks, and the links to them. Refuses up front, changing nothing, if a task or a note
+--- linking to one has unsaved changes, or a task would overwrite a file in the archive. Returns
+--- how many notes had their links to the tasks updated.
+---@param plan logpose.ArchivePlan
+---@return integer relinked
 function M.execute(plan)
   local paths = vim.tbl_map(function(t)
     return t.from
@@ -94,6 +127,27 @@ function M.execute(plan)
   if conflict then
     error(conflict, 0)
   end
+  -- the links first: a rerun after a failed move finds those already pointing at the archive
+  local relinks = link_changes(plan)
+  ok, err = fs.check_writable(vim.tbl_map(function(c)
+    return c.path
+  end, relinks))
+  if not ok then
+    error(err, 0)
+  end
+  for _, c in ipairs(relinks) do
+    local wrote, werr = fs.write_file(c.path, c.content)
+    if not wrote then
+      error(werr, 0)
+    end
+  end
+  local moving = {}
+  for _, p in ipairs(paths) do
+    moving[p] = true
+  end
+  local relinked = #vim.tbl_filter(function(c)
+    return not moving[c.path]
+  end, relinks)
   local uv = vim.uv or vim.loop
   local moved = 0
   local done, move_err = pcall(function()
@@ -123,6 +177,7 @@ function M.execute(plan)
     local why = tostring(move_err):gsub("^logpose:%s*", "")
     error(("logpose: archived %d of %d done tasks, then stopped: %s"):format(moved, #plan.tasks, why), 0)
   end
+  return relinked
 end
 
 ---@param plan logpose.ArchivePlan
@@ -165,9 +220,12 @@ function M.preview(plan, root)
 end
 
 ---@param plan logpose.ArchivePlan
-local function report(plan)
+---@param relinked integer notes whose links to the tasks were updated
+local function report(plan, relinked)
   local n = #plan.tasks
-  ui.notify(("logpose: archived %d done task%s"):format(n, n == 1 and "" or "s"), vim.log.levels.INFO)
+  local links = relinked > 0 and ("; links to them updated in %d note%s"):format(relinked, relinked == 1 and "" or "s")
+    or ""
+  ui.notify(("logpose: archived %d done task%s%s"):format(n, n == 1 and "" or "s", links), vim.log.levels.INFO)
 end
 
 ---@param opts logpose.CommandOpts
@@ -187,8 +245,7 @@ function M.command(opts)
       error(conflict, 0)
     end
     if opts.bang then
-      M.execute(plan)
-      report(plan)
+      report(plan, M.execute(plan))
       return
     end
     local win = M.preview(plan, root)
@@ -205,8 +262,7 @@ function M.command(opts)
         end
         -- Re-plan: files may have changed while the preview was open.
         local fresh = M.plan(root, date.today())
-        M.execute(fresh)
-        report(fresh)
+        report(fresh, M.execute(fresh))
       end)
     )
   end))

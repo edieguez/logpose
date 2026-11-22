@@ -47,13 +47,20 @@ function M.move_meeting(root, path, from, to)
       lines = require("logpose.frontmatter").set(lines, { series = series })
     end
   end
+  -- its own links: markdown ones are relative to where it is
+  local code = require("logpose.markdown").code_rows(lines)
+  for i, l in ipairs(lines) do
+    if not code[i] then
+      lines[i] = maintenance.rewrite_links(l, { pair }, path)
+    end
+  end
   table.insert(changes, { path = path, content = table.concat(lines, "\n"), count = 1 }) -- lines end in ""
   for _, file in ipairs(require("logpose.index").files(root)) do
     if file ~= path then
       local flines = fs.read_lines(file) or {}
       local n = 0
       for i, l in ipairs(flines) do
-        local nl, moved = maintenance.rewrite_links(l, { pair })
+        local nl, moved = maintenance.rewrite_links(l, { pair }, file)
         if moved > 0 then
           -- the daily note's "- acme: [[…]]" label
           if from then

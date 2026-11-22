@@ -662,7 +662,11 @@ Project pages (|:Logpose-project-page|) are the hub for a project.
 |:Logpose-backlinks| and |:Logpose-links| follow links in both directions.
 Wiki links (`[[target|label]]`, or a short `[[name]]`) and relative markdown
 links are understood. A wiki link's target is relative to the journal root
-(`link_base`), not to the note, and may contain spaces.
+(`link_base`), not to the note, and may contain spaces. `link_style` only
+decides which kind logpose writes. When logpose moves a note (archiving or
+renaming a project, promoting or moving a doc, moving a meeting, renaming a
+person, archiving done tasks), it fixes the links to it and, for markdown
+links (relative to the note they're in), the links in it.
 
                                                                   *logpose-gx*
 `gx` in a journal note opens the note a wiki link points to, from anywhere
@@ -988,6 +992,7 @@ Sprints and maintenance ~
     is moved if one of the tasks has unsaved changes, or if one would
     replace a file in the archive (two tasks with the same name in
     different folders, say): it names them, so you can rename them first.
+    Links to the tasks it moves follow them.
 
                                                       *:Logpose-merge-project*
 :Logpose merge-project[!] {old} {new}

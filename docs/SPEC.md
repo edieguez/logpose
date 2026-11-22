@@ -1669,6 +1669,35 @@ nobody worked).
   journal" and for `projects.paths` and pages' `paths:`. **Tests** (`test_symlinks.lua`,
   `test_fs.lua`).
 
+## C23 — Links survive every move (1.41.2)
+
+Moving a note broke markdown links: they're relative to the note they're in, and
+`maintenance.rewrite_links` matched them by their journal path after any `../`, so it missed links
+to a note in the same folder or a parent's (a doc's `../acme.md`), and nothing rewrote the links in
+the note that moved. Wiki links lost two cases too: renaming or merging a project left the
+meetings' `previous:`/`next:` links (frontmatter) stale, and `:Logpose archive` updated no links.
+
+- `rewrite_links(line, pairs, file)`: wiki links as before; each markdown link is resolved from
+  `file`'s folder (`..` handled by hand, the same on Neovim 0.10), followed through the moves
+  (`maintenance.moved_path`: a moved file, or anything under a moved folder) and written again
+  relative to where `file` ends up. Notes moving together keep the links between them; the
+  label, `#anchor`, title and `<…>` or `%20` are kept; URLs, headings and absolute paths are left
+  alone; image links follow too. `link_pair` gives the absolute paths (`abs`) and can take the
+  journal's files, so archiving many tasks walks the journal once.
+- Every caller passes the file: project rename and merge (`plan_project`, which now rewrites
+  frontmatter links too), archiving and restoring a project, moving a meeting (`move_meeting`) and
+  a doc (`doc.move`, `doc.promote`: their own lines, before the promoted doc gets its "Started in"
+  link), renaming a person.
+- `:Logpose archive`: links to the tasks it moves, and the tasks' own, are rewritten before
+  anything moves (a rerun after a failed move finds them pointing at the archive already); a note
+  with unsaved changes stops it first. The message says how many notes were updated.
+
+**Tests** (`test_moves.lua`): a journal whose notes link every way a move affects (same folder,
+a parent's, across, frontmatter previous/next, a task's `From:`), each link labelled with its
+target's title; after each of eight moves, in both link styles, every link must lead by its path to
+the note its label names. A unit test covers the link forms. On the old code, every markdown case
+failed, and the wiki ones for project rename, merge and `:Logpose archive`.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1749,6 +1778,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.41.2 | 2026-11-21 | links survive every move; sample configs; settings for each computer |  |
 | 1.41.1 | 2026-11-21 | screens keep to themselves; symlinked journals | 0.58.1 |
 | 1.41.0 | 2026-11-20 | daily notes keep to their day; previous/next links | 0.58.0 |
 | 1.40.1 | 2026-11-20 | fixes from a code review | 0.57.1 |
