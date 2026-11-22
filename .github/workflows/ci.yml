@@ -34,7 +34,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          args: --check lua plugin tests scripts
+          args: --check lua plugin tests scripts examples
 
   markdown:
     name: markdownlint (templates and generated notes)

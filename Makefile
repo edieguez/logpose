@@ -18,7 +18,7 @@ test-file: deps
 	TZ=$(TEST_TZ) $(NVIM) --headless --noplugin -u tests/minimal_init.lua -c "lua MiniTest.run_file('$(FILE)')"
 
 lint: lint-globals
-	stylua --check lua plugin tests scripts
+	stylua --check lua plugin tests scripts examples
 
 # No accidental globals (needs Neovim's LuaJIT)
 lint-globals:
@@ -29,7 +29,7 @@ lint-md:
 	NVIM=$(NVIM) ./scripts/lint-output.sh
 
 format:
-	stylua lua plugin tests scripts
+	stylua lua plugin tests scripts examples
 
 clean:
 	rm -rf deps

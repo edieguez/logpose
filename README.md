@@ -66,6 +66,10 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim) (LazyVim included):
 With any other plugin manager, add `edieguez/logpose`; call `require("logpose").setup({ … })`
 only if you want to change something ([options](#configuration)).
 
+**Want every option in front of you?** Start from [`examples/logpose.lua`](examples/logpose.lua)
+instead: the same spec with every option, set to its default and explained. Copy it into
+`lua/plugins/` and change what you like.
+
 > [!TIP]
 > **Using logpose on more than one computer?** Settings that differ between them, such as the
 > folders of your repos or your ticket tracker at work, can live in a file you don't version,
@@ -1216,6 +1220,14 @@ Then keep it out of version control with a line in your Neovim config's `.gitign
 *.local.lua
 ```
 
+On a new computer, start from the template that comes with the plugin,
+[`examples/logpose.local.lua`](examples/logpose.local.lua), which has the settings that most often
+differ, commented out (this is lazy.nvim's default folder):
+
+```sh
+cp ~/.local/share/nvim/lazy/logpose/examples/logpose.local.lua ~/.config/nvim/lua/plugins/
+```
+
 lazy.nvim merges every spec of a plugin, reading the files in alphabetical order, so
 `logpose.local.lua` comes after `logpose.lua` and what it sets wins. Write only what differs:
 
@@ -1553,96 +1565,9 @@ The default is `email = { label = "Email", open = "mailto:{value}", order = 1 }`
 
 ### All defaults
 
-<details>
-<summary>The whole default configuration</summary>
-
-```lua
-require("logpose").setup({
-  root = nil,
-  root_markers = { ".logpose" },
-  dirs = {
-    daily = "daily",
-    meetings = "meetings",
-    notes = "notes",
-    projects = "projects",
-    tasks = "tasks",
-    people = "people",
-    templates = "templates",
-    reports = "reports",
-  },
-  affixes = { daily = "daily-", week = "week-", sprint = "" },
-  link_style = "wiki",
-  link_base = "",
-  workdays = { 1, 2, 3, 4, 5 },
-  picker = "auto",
-  meeting_types = {
-    planning = { label = "Sprint planning", template = "planning", title = "Sprint planning", order = 10 },
-    refinement = { label = "Refinement", template = "refinement", title = "Refinement", order = 20 },
-    review = { label = "Sprint review", template = "review", title = "Sprint review", order = 30 },
-    retro = { label = "Retrospective", template = "retro", title = "Retro", order = 40 },
-    ["1on1"] = { label = "1:1", template = "1on1", prompt = "Person: ", title = "1:1 {input}", person = true, order = 50 },
-    adhoc = { label = "Ad-hoc", template = "meeting", prompt = "Meeting title: ", order = 60 },
-  },
-  doc_types = {
-    decision = { label = "Decision", template = "decision", order = 10,
-                 statuses = { "proposed", "accepted", "superseded", "rejected" } },
-    spec = { label = "Spec", template = "spec", order = 20 },
-    runbook = { label = "Runbook", template = "runbook", order = 30 },
-    doc = { label = "Doc", template = "doc", order = 40 },
-  },
-  default_meeting_type = "adhoc",
-  meeting_filename = "{date} - {slug}",
-  meeting_subdir = "{project}",
-  period = {
-    kind = "week",
-    week_start = 1,
-    sprint = { anchor = nil, length_days = 14, first_number = 1, name = "sprint-{n}" },
-  },
-  me = nil,
-  actions = { include_daily = false, unassigned_mine = true, output = "quickfix" },
-  series = { carry_over = true, mark_carried = true, links = true },
-  daily = { carry_over = true, mark_carried = true, links = true },
-  standup = { group_by_project = true },
-  review = { stale_days = 14 },
-  tickets = { pattern = "%u[%u%d]+%-%d+", url = nil },
-  telemetry = { enabled = true, retention_days = 180 },
-  views = {},
-  people = {
-    contacts = {
-      email = { label = "Email", open = "mailto:{value}", order = 1 },
-    },
-  },
-  lists = { max_width = 160, bands = true },
-  tasks = { capture_status = "backlog", promote_status = "backlog" },
-  board = {
-    columns = {
-      { key = "backlog", label = "Backlog" },
-      { key = "todo", label = "TODO" },
-      { key = "in-progress", label = "In progress", limit = 3 },
-      { key = "follow-up", label = "Follow-up" },
-      { key = "done", label = "Done" },
-    },
-    start = "in-progress",
-    done = "done",
-    done_window = "period",
-    min_column_width = 24,
-    stale_days = 7,
-    collapsed = {},
-    border = "column",
-    icons = "unicode",
-    compact = false,
-    lanes = false,
-    open = "window",
-  },
-  keymaps = false,
-  timestamps = { created = true, modified = true },
-  search = { live = true },
-  retrieval = { sections = { "decisions", "blockers", "risks", "open questions" } },
-  projects = { detect = true, paths = {}, open_board = true, hub = true },
-})
-```
-
-</details>
+[`examples/logpose.lua`](examples/logpose.lua) has the whole default configuration, every option
+with a comment, as a lazy.nvim spec you can copy into `lua/plugins/` (its `opts` table is what
+`setup()` takes). A test checks it against the defaults, so it's always up to date.
 
 ### Highlight groups
 
@@ -1807,7 +1732,9 @@ nvim --headless -u NONE -i NONE --cmd "set rtp^=$PWD" -l scripts/bench/bench.lua
 Tests use [mini.test](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-test.md).
 Each case runs in a fresh child Neovim, with `TZ=America/New_York` so date math crosses real
 daylight-saving changes. The suite takes seconds. CI runs Neovim 0.10, stable and nightly.
-`scripts/screenshots.sh` regenerates the images in this README from a demo journal.
+`scripts/screenshots.sh` regenerates the images in this README from a demo journal, and
+`tests/test_examples.lua` keeps the sample configs in [`examples/`](examples/) in step with the
+defaults.
 
 The design and roadmap are in [`docs/SPEC.md`](docs/SPEC.md). Releases are tagged
 `MAJOR.MINOR.PATCH`; `git tag -n` lists what each one added, and the spec's

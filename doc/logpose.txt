@@ -1177,6 +1177,10 @@ To choose your own keys, map the `<Plug>` mappings: >lua
 Unknown options produce a warning; invalid values raise an error. Lists
 replace the default rather than merging with it.
 
+`examples/logpose.lua`, in logpose's folder, lists every option, set to its
+default and explained: a lazy.nvim spec to copy into your config's
+`lua/plugins/` and change.
+
                                                         *logpose-local-config*
 Settings for each computer ~
 Settings that only hold on one computer (the folders of your repos, your
@@ -1204,6 +1208,10 @@ shared ones whole, and `vim.NIL` clears an option the shared file sets. The
 spec's own fields work for each computer too: `dir` runs a checkout of
 logpose there, and `enabled = false` leaves it off. The same naming works for
 any plugin.
+
+`examples/logpose.local.lua`, in logpose's folder, is a template with the
+settings that most often differ, commented out: with lazy.nvim's default
+folder, `~/.local/share/nvim/lazy/logpose/examples/`.
 
 Without lazy.nvim, merge the file yourself before `setup()`; tables merge
 and lists replace here too: >lua

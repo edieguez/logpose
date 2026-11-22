@@ -139,6 +139,7 @@ lua/logpose/
 templates/                  -- default templates shipped with the plugin
   daily.md  meeting.md  planning.md  refinement.md  review.md  retro.md  1on1.md
 doc/logpose.txt
+examples/                   -- sample configs: logpose.lua (every option), logpose.local.lua (per computer)
 tests/                      -- mini.test specs + fixtures
 .github/workflows/ci.yml
 Makefile                    -- `make test`, `make lint`
@@ -1707,6 +1708,8 @@ nobody worked).
 - Acceptance criteria demonstrated manually in the real journal repo.
 - Listed tests written and passing in CI (0.10, stable, nightly).
 - `doc/logpose.txt` and README updated (commands, config keys, `<Plug>` mappings).
+- A new or changed option is in `examples/logpose.lua`, at its default and explained
+  (`test_examples.lua` fails otherwise).
 - `:checkhealth logpose` covers any new requirement the feature introduces.
 - Templates and every note logpose generates pass markdownlint's default rules (`make lint-md`,
   run in CI): titles live in the frontmatter only, and writes that create or restructure a note
