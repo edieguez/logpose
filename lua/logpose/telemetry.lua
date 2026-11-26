@@ -23,7 +23,7 @@ local KEYWORDS = {
   },
   actions = { "open", "mine", "overdue", "all" },
   report = { "week", "sprint" },
-  daily = { "today", "prev", "next" },
+  daily = { "today", "prev", "next", "refresh", "copy" },
   board = {
     "move",
     "done",

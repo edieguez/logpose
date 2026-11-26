@@ -1,7 +1,9 @@
---- Daily notes: `:Logpose daily [today|prev|next|YYYY-MM-DD]`. A scratchpad for the day: write
---- anything; meetings link themselves under `## Meetings`. Today's new note starts with the open
---- to-dos of the previous one under `## To-dos` (marked `- [>]` there, so each lives in one place)
---- and its `## Blockers`, which hold until you remove them.
+--- Daily notes: `:Logpose daily [today|prev|next|YYYY-MM-DD|refresh[!]|copy]`. A scratchpad for
+--- the day and your status: `## Yesterday`, `## Today` and `## Blockers` are filled in from the
+--- board, meetings and checked to-dos (`notes/status.lua`) and brought up to date when you open
+--- today's note; meetings link themselves under `## Meetings`. Today's new note starts with the
+--- open to-dos of the previous one under `## To-dos` (marked `- [>]` there, so each lives in one
+--- place) and your lines under its `## Blockers`, which hold until you remove them.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
@@ -268,7 +270,9 @@ function M.ensure(iso, root)
   local sections = {}
   if prev_lines then
     local carried, rows = M.open_todos(prev_lines)
-    vim.list_extend(sections, { { "To-dos", carried }, { "Blockers", M.blockers(prev_lines) } })
+    -- the blockers logpose wrote are worked out again; yours come along
+    local blockers = require("logpose.notes.status").yours(M.blockers(prev_lines), root, prev)
+    vim.list_extend(sections, { { "To-dos", carried }, { "Blockers", blockers } })
     if #rows > 0 then
       after_write = function()
         mark_carried(prev, rows)
@@ -278,6 +282,13 @@ function M.ensure(iso, root)
   -- the day's meetings, planned before its note was made, are linked from it
   table.insert(sections, { "Meetings", M.meeting_items(root, path, iso) })
   text, cursor = with_sections(text, cursor, sections)
+  -- the status: Yesterday for any day so far, Today and Blockers for today's note
+  if config.get().daily.status.enabled and iso <= date.today() then
+    local row
+    local body = vim.split(text, "\n", { plain = true })
+    body, row = require("logpose.notes.status").apply(body, root, path, iso, { yesterday = "fill", row = cursor[1] })
+    text, cursor = table.concat(body, "\n"), { row, cursor[2] }
+  end
   -- the notes before and after it, linked from the frontmatter
   local chain = require("logpose.notes.chain")
   local links, prev_link, next_link = {}, nil, nil
@@ -324,6 +335,10 @@ end
 ---@param root string
 function M.open_date(iso, root)
   local path, created, cursor = M.ensure(iso, root)
+  local st = config.get().daily.status
+  if not created and iso == date.today() and st.enabled and st.refresh == "open" then
+    require("logpose.notes.status").refresh(root, path, iso)
+  end
   vim.cmd.edit(vim.fn.fnameescape(path))
   if created and cursor then
     -- the cursor goes below the last heading: a line to write on (the file keeps no trailing blank)
@@ -366,18 +381,81 @@ function M.open(arg)
   end))
 end
 
+--- Bring the status in the daily note for `iso` up to date (making the note if needed). `full`
+--- also rebuilds Yesterday; a past note has only that, since Today and Blockers follow the
+--- board as it is now.
+---@param root string
+---@param iso string
+---@param full? boolean
+---@param quiet? boolean
+---@return string path
+function M.refresh(root, iso, full, quiet)
+  if not config.get().daily.status.enabled then
+    error("logpose: the status is off (daily.status.enabled = false)", 0)
+  end
+  local today = date.today()
+  if iso > today then
+    error("logpose: no status yet for a day still to come", 0)
+  elseif iso < today and not full then
+    error(
+      "logpose: a past note's Today and Blockers stay as they were; `:Logpose daily refresh!` rebuilds Yesterday",
+      0
+    )
+  end
+  local path, created = M.ensure(iso, root)
+  local changed = created or require("logpose.notes.status").refresh(root, path, iso, full)
+  if not quiet then
+    ui.notify(changed and "logpose: status refreshed" or "logpose: status already up to date", vim.log.levels.INFO)
+  end
+  return path
+end
+
+--- Copy the status of the daily note for `iso` (today's is made if needed, and brought up to
+--- date when `daily.status.refresh = "open"`).
+---@param root string
+---@param iso? string
+function M.copy(root, iso)
+  iso = iso or date.today()
+  local st = config.get().daily.status
+  local path
+  if iso == date.today() and st.enabled and st.refresh == "open" then
+    path = M.refresh(root, iso, false, true)
+  else
+    path = M.path(iso, root)
+    if not fs.exists(path) then
+      error(("logpose: no daily note for %s"):format(iso), 0)
+    end
+  end
+  require("logpose.notes.status").copy(root, path, iso)
+end
+
+local USAGE = "logpose: usage :Logpose daily [today|prev|next|YYYY-MM-DD|refresh[!]|copy]"
+
 ---@param opts logpose.CommandOpts
 function M.command(opts)
   if #opts.args > 1 then
-    error("logpose: usage :Logpose daily [today|prev|next|YYYY-MM-DD]", 0)
+    error(USAGE, 0)
   end
-  M.open(opts.args[1])
+  local arg = opts.args[1]
+  if arg == "refresh" or arg == "refresh!" or arg == "copy" then
+    -- the daily note in the current buffer, or today's
+    local iso = M.date_of(vim.api.nvim_buf_get_name(0)) or date.today()
+    config.with_root(ui.safely(function(root)
+      if arg == "copy" then
+        M.copy(root, iso)
+      else
+        M.refresh(root, iso, arg == "refresh!" or opts.bang)
+      end
+    end))
+    return
+  end
+  M.open(arg)
 end
 
 ---@return string[]
 function M.complete(_, args)
   if #args == 0 then
-    return { "today", "prev", "next" }
+    return { "today", "prev", "next", "refresh", "refresh!", "copy" }
   end
   return {}
 end

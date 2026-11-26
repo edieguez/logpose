@@ -208,7 +208,7 @@ T["honours configured dirs and affixes"] = function()
 end
 
 T["completes arguments"] = function()
-  eq(child.fn.getcompletion("Logpose daily ", "cmdline"), { "today", "prev", "next" })
+  eq(child.fn.getcompletion("Logpose daily ", "cmdline"), { "today", "prev", "next", "refresh", "refresh!", "copy" })
 end
 
 T["without a journal, offers to create one and continues"] = function()

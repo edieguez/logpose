@@ -87,7 +87,7 @@ vim.api.nvim_feedkeys("LL", "x", false)
 answers = { "waiting on ana" }
 vim.api.nvim_feedkeys("b", "x", false)
 run("Logpose daily")
--- Day 2: carried to-dos, series, promote, done, the standup.
+-- Day 2: carried to-dos and the status, series, promote, done.
 at(2026, 10, 14)
 local d1 = root .. "/daily/daily-2026-10-13.md"
 local l1 = vim.fn.readfile(d1)
@@ -112,6 +112,8 @@ for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
 end
 run("edit " .. root .. "/tasks/write-the-retro.md")
 run("Logpose done")
+run("Logpose daily") -- the status brought up to date
+run("Logpose daily refresh!")
 -- Inbox mode: capture, done, migrate, archive.
 require("logpose").setup({ root = root, tasks = { mode = "inbox" } })
 at(2026, 10, 6)

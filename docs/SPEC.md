@@ -1698,6 +1698,48 @@ target's title; after each of eight moves, in both link styles, every link must 
 the note its label names. A unit test covers the link forms. On the old code, every markdown case
 failed, and the wiki ones for project rename, merge and `:Logpose archive`.
 
+## C24 — The status in the daily note (1.42.0)
+
+**Goal.** One place for the daily status: the daily note. The standup lived on the today screen,
+worked out each time and gone once copied: nothing to edit, nothing kept, and a second place to
+look besides the note you write in all day. Supersedes C10's standup and F6.
+
+**Design** (`notes/status.lua`, `notes/daily.lua`)
+
+- Today's daily note has `## Yesterday`, `## Today` and `## Blockers` (with `## To-dos` and
+  `## Meetings` as before). A heading the template already has is filled where it is; a missing
+  one goes after the title (Yesterday, then Today) or, for Blockers, after To-dos.
+- **Generated lines** read `- project: <link> — note`: a link to a task, a meeting or (for a
+  checked to-do) the daily note it was checked in, labelled with its title or text, then ` — `
+  and what happened. Plain bullets, never checkboxes (they'd count as to-dos); a to-do's
+  `#tags`, `@` and links are taken out of its text. The link is the line's identity: logpose
+  rewrites the line, the rest of the section (your lines, the sub-bullets under a line) is yours.
+- **Yesterday** (`prev_workday(iso)`..`iso - 1`): task moves from their `## Log` (or `done:`),
+  meetings, to-dos checked in daily notes (not those made into tasks: the task speaks for them).
+  Filled when the note is made, for any day up to today. `refresh!` rebuilds it: lines for what
+  happened are rewritten or added, generated lines for what didn't are dropped.
+- **Today** (today's note only): tasks in the start column, due by today, or done today
+  (`→ Done`). On refresh every task line takes the task's current state, new ones are added and
+  none are removed (a line you delete comes back while it's still true).
+- **Blockers** (today's note only): blocked tasks with their reason. Your lines are carried over
+  to the next note as before; generated ones aren't (they're worked out again). On refresh, the
+  line of a task no longer blocked goes, unless you wrote under it.
+- **Refresh**: on opening today's note (`daily.status.refresh = "open"`, or `"manual"`) and
+  with `:Logpose daily refresh[!]`. A raw update (`modified:` stays), written only when the text
+  changes; an unsaved note is changed in its buffer (`u` undoes it). In a past note only
+  `refresh!` does something (Yesterday): Today and Blockers follow the board as it is now.
+- **`:Logpose daily copy`** copies the status as written in the note: Yesterday, Today (with
+  the open to-dos of `## To-dos`) and Blockers, links as their labels, sub-bullets kept,
+  grouped by project unless `daily.status.group_by_project = false`.
+- `:Logpose standup` is gone; the today screen keeps "Coming up" and `y` copies the status.
+  `daily.status.enabled = false` leaves the three sections out.
+
+**Tests** (`test_status.lua`): collecting (logs, meetings, to-dos, due, done today, blockers,
+Monday → Friday, to-dos made into tasks), a new note's sections and order, template headings,
+refresh (your lines and sub-bullets kept, states updated, deleted lines back, resolved
+blockers dropped, unsaved buffers, past notes), carry-over skipping generated blockers,
+copying (grouped, flat).
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1713,7 +1755,7 @@ failed, and the wiki ones for project rename, merge and `:Logpose archive`.
 | `:Logpose find [notes\|daily\|meetings\|topics\|tasks\|todos\|tags\|projects] [filters]` | F4, C1 |
 | `:Logpose grep [text]`                    | F4 |
 | `:Logpose actions [open\|mine\|overdue\|all] [filters]` | F5 |
-| `:Logpose standup [date]`                 | F6 |
+| `:Logpose daily refresh[!]` / `copy`      | C24 |
 | `:Logpose report[!] [week\|sprint] [offset]` | F7 |
 | `:Logpose ticket [ID]`                    | F8 |
 | `:Logpose find decisions\|blockers\|people …` | O1, O3 |
@@ -1778,6 +1820,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.42.0 | 2026-11-25 | the status in the daily note; `:Logpose standup` removed |  |
 | 1.41.2 | 2026-11-21 | links survive every move; sample configs; settings for each computer |  |
 | 1.41.1 | 2026-11-21 | screens keep to themselves; symlinked journals | 0.58.1 |
 | 1.41.0 | 2026-11-20 | daily notes keep to their day; previous/next links | 0.58.0 |
@@ -1856,6 +1899,10 @@ the last line of each tag's notes.
 | 0.1.0 | 2026-10-15 | F0+F1: foundation, daily and meeting notes |  |
 
 Breaking changes so far:
+- 1.42.0: `:Logpose standup` and the `standup` option are gone: the status (Yesterday, Today,
+  Blockers) is written into today's daily note and refreshed when you open it;
+  `:Logpose daily copy` copies it (`daily.status.group_by_project` replaces
+  `standup.group_by_project`). The today screen no longer shows a standup.
 - 1.41.0: `:Logpose daily prev`/`next` go to the daily note before or after (the notes there are,
   and today's) instead of stepping by workdays, so they never make a note but today's; only
   today's note carries over open to-dos and blockers. A series links its meetings with

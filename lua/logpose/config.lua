@@ -77,7 +77,7 @@ M.defaults = {
   --- Subdirectory of `dirs.meetings` for meeting notes. `{project}` is the active project
   --- (empty when there is none); "" keeps every note directly in `dirs.meetings`.
   meeting_subdir = "{project}",
-  --- Weeks or sprints: reports, the standup, `today` and the task archive go by them.
+  --- Weeks or sprints: reports, `today` and the task archive go by them.
   period = {
     ---@type "week"|"sprint"
     kind = "week",
@@ -120,10 +120,16 @@ M.defaults = {
     mark_carried = true,
     --- Link each daily note to the ones before and after it (`previous:`/`next:` frontmatter).
     links = true,
-  },
-  standup = {
-    --- Group the copied standup by project.
-    group_by_project = true,
+    --- Today's note has `## Yesterday`, `## Today` and `## Blockers`, filled from the board,
+    --- meetings and checked to-dos (`notes/status.lua`).
+    status = {
+      enabled = true,
+      ---@type "open"|"manual"
+      --- "open": brought up to date when you open today's note; "manual": `:Logpose daily refresh`.
+      refresh = "open",
+      --- `:Logpose daily copy` groups the status by project.
+      group_by_project = true,
+    },
   },
   review = {
     --- Open to-dos older than this many days, and tasks in progress longer, are flagged in reports.
@@ -351,8 +357,17 @@ local function validate(opts)
   check("daily.carry_over", opts.daily.carry_over, "boolean")
   check("daily.mark_carried", opts.daily.mark_carried, "boolean")
   check("daily.links", opts.daily.links, "boolean")
-  check("standup", opts.standup, "table")
-  check("standup.group_by_project", opts.standup.group_by_project, "boolean")
+  check("daily.status", opts.daily.status, "table")
+  check("daily.status.enabled", opts.daily.status.enabled, "boolean")
+  check("daily.status.group_by_project", opts.daily.status.group_by_project, "boolean")
+  if opts.daily.status.refresh ~= "open" and opts.daily.status.refresh ~= "manual" then
+    error(
+      ('logpose: `daily.status.refresh` must be "open" or "manual", got %s'):format(
+        vim.inspect(opts.daily.status.refresh)
+      ),
+      0
+    )
+  end
   check("review", opts.review, "table")
   check("review.stale_days", opts.review.stale_days, "number")
   check("tickets", opts.tickets, "table")

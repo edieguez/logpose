@@ -125,7 +125,7 @@ M.builtin = {
   init = { module = "logpose.onboard", desc = "logpose: choose or create the journal" },
   actions = { module = "logpose.actions", desc = "logpose: meeting action items (to-dos in meeting notes)" },
   archive = { module = "logpose.archive", desc = "logpose: move done tasks from past weeks or sprints off the board" },
-  daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note" },
+  daily = { module = "logpose.notes.daily", desc = "logpose: open the daily note (refresh / copy its status)" },
   meeting = { module = "logpose.notes.meeting", desc = "logpose: new meeting note" },
   doc = { module = "logpose.notes.doc", desc = "logpose: new project doc (decision, spec, runbook…)" },
   hub = {
@@ -134,11 +134,6 @@ M.builtin = {
   },
   project = { module = "logpose.project", desc = "logpose: set the active project" },
   projects = { module = "logpose.projects", complete = false, desc = "logpose: manage projects" },
-  standup = {
-    module = "logpose.standup",
-    complete = false,
-    desc = "logpose: Yesterday / Today / Blockers for the standup",
-  },
   note = { module = "logpose.notes.topic", fn = "note_command", complete = false, desc = "logpose: topic note" },
   meetings = { module = "logpose.lists.meetings", desc = "logpose: meetings, by week, type, project or series" },
   notes = { module = "logpose.lists.notes", desc = "logpose: notes, by type, project, tag or month" },

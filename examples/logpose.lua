@@ -58,7 +58,7 @@ return {
         name = "sprint-{n}", -- how sprints are named, {n} being the number: sprint-43
       },
     },
-    workdays = { 1, 2, 3, 4, 5 }, -- the days you work (Monday = 1): the standup's Yesterday skips the others
+    workdays = { 1, 2, 3, 4, 5 }, -- the days you work (Monday = 1): the status's Yesterday skips the others
 
     -- Project detection ------------------------------------------------------------------------------------
 
@@ -77,14 +77,16 @@ return {
       carry_over = true, -- today's new daily note starts with the last one's open to-dos and ## Blockers
       mark_carried = true, -- and marks those to-dos - [>] in the last one, so each lives in one place
       links = true, -- link each daily note to the ones before and after it (previous:/next: in the frontmatter)
+      status = { -- ## Yesterday, ## Today and ## Blockers in today's note, from the board, meetings and to-dos
+        enabled = true,
+        refresh = "open", -- brought up to date when you open today's note; "manual": :Logpose daily refresh
+        group_by_project = true, -- :Logpose daily copy groups the status by project; false: a flat list
+      },
     },
     series = { -- meetings with the same type and title (or person, for 1:1s), within a project
       carry_over = true, -- a new one starts with the last one's open to-dos under ## Carried over
       mark_carried = true, -- and marks them - [>] in the last one
       links = true, -- link each meeting to the ones before and after it in its series
-    },
-    standup = {
-      group_by_project = true, -- the copied standup (y on :Logpose today) grouped by project; false: a flat list
     },
     default_meeting_type = "adhoc", -- the type the new-meeting form starts on
 

@@ -70,15 +70,9 @@ T["today shows the day at a glance and opens what you pick"] = function()
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   H.contains(s, "# Today · Friday 2026-10-16  ·  sprint-43, day 2 of 10")
-  -- the standup first: Today has tasks in progress or due, meetings, the daily note's to-dos
-  H.contains(s, "## Standup\n\n### Yesterday · since Thu 15 Oct (0)")
-  H.contains(
-    s,
-    "### Today (3)\n\n- Fix flaky  (In progress)  ◆ acme\n- Retro  (meeting)  ◆ acme\n- review PR  (to-do)"
-  )
-  H.contains(s, "### Blockers (1)\n\n- Queue  (waiting on ana)")
-  -- then what's coming up
-  H.contains(s, "## Coming up\n\n### Due soon (1)\n\n- Queue  (due Sun)")
+  eq(s:find("Standup", 1, true), nil) -- the status is in the daily note
+  -- what's coming up: due soon, or overdue
+  H.contains(s, "## Coming up\n\n### Due soon (2)\n\n- Fix flaky  (overdue 2d)  ◆ acme\n- Queue  (due Sun)")
   H.contains(s, "### Overdue action items (1)\n\n- write ADR @ana  (overdue 6d)  ◆ acme")
   eq(s:find("Later", 1, true), nil)
   -- <CR> opens the item at its line
@@ -104,7 +98,7 @@ T["today lists the notes edited lately, newest first"] = function()
   note("meetings/2026-10-14 - sync.md", '---\ntitle: "Sync"\nproject: acme\n---\n', 26 * 3600)
   note("notes/old.md", "# Old\n", 10 * 86400) -- too long ago
   note("tasks/t.md", '---\ntitle: "A task"\nstatus: todo\n---\n', 60) -- tasks are on the board
-  note("daily/daily-2026-10-16.md", "# d\n", 60) -- today's note has its own section
+  note("daily/daily-2026-10-16.md", "# d\n", 60) -- today's note is d away
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   H.contains(s, "### Recently edited (2)\n\n- Ideas  (2h ago)\n- Sync  (yesterday)  ◆ acme")
@@ -121,7 +115,7 @@ end
 T["today with nothing on says so"] = function()
   child.cmd("Logpose today")
   local s = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  H.contains(s, "### Today (0)\n\n  nothing")
+  H.contains(s, "### Due soon (0)\n\n  nothing")
   child.type_keys("q")
   eq(child.bo.filetype ~= "markdown" or child.api.nvim_buf_get_name(0) ~= "logpose://today", true)
 end

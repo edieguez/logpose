@@ -6,7 +6,7 @@ local M = {}
 M.MAPS = {
   { "j", "n", "<cmd>Logpose<cr>", "Menu" },
   { "y", "n", "<cmd>Logpose today<cr>", "Today" },
-  { "s", "n", "<Plug>(logpose-standup)", "Standup" },
+  { "s", "n", "<cmd>Logpose daily copy<cr>", "Copy the status (daily note)" },
   { "r", "n", "<Plug>(logpose-report)", "Report" },
   { "P", "n", "<cmd>Logpose projects<cr>", "Projects" },
   { "e", "n", "<Plug>(logpose-edit)", "Edit details (frontmatter)" },

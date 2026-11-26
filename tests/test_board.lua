@@ -335,9 +335,9 @@ T["custom columns"] = function()
   eq(status(root .. "/tasks/fix-flaky.md"), "doing")
 end
 
-T["standup lists board work; report and health count it"] = function()
+T["the status lists board work; report and health count it"] = function()
   task("yesterday", { title = "Finished yesterday", status = "done", project = "acme", done = "2026-10-14" })
-  child.cmd("Logpose standup!")
+  child.cmd("Logpose daily copy")
   local s = child.fn.getreg('"')
   H.contains(s, "## Yesterday\n\n### acme\n\n- Finished yesterday (→ Done)")
   H.contains(s, "- Queue design (In progress)")
