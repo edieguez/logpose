@@ -74,6 +74,7 @@ M.HL = {
   LogposeBoardDone = "Comment",
   LogposeBoardMeta = "Comment",
   LogposeBoardNotes = "Directory",
+  LogposeBoardAssignee = "Special",
   LogposeBoardDueSoon = "DiagnosticWarn",
   LogposeBoardFocusBg = "CursorLine",
 }
@@ -208,6 +209,25 @@ function M.due_text(it, today)
   return text, hl
 end
 
+-- Who you are (`people.me`), worked out once per refresh (`M.refresh_me`): nil until then.
+local me
+
+--- Work out who you are again (the board calls it on each refresh).
+function M.refresh_me()
+  me = require("logpose.people").me() or false
+end
+
+--- Who does the task, when it isn't you: `@` and their first name (nil for yours, or nobody's).
+---@param it logpose.Item
+---@return string?
+function M.assignee_text(it)
+  if not it.assignee or require("logpose.people").is_mine(it.assignee, me) then
+    return nil
+  end
+  local first = it.assignee:gsub("^@", ""):match("^[^%s]+") or it.assignee
+  return "@" .. first
+end
+
 --- The card's state, which decides how it looks.
 ---@param it logpose.Item
 ---@param today string
@@ -220,9 +240,10 @@ function M.state(it, today)
 end
 
 --- The details under the title, quietly: project (with its colour mark), when it's due, how long
---- it has sat untouched (only once that's worth noticing), how many notes are linked with it,
---- tags. They're fitted by importance, not cut at the end: dates always, then the notes count,
---- then the project (shortened if need be), then whole tags.
+--- it has sat untouched (only once that's worth noticing), who does it (when it isn't you), how
+--- many notes are linked with it, tags. They're fitted by importance, not cut at the end: dates
+--- always, then the assignee, then the notes count, then the project (shortened if need be),
+--- then whole tags.
 ---@param it logpose.Item
 ---@param today string
 ---@param show_project boolean
@@ -245,6 +266,16 @@ function M.details(it, today, show_project, width)
   local used = 0
   for i, d in ipairs(dates) do
     used = used + w(d[1]) + (i > 1 and sep_w or 0)
+  end
+  -- who does it, when it isn't you
+  local who
+  local assignee = M.assignee_text(it)
+  if assignee then
+    local aw = w(assignee) + (used > 0 and sep_w or 0)
+    if used + aw <= room then
+      who = { assignee, "LogposeBoardAssignee" }
+      used = used + aw
+    end
   end
   -- how many notes are linked with the task (`n` opens them): small, so it
   -- comes before the project, which is shortened to make room
@@ -304,6 +335,9 @@ function M.details(it, today, show_project, width)
   end
   for _, d in ipairs(dates) do
     add({ d })
+  end
+  if who then
+    add({ who })
   end
   if notes then
     add({ notes }, true)
@@ -387,7 +421,7 @@ function M.card_lines(it, w, today, o)
 end
 
 --- A card on one line: a marker (▶ focused, ✓ marked, ⊘ blocked, ✓ done), the title, then
---- when it's due and how long it has sat untouched, at the end.
+--- who does it (when it isn't you), when it's due and how long it has sat untouched, at the end.
 ---@param it logpose.Item
 ---@param w integer
 ---@param today string
@@ -410,6 +444,10 @@ function M.compact_line(it, w, today, o)
     marker, marker_hl = ic.focus, "LogposeBoardFocus"
   end
   local tail = {}
+  local assignee = M.assignee_text(it)
+  if assignee then
+    table.insert(tail, { " " .. assignee, "LogposeBoardAssignee" })
+  end
   local due, due_hl = M.due_text(it, today)
   if due then
     table.insert(tail, { " " .. due, due_hl })

@@ -30,8 +30,32 @@ function M.describe_project(project, source)
   return why and ("%s (%s)"):format(project, why) or project
 end
 
+--- People in a captured text: `@name` assigns the task (the last one wins; `@none`: nobody) and
+--- `for:name` adds a stakeholder. Names come back as the journal writes them (a page's name).
+---@param text string
+---@param root? string
+---@return string rest, string? assignee, string[] stakeholders
+function M.take_people(text, root)
+  local rest, assignee, stakeholders = require("logpose.taskfile").take_people(text)
+  if not assignee and #stakeholders == 0 then
+    return rest, nil, stakeholders
+  end
+  local people = require("logpose.people")
+  local known = people.known(root)
+  local out, seen = {}, {}
+  for _, name in ipairs(stakeholders) do
+    name = people.canonical(name, known)
+    if not seen[name] then
+      seen[name] = true
+      table.insert(out, name)
+    end
+  end
+  return rest, assignee and people.canonical(assignee, known) or nil, out
+end
+
 --- Capture `text` as a task file in `tasks.capture_status` (files mode). A `+name` in the text
---- picks the project; otherwise `project` (the detected one) is used.
+--- picks the project; otherwise `project` (the detected one) is used. `@name` and `for:name`:
+--- see `M.take_people`.
 ---@param text string
 ---@param root string
 ---@param project? string
@@ -40,7 +64,8 @@ end
 ---@return string path
 function M.capture_file(text, root, project, open, source)
   local taskfile = require("logpose.taskfile")
-  local title, tags, due, explicit, unread = taskfile.from_text(text)
+  local rest, assignee, stakeholders = M.take_people(text, root)
+  local title, tags, due, explicit, unread = taskfile.from_text(rest)
   if explicit ~= nil then
     project, source = explicit or nil, nil
   end
@@ -48,7 +73,14 @@ function M.capture_file(text, root, project, open, source)
     return t ~= project
   end, tags)
   local status = config.get().tasks.capture_status
-  local path, cursor = taskfile.create(root, { title = title, project = project, tags = tags, due = due })
+  local path, cursor = taskfile.create(root, {
+    title = title,
+    project = project,
+    assignee = assignee,
+    stakeholders = stakeholders,
+    tags = tags,
+    due = due,
+  })
   M.last = path
   if open then
     vim.cmd.edit(vim.fn.fnameescape(path))
@@ -56,10 +88,11 @@ function M.capture_file(text, root, project, open, source)
   end
   local shown = vim.fn.strcharlen(title) > 40 and (vim.fn.strcharpart(title, 0, 39) .. "…") or title
   require("logpose.util.ui").notify(
-    ("logpose: captured “%s” → %s · %s%s"):format(
+    ("logpose: captured “%s” → %s · %s%s%s"):format(
       shown,
       M.describe_project(project, source),
       taskfile.label(status),
+      assignee and (" · for " .. assignee) or "",
       open and "" or " · :Logpose edit last to change"
     ),
     vim.log.levels.INFO
@@ -71,7 +104,8 @@ function M.capture_file(text, root, project, open, source)
   return path
 end
 
---- Completion for task text (capture, the board's `a`): `+project`, `#tag`, `due:`.
+--- Completion for task text (capture, the board's `a`): `+project`, `#tag`, `due:`, `@person`,
+--- `for:person`.
 ---@param arglead string
 ---@param root? string
 ---@return string[]
@@ -97,6 +131,30 @@ function M.complete_text(arglead, root)
     local index = require("logpose.index")
     for _, c in ipairs(index.tag_counts(index.build(r))) do
       add("#" .. c.tag)
+    end
+  elseif arglead:sub(1, 1) == "@" or arglead:lower():match("^for:") then
+    -- people by a handle (a name with spaces wouldn't stay one word): their page's, else the
+    -- first of their other handles starting with what's typed
+    local prefix = arglead:sub(1, 1) == "@" and "@" or arglead:sub(1, 4)
+    local typed = require("logpose.people").plain(arglead:sub(#prefix + 1))
+    for _, p in ipairs(require("logpose.people").known(r)) do
+      local handle = vim.startswith(p.slug, typed) and p.slug or nil
+      if not handle then
+        local slugs = vim.tbl_keys(p.slugs or {})
+        table.sort(slugs)
+        for _, s in ipairs(slugs) do
+          if vim.startswith(s, typed) then
+            handle = s
+            break
+          end
+        end
+      end
+      if handle then
+        table.insert(out, prefix .. handle)
+      end
+    end
+    if prefix == "@" and vim.startswith("none", arglead:sub(2):lower()) then
+      table.insert(out, "@none")
     end
   elseif vim.startswith("due:", arglead:lower()) or arglead:lower():match("^due:") then
     for _, w in ipairs({ "today", "tomorrow", "mon", "tue", "wed", "thu", "fri", "+1w", "+2w" }) do
@@ -168,6 +226,64 @@ function M.choose_project(root, current, fn)
           local slug = input and project.normalize(vim.trim(input))
           if slug then
             fn(slug)
+          end
+        end)
+      )
+    end)
+  )
+end
+
+--- Ask who does a task: you (`me`), the people you know (the project's first), someone new, or
+--- nobody. `fn` gets the name as the journal writes it, or nil for nobody.
+---@param root string
+---@param project? string  its people come first
+---@param current? string  the task's assignee now (not offered again)
+---@param fn fun(assignee?: string)
+function M.choose_assignee(root, project, current, fn)
+  local people = require("logpose.people")
+  local known = people.known(root)
+  local cur = current and people.find(known, current)
+  local items = {}
+  local me = config.get().me
+  local my_name = type(me) == "string" and vim.trim((me:gsub("^@", ""))) ~= "" and people.canonical(me, known) or nil
+  local mine = my_name and people.find(known, my_name)
+  if my_name and not (cur and cur == mine) then
+    table.insert(items, { label = ("Me (%s)"):format(my_name), value = my_name })
+  end
+  for _, p in ipairs(people.match(known, "", project)) do
+    if p ~= cur and p ~= mine then
+      local about = people.describe(p)
+      table.insert(items, { label = about ~= "" and ("%s  (%s)"):format(p.name, about) or p.name, value = p.name })
+    end
+  end
+  table.insert(items, { label = "Someone new…", new = true })
+  if current then
+    table.insert(items, { label = "Nobody", none = true })
+  end
+  vim.ui.select(
+    items,
+    {
+      prompt = "Assign to",
+      format_item = function(it)
+        return it.label
+      end,
+    },
+    ui.safely(function(choice)
+      if not choice then
+        return
+      end
+      if choice.none then
+        return fn(nil)
+      end
+      if not choice.new then
+        return fn(choice.value)
+      end
+      vim.ui.input(
+        { prompt = "Assign to: ", completion = "customlist,v:lua.LogposeCompletePeople" },
+        ui.safely(function(input)
+          input = input and vim.trim((input:gsub("^@", ""))) or ""
+          if input ~= "" then
+            fn(people.canonical(input, known))
           end
         end)
       )

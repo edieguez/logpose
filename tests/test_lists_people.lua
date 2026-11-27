@@ -183,6 +183,24 @@ T["gx on an @mention or an attendee opens their page"] = function()
   eq(gx(6, 19), "2026-10-14 - retro.md") -- Bob Smith: no page, nothing to open
 end
 
+T["a task's assignee and stakeholders: gx opens their page, rename rewrites them"] = function()
+  local path = root .. "/tasks/fix.md"
+  H.write(path, '---\ntitle: "Fix"\nstatus: todo\nassignee: Ana\nstakeholders: [Bob Smith, Ana López]\n---\n')
+  child.cmd("edit " .. path)
+  child.bo.filetype = "markdown"
+  child.api.nvim_win_set_cursor(0, { 4, 11 })
+  child.type_keys("gx")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "ana-lopez.md") -- assignee: Ana
+  child.cmd("edit " .. path)
+  child.api.nvim_win_set_cursor(0, { 5, 28 })
+  child.type_keys("gx")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "ana-lopez.md") -- stakeholders: […, Ana López]
+  child.cmd("Logpose rename-person! ana Ana García")
+  local text = H.read(path)
+  H.contains(text, "assignee: Ana García\n")
+  H.contains(text, "stakeholders: [Bob Smith, Ana García]\n")
+end
+
 T["rename-person: the page moves, keeps the old name, and notes follow"] = function()
   H.write(root .. "/notes/team.md", "# Team\n- [[people/ana-lopez|Ana]] leads, @ana.\n- @analyst stays\n")
   child.cmd("Logpose rename-person! ana Ana García")

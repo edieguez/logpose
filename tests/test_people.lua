@@ -237,6 +237,37 @@ T["in a note: attendees, with: and @mentions complete people"] = function()
   eq(child.lua_get("require('logpose.completion.cmp').new():get_position_encoding_kind()"), "utf-8")
 end
 
+T["in a task: assignee and stakeholders complete people, and count as involving them"] = function()
+  person("ana-lopez", 'name: "Ana López"')
+  local path = root .. "/tasks/fix.md"
+  H.write(path, '---\ntitle: "Fix"\nstatus: todo\nassignee: Carla\nstakeholders: [Dan]\n---\n')
+  child.cmd("edit " .. path)
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "---",
+    'title: "Fix"',
+    "assignee: lop",
+    "stakeholders: [Bob Smith, lop",
+    "---",
+  })
+  local function items(row, col)
+    return child.lua_get(
+      ([[vim.tbl_map(function(it) return it.textEdit.newText end,
+        require('logpose.completion').items(vim.api.nvim_buf_get_lines(0, %d, %d, false)[1], %d, %d, 0))]]):format(
+        row,
+        row + 1,
+        col,
+        row
+      )
+    )
+  end
+  eq(items(2, 13), { "Ana López" }) -- one name: as written
+  eq(items(3, 29), { "Ana López" }) -- the next list item
+  child.cmd("bwipeout!")
+  local slugs = child.lua_get(([[vim.tbl_filter(function(it) return it.kind == 'task' end,
+    require('logpose.index').build(%q))[1].people]]):format(root))
+  eq(slugs, { "carla", "dan" })
+end
+
 T["nothing completes in a code block: @decorators and [[ there are code"] = function()
   H.write(root .. "/notes/queue-design.md", '---\ntitle: "Queue design"\n---\n')
   local path = root .. "/notes/snippets.md"

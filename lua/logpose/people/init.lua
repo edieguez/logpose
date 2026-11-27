@@ -24,6 +24,10 @@ M.plain = text.plain
 --- The keys of a person's page that are theirs (not ways to reach them).
 M.OWN = { "name", "aliases", "role", "projects" }
 
+--- Frontmatter keys naming people, and whether each holds one name or a list: a meeting's
+--- attendees and 1:1 person, a task's assignee and stakeholders.
+M.FIELDS = { attendees = "list", with = "one", assignee = "one", stakeholders = "list" }
+
 --- Configured ways to reach people, in order: { key, label, show, open }.
 ---@return { key: string, label: string, show?: string, open?: string }[]
 function M.contact_kinds()
@@ -206,6 +210,43 @@ function M.find(people, name)
   return nil
 end
 
+--- How to write a person in a note: their page's name when `name` (a name, alias or `@handle`)
+--- means someone known, else `name` without its `@`.
+---@param name string
+---@param people? logpose.Person[]  default: everyone known
+---@return string
+function M.canonical(name, people)
+  name = vim.trim((vim.trim(name or ""):gsub("^@", "")))
+  local p = name ~= "" and M.find(people or M.known(), name) or nil
+  return p and p.name or name
+end
+
+--- Every slug that means you (`me`), or nil when `me` isn't set.
+---@return table<string, boolean>?
+function M.me()
+  local me = config.get().me
+  if type(me) ~= "string" or vim.trim((me:gsub("^@", ""))) == "" then
+    return nil
+  end
+  local slug = text.slugify(vim.trim((me:gsub("^@", ""))))
+  local ok, set = pcall(M.expand, slug)
+  return ok and set or { [slug] = true }
+end
+
+--- Is a task yours: assigned to you, or to nobody (`tasks.unassigned_mine`)?
+---@param assignee? string
+---@param me? table<string, boolean>|false  `M.me()`, worked out once by a caller checking many
+---@return boolean
+function M.is_mine(assignee, me)
+  if type(assignee) ~= "string" or vim.trim(assignee) == "" then
+    return config.get().tasks.unassigned_mine
+  end
+  if me == nil then
+    me = M.me()
+  end
+  return me and me[text.slugify((vim.trim(assignee):gsub("^@", "")))] == true or false
+end
+
 --- Every slug that means the same person as `slug` (itself when unknown): for `person:` filters.
 ---@param slug string
 ---@return table<string, boolean>
@@ -317,8 +358,9 @@ _G.LogposeCompletePeople = function(arglead)
   return M.complete(arglead)
 end
 
---- The person named under the cursor: an `@mention`, or a name on a frontmatter `attendees:` /
---- `with:` line. Returns the name as written.
+--- The person named under the cursor: an `@mention`, or a name on a frontmatter line naming
+--- people (`M.FIELDS`: `attendees:`, `with:`, `assignee:`, `stakeholders:`). Returns the name as
+--- written.
 ---@param bufnr integer
 ---@param row integer 1-based
 ---@param col integer 0-based byte column
@@ -332,7 +374,7 @@ function M.at(bufnr, row, col)
     end
   end
   local key, rest_at = line:match("^(%w+):%s*()")
-  if (key ~= "attendees" and key ~= "with") or c < rest_at then
+  if not M.FIELDS[key] or c < rest_at then
     return nil
   end
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, row, false)

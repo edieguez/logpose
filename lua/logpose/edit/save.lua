@@ -1,6 +1,6 @@
---- Saving the frontmatter editor's changes the way logpose would: a task's status, project and
---- blocker through `taskfile` (logged, `started`/`done` kept), a meeting moved to another
---- project's folder with the links to it fixed.
+--- Saving the frontmatter editor's changes the way logpose would: a task's status, project,
+--- assignee and blocker through `taskfile` (logged, `started`/`done` kept), a meeting moved to
+--- another project's folder with the links to it fixed.
 local fields = require("logpose.edit.fields")
 local fs = require("logpose.util.fs")
 
@@ -106,6 +106,8 @@ function M.create(root, v)
     title = v.title,
     status = str(v.status),
     project = str(v.project),
+    assignee = str(v.assignee),
+    stakeholders = type(v.stakeholders) == "table" and v.stakeholders or nil,
     tags = type(v.tags) == "table" and v.tags or {},
     due = str(v.due),
     body = str(v.context) and { v.context } or nil,
@@ -198,7 +200,7 @@ function M.note(root, path, kind, changed, opts)
   end
   local special = {}
   if kind == "task" then
-    for _, key in ipairs({ "status", "project", "blocked" }) do
+    for _, key in ipairs({ "status", "project", "assignee", "blocked" }) do
       if changed[key] ~= nil then
         special[key] = changed[key]
         changed[key] = nil
@@ -219,7 +221,8 @@ function M.note(root, path, kind, changed, opts)
   end
   if next(changed) then
     local ok, err = fs.update_lines(path, function(lines)
-      return require("logpose.frontmatter").set(lines, changed)
+      -- a task's keys go in their place when new (`assignee:` after `project:`…)
+      return require("logpose.frontmatter").set(lines, changed, { order = kind == "task" and taskfile.KEYS or nil })
     end, { tidy = true })
     if not ok then
       error(err, 0)
@@ -230,6 +233,9 @@ function M.note(root, path, kind, changed, opts)
   end
   if special.project ~= nil then
     taskfile.set_project(path, special.project ~= "" and special.project or nil)
+  end
+  if special.assignee ~= nil then
+    taskfile.set_assignee(path, special.assignee ~= "" and special.assignee or nil)
   end
   if special.blocked ~= nil then
     taskfile.set_blocked(path, (special.blocked ~= "" and special.blocked) or nil)

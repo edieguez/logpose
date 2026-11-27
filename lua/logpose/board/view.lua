@@ -552,6 +552,7 @@ end
 function M.refresh(b, path)
   local project = require("logpose.project")
   local pages = project.pages(b.root)
+  cards.refresh_me()
   cards.project_hl = {}
   for name in pairs(pages) do
     cards.project_hl[name] = project.hl(b.root, name, pages)

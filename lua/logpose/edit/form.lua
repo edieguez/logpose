@@ -82,8 +82,7 @@ function M.candidates(root, kind, key, partial, others)
       add(c.tag, tostring(c.count))
     end
   elseif
-    key == "attendees"
-    or key == "with"
+    require("logpose.people").FIELDS[key]
     or (
       key == "title"
       and kind == "meeting"

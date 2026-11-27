@@ -153,6 +153,7 @@ return {
     tasks = {
       capture_status = "backlog", -- the column :Logpose capture puts a new task in
       promote_status = "backlog", -- the column for a to-do made into a task (:Logpose promote)
+      unassigned_mine = true, -- tasks without an assignee count as yours (the mine filter, assignee:me)
     },
 
     -- Lists, search and action items -----------------------------------------------------------------------
@@ -172,7 +173,7 @@ return {
       -- acme = "tasks open project:acme",
       -- decisions = "decisions sprint:current",
     },
-    -- me = "@ana", -- your handle in action items (- [ ] … @ana), for :Logpose actions mine
+    -- me = "@ana", -- your handle: action items (- [ ] … @ana) and tasks (assignee: ana) that are yours
     actions = {
       include_daily = false, -- also list to-dos in daily notes, not only in meeting notes
       unassigned_mine = true, -- action items without an @owner count as yours in :Logpose actions mine

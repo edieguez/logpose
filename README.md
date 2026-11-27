@@ -309,23 +309,27 @@ moving the `Previous:` line older notes start with into the frontmatter.
 ```vim
 :Logpose capture Fix flaky test #ci due:fri   " new task in Backlog, for the active project
 :Logpose capture Write chapter 3 +thesis      " … or for another one
+:Logpose capture Review the PR @ana for:bob   " Ana does it, Bob cares about it
 :Logpose board                                " the Kanban board
 ```
 
 **To set everything up front**, run `:Logpose capture` without text (or press `a` on the board).
 It opens the [edit form](#editing-details) for a new task: you type the title, then set its
-column, project, tags, due date, blocker and a line of context, with the same completion and
-checks. It starts from the active project (on the board: the column you're in, and the project
+column, project, assignee, stakeholders, tags, due date, blocker and a line of context, with the
+same completion and checks. It starts from the active project (on the board: the column you're in, and the project
 row with `s`), and saving creates it.
 
 **One line, for speed:** `:Logpose capture <text>` goes to the active project unless the text
 names one with `+name` (`+none` for no project). `due:` takes a date, `today`, `tomorrow`, a
-weekday (`fri`) or `+3d`, and `<Tab>` completes `+projects`, `#tags` and `due:`. The message
-after it says where the task went (`→ acme (this repo)`); if that's wrong, `:Logpose edit last`
-fixes it. A `due:` that isn't a date (`due:tomorow`) stays in the title, and a warning says so.
+weekday (`fri`) or `+3d`. `@name` says who does it and `for:name` who cares about it (see
+[who does it](#who-does-it-who-cares-about-it)). `<Tab>` completes `+projects`, `#tags`, `due:`,
+`@people` and `for:people`. The message after it says where the task went
+(`→ acme (this repo)`); if that's wrong, `:Logpose edit last` fixes it. A `due:` that isn't a
+date (`due:tomorow`) stays in the title, and a warning says so.
 
 The board has five columns: **Backlog → TODO → In progress → Follow-up → Done**. Each card
-shows its title and, under it, `◆ project · due Tue ✎ 2 #tags`. The project is in its own colour,
+shows its title and, under it, `◆ project · due Tue · @Ana ✎ 2 #tags` (`@Ana` when someone else
+does it). The project is in its own colour,
 picked from your colour scheme (or set with `color:` on its project page, `e` in
 `:Logpose projects`), so you can tell projects apart at a glance. Tags are chips on a soft
 background, so they stand out in any colour scheme; the rest is in a quiet colour.
@@ -377,6 +381,28 @@ In a project's repo, the board shows that project's tasks. `p` shows all project
 another project, and `m` moves the focused card to another project. With one row per project
 (`s`), `a` adds the card to the row you're in.
 
+### Who does it, who cares about it
+
+A task can say who does it (`assignee`, one person) and who cares about the outcome
+(`stakeholders`: who asked for it, who to keep informed or ask for approval). Both are optional;
+**a task nobody is assigned counts as yours**, so a journal you keep alone needs neither.
+
+- **Setting them:** `@ana` when capturing assigns the task (the last `@` wins; `@none` leaves it
+  unassigned), and `for:bob` adds a stakeholder. A known person is written by their page's name.
+  Promoting an action item makes its `@owner` the assignee. On the board, `A` assigns the card
+  (or the marked cards): you, anyone you know, someone new or nobody. The form has both fields,
+  with people suggestions.
+- **On the board:** a card done by someone else says so (`@Ana`); yours look as before.
+  Assigning is logged in the task (`assignee: none → Ana López`), and `u` undoes it.
+- **Finding them:** `mine` is your tasks (assigned to you, set `me`, or to nobody),
+  `unassigned` the ones nobody is assigned, `assignee:ana` and `stakeholders:bob` the ones Ana does
+  and Bob cares about. `@ana` finds every task she does or cares about, along with her meetings
+  and mentions.
+
+> [!NOTE]
+> In captured text, every `@name` is an assignment. To mention someone in the title, write their
+> name without the `@`.
+
 To fix several cards at once, mark them with `v` and press `e`. Fields the cards share start
 filled in; the others start empty, meaning "leave each card as it is". In `tags`, `+urgent -ci`
 adds and removes tags and keeps each card's others; `none` clears a project, due date or blocker.
@@ -392,6 +418,8 @@ line to `## Log` on every change.
 title: "Fix flaky checkout test"
 status: in-progress
 project: acme
+assignee: Ana López
+stakeholders: [Bob]
 tags: [ci]
 due: 2026-10-20
 blocked: waiting on ana
@@ -415,8 +443,8 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 
 | From | Do | Result |
 |---|---|---|
-| Anywhere | `:Logpose capture text #tag +project due:DATE` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
-| A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back; the to-do keeps its text and gains a `→ [[task]]` line under it. |
+| Anywhere | `:Logpose capture text #tag +project due:DATE @person for:person` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
+| A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back, assigned to the to-do's `@owner`; the to-do keeps its text and gains a `→ [[task]]` line under it. |
 | A task file | `:Logpose done` | The task moves to Done. |
 | A task file (or a selection in it), or `N` on the board | `:Logpose promote` | A topic note from the task's write-up, linked both ways (see below). |
 
@@ -672,6 +700,7 @@ must match. The most useful ones:
 | `@ana` | items involving Ana |
 | `open` / `done` | tasks (in Done or not), to-dos (checked or not) |
 | `blocked` | blocked tasks |
+| `mine`, `unassigned` | your tasks (or nobody's) / nobody's |
 | `sprint:current`, `sprint:-1`, `since:-7d` | a time range |
 | `attendees:ana`, `date>=-30d`, `role:lead` | any frontmatter field |
 | `a or b`, `not a`, `-a`, `( … )`, `-( … )` | either, neither, grouping |
@@ -712,7 +741,8 @@ such as `project:` are ignored until they're complete. Every result has a previe
 They open in the quickfix list, soonest due first, with overdue items flagged. Filters work as
 in `find`.
 
-**People** come from meeting `attendees:`, 1:1s and `@mentions`, and from [people pages](#people).
+**People** come from meeting `attendees:`, 1:1s, `@mentions`, tasks' `assignee:` and
+`stakeholders:`, and from [people pages](#people).
 `@ana` or `person:ana` filters any search.
 
 ## People
@@ -758,8 +788,9 @@ press `n` on the people list. The list shows how many are waiting (`✎ 2 for th
 the next 1:1 with them (`t`, or any meeting type with `person = true`) takes them into its
 `## Topics` (or a new `## Agenda`) and empties the page's list, so each lives in one place.
 
-`gx` on an `@mention` or an attendee opens their page. `:Logpose rename-person ana Ana García`
-renames someone everywhere: the page (the old name stays as an alias), attendees and `@mentions`.
+`gx` on an `@mention`, an attendee, an assignee or a stakeholder opens their page.
+`:Logpose rename-person ana Ana García` renames someone everywhere: the page (the old name stays
+as an alias), attendees, assignees, stakeholders and `@mentions`.
 
 **Ways to reach people are yours to define**, so moving to a company on another chat app is a
 config change. Email is there by default; see [People and contacts](#people-and-contacts) to add
@@ -783,7 +814,7 @@ task you just captured:
 
 | It edits | Fields |
 |---|---|
-| Tasks | title, status, project, tags, due, blocked |
+| Tasks | title, status, project, assignee, stakeholders, tags, due, blocked |
 | Meetings | title, type, date, project, attendees, tags |
 | Topic notes | title, project, tags |
 | Project docs | title, type, status, project, tags |
@@ -1042,7 +1073,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | Command | Does |
 |---|---|
 | `board [FILTERS]` | The Kanban board. |
-| `capture[!] [TEXT]` | New task in Backlog. Without text, the new-task form; with text, `+name` picks the project. `!` opens it. |
+| `capture[!] [TEXT]` | New task in Backlog. Without text, the new-task form; with text, `+name` picks the project, `@name` assigns it, `for:name` adds a stakeholder. `!` opens it. |
 | `done` | Move the task you're in (its task file) to Done. |
 
 ### To-dos
@@ -1109,6 +1140,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `<CR>` | open the task file | `/` | the [filter bar](#the-filter-bar); `<BS>` clears the filter |
 | `p` | this project / all projects | `P` | projects screen (switch there) |
 | `m` | move the card to another project | `e` | edit the card's fields |
+| `A` | assign the card: you, someone, nobody | | |
 | `v` | mark / unmark the card | `V` `<Esc>` | unmark all |
 | `r` | refresh | `q` | close |
 | `?` | the keys and the filter cheat sheet | | |
@@ -1117,7 +1149,7 @@ A count repeats a move, as in Vim: `3j` goes three cards down, `2L` moves the ca
 right. The same holds on the lists (`5j`, `2>` moves an entry two groups on). The arrow keys move
 like `h` `j` `k` `l`, and a double-click opens a card.
 
-With cards marked, `H` `L`, `gm`, `x`, `b`, `m` and `e` act on all of them as one undo step.
+With cards marked, `H` `L`, `gm`, `x`, `b`, `m`, `A` and `e` act on all of them as one undo step.
 
 ## Search filters
 
@@ -1125,11 +1157,14 @@ With cards marked, `H` `L`, `gm`, `x`, `b`, `m` and `e` act on all of them as on
 |---|---|
 | `project:acme` (`p:acme`) | items of the project, or tagged `#acme` |
 | `#perf`, `tag:perf` | tagged items |
-| `@ana`, `person:ana` | items involving the person: attendee, 1:1, or @mention |
+| `@ana`, `person:ana` | items involving the person: attendee, 1:1, @mention, a task's assignee or stakeholder |
 | `type:retro` | meetings of that type; `type:daily`, `type:meeting`, `type:topic`, `type:project`, `type:task`, `type:person` for kinds of notes |
 | `open`, `done` | tasks (in Done or not) and to-dos (checked or not) |
 | `status:in-progress` | tasks in that board column |
 | `blocked` | blocked tasks |
+| `mine`, `assignee:me` | tasks assigned to you (`me`), or to nobody (`tasks.unassigned_mine`) |
+| `unassigned` | tasks nobody is assigned |
+| `assignee:ana`, `stakeholders:bob` | tasks the person does / cares about, by any of their names, or part of one |
 | `since:DATE`, `until:DATE` | `2026-10-14`, `today`, `yesterday`, `tomorrow`, `-7d`, `+2w` |
 | `week:current`, `sprint:-1`, `sprint:42` | a whole week or sprint |
 | `section:decisions`, `section:follow-ups` | lines under a matching `##` heading |
@@ -1576,6 +1611,7 @@ The defaults are `decision` (statuses `proposed`, `accepted`, `superseded`, `rej
 | `board.open` | `"window"` | Where the board opens: the current window, or `"tab"` for its own tab page. |
 | `tasks.capture_status` | `"backlog"` | The column `:Logpose capture` puts new tasks in. Tasks with a status that isn't a column show here too. |
 | `tasks.promote_status` | `"backlog"` | The column for a to-do made into a task (a checked to-do goes to Done). |
+| `tasks.unassigned_mine` | `true` | Tasks without an `assignee` count as yours (`mine`, `assignee:me`). |
 
 #### Lists, search and action items
 
@@ -1586,7 +1622,7 @@ The defaults are `decision` (statuses `proposed`, `accepted`, `superseded`, `rej
 | `search.live` | `true` | With snacks, fzf-lua or Telescope, the picker prompt holds the query and results update as you type; `false` gives fixed results the picker fuzzy-filters. |
 | `retrieval.sections` | `{ "decisions", "blockers", "risks", "open questions" }` | Headings whose every line is searchable, tagged or not (`find decisions`, `section:`). |
 | `views` | `{}` | Saved searches: `name = "find arguments"`, run with `:Logpose view name`. |
-| `me` | `nil` | Your handle in action items (`"@ana"`), for `:Logpose actions mine`. |
+| `me` | `nil` | Your handle (`"@ana"`), for `:Logpose actions mine` and your tasks (`mine`, `A` on the board). |
 | `actions.include_daily` | `false` | Also collect to-dos from daily notes, not only meeting notes. |
 | `actions.unassigned_mine` | `true` | Action items without an `@owner` count as yours in `mine`. |
 | `actions.output` | `"quickfix"` | Where `:Logpose actions` lists items: `"quickfix"` or `"picker"`. |
@@ -1645,6 +1681,7 @@ vim.api.nvim_set_hl(0, "LogposeBoardOverdue", { fg = "#f7768e", bold = true })
 | `LogposeBoardProject` | `Identifier` | a project without a colour of its own |
 | `LogposeBoardTag` | a soft background | tag chips |
 | `LogposeBoardNotes` | `Directory` | the linked-notes count (`✎ 2`) |
+| `LogposeBoardAssignee` | `Special` | who does the task, when it isn't you (`@Ana`) |
 | `LogposeBoardDue` | `Comment` | due dates |
 | `LogposeBoardDueSoon` | `DiagnosticWarn` | due today or tomorrow |
 | `LogposeBoardOverdue` | `DiagnosticError` | overdue |

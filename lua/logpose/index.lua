@@ -23,6 +23,8 @@ local M = {}
 ---@field status? string   tasks: board column
 ---@field blocked? string  tasks: block reason
 ---@field due? string      tasks: due date
+---@field assignee? string  tasks: who does it, as written
+---@field stakeholders? string[]  tasks: who cares about it, as written
 ---@field created? string  tasks
 ---@field started? string  tasks
 ---@field done_date? string tasks: when it reached Done
@@ -312,7 +314,8 @@ function M.index_lines(path, lines, root)
   local mtype = type(fm.type) == "string" and fm.type ~= "" and fm.type or nil
   local series = type(fm.series) == "string" and fm.series ~= "" and fm.series or nil
 
-  -- People named in frontmatter: attendees (list or comma string) and `with:` (1:1s).
+  -- People named in frontmatter (`people.FIELDS`): attendees and `with:` (1:1s), a task's
+  -- assignee and stakeholders; each a list or a comma string.
   local names = {}
   local note_people = {}
   local function add_person(name)
@@ -323,18 +326,19 @@ function M.index_lines(path, lines, root)
       table.insert(note_people, slug)
     end
   end
-  local attendees = fm.attendees
-  if type(attendees) == "string" then
-    for n in attendees:gmatch("[^,]+") do
-      add_person(n)
+  for _, key in ipairs({ "attendees", "with", "assignee", "stakeholders" }) do
+    local v = fm[key]
+    if type(v) == "string" then
+      for n in v:gmatch("[^,]+") do
+        add_person(n)
+      end
+    elseif type(v) == "table" then
+      for _, n in ipairs(v) do
+        if type(n) == "string" then
+          add_person(n)
+        end
+      end
     end
-  elseif type(attendees) == "table" then
-    for _, n in ipairs(attendees) do
-      add_person(n)
-    end
-  end
-  if type(fm.with) == "string" then
-    add_person(fm.with)
   end
 
   local note = {
@@ -366,6 +370,7 @@ function M.index_lines(path, lines, root)
   if file_type == "task" then
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
+    note.assignee, note.stakeholders = t.assignee, t.stakeholders
     note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
     note.date = t.done or (t.created and t.created:sub(1, 10)) or note.date
   end

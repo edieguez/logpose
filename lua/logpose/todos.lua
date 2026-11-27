@@ -156,10 +156,19 @@ function M.promote(root)
   local index = require("logpose.index")
   local note_item = index.index_lines(note, vim.api.nvim_buf_get_lines(buf, 0, -1, false), root)[1]
   local project = note_item.project or require("logpose.project").resolve(root)
-  local title, tags, due, explicit, unread = taskfile.from_text(todo.text)
+  -- the to-do's owner (its first @name) does the task, `for:name` cares about it; other
+  -- mentions stay in the title
+  local rest, owner, for_names = taskfile.take_people(todo.text, { first_only = true })
+  local title, tags, due, explicit, unread = taskfile.from_text(rest)
   if explicit ~= nil then
     project = explicit or nil
   end
+  local people = require("logpose.people")
+  local known = (owner or #for_names > 0) and people.known(root) or {}
+  local assignee = owner and people.canonical(owner, known) or nil
+  local stakeholders = vim.tbl_map(function(n)
+    return people.canonical(n, known)
+  end, for_names)
   local link = require("logpose.link")
   local path = taskfile.path_for(root, title)
   local status = todo.checked and config.get().board.done or config.get().tasks.promote_status
@@ -168,6 +177,8 @@ function M.promote(root)
     title = title,
     status = status,
     project = project,
+    assignee = assignee,
+    stakeholders = stakeholders,
     tags = tags,
     due = due,
     body = { "From: " .. link.make(path, note, note_item.title, root) },

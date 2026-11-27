@@ -22,8 +22,9 @@ M.HELP = {
   { "a", "add a card here" },
   { "D", "delete the card (asks)" },
   { "m", "move the card to another project" },
+  { "A", "assign the card: you, someone, nobody" },
   { "e", "edit the card's fields" },
-  { "v  V <Esc>", "mark / unmark the card · unmark all (H L gm x b m e act on all)" },
+  { "v  V <Esc>", "mark / unmark the card · unmark all (H L gm x b m A e act on all)" },
   { "u  <C-r>", "undo / redo a board change" },
   { "Reading" },
   { "<CR>", "open the task file" },
@@ -193,6 +194,9 @@ function M.attach(b)
   map("m", function()
     actions.move_to_project(b)
   end, "Move the card to a project")
+  map("A", function()
+    actions.assign(b)
+  end, "Assign the card (or marked cards)")
   map("r", function()
     view.refresh(b, (view.focused(b) or {}).file)
   end, "Refresh")

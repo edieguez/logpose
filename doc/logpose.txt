@@ -226,7 +226,8 @@ Every task is a markdown file in `tasks/`, so it has room for context. The
 board (|:Logpose-board|) is how you move them through the columns
 Backlog, TODO, In progress, Follow-up and Done.
 
-Each card shows its title, and under it `◆ project · due Tue ✎ 2 #tags`.
+Each card shows its title, and under it `◆ project · due Tue · @Ana ✎ 2 #tags`
+(`@Ana` when someone else does it: |logpose-assignee|).
 The project is in its own colour, picked from your colour scheme's palette
 (a project page's `color:` wins); tags are chips on a soft background; the
 rest is quiet. Colour is otherwise kept for what needs attention:
@@ -256,6 +257,8 @@ You never edit `status` by hand: logpose moves it, records `started` and
   title: "Fix flaky checkout test"
   status: in-progress
   project: acme
+  assignee: Ana López
+  stakeholders: [Bob]
   tags: [ci]
   due: 2026-10-20
   blocked: waiting on ana
@@ -275,6 +278,27 @@ You never edit `status` by hand: logpose moves it, records `started` and
 <
 An optional `order` key keeps the position you gave a card with
 `<C-j>`/`<C-k>`.
+
+                                                            *logpose-assignee*
+Who does it, who cares about it ~
+`assignee` is who does the task (one person); `stakeholders` are who care
+about the outcome: who asked for it, who to keep informed or ask for
+approval. Both are optional and written only when set. A task nobody is
+assigned counts as yours (`tasks.unassigned_mine`), so a journal you keep
+alone needs neither.
+
+  - `@ana` in |:Logpose-capture| assigns the task (the last `@` wins;
+    `@none`: nobody); `for:bob` adds a stakeholder. A known person is
+    written by their page's name. In captured text every `@name` is an
+    assignment: write a name without `@` to keep it in the title.
+  - |:Logpose-promote| makes an action item's first `@owner` the assignee.
+  - `A` on the board assigns the card (or the marked cards): you (`me`),
+    anyone you know, someone new or nobody. The form has both fields.
+  - A card done by someone else shows `@Ana`; yours look as before. A
+    change of assignee is logged in the task.
+  - Filters: `mine`, `assignee:me`, `unassigned`, `assignee:ana`,
+    `stakeholders:bob`; `@ana` finds the tasks she does or cares about too
+    (|logpose-filters|).
 
 Getting tasks in and out ~
 
@@ -316,7 +340,7 @@ groups, and each card's border takes its column's colour (`board.border`:
 A column's `hl` picks another group, or override these:
 `LogposeBoardColumn1` … `LogposeBoardColumn5`, `LogposeBoardBorder`,
 `LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta`,
-`LogposeBoardNotes`,
+`LogposeBoardNotes`, `LogposeBoardAssignee`,
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`,
 `LogposeBoardStale`, `LogposeBoardDone`, `LogposeBoardMarked`,
 `LogposeBoardProject`, `LogposeBoardTag`, `LogposeBoardTitle`,
@@ -529,8 +553,9 @@ due date: >markdown
 |:Logpose-actions| lists them in the quickfix list, soonest due first, with
 overdue items flagged. `mine` uses your `me` handle.
 
-People come from meeting `attendees:`, the person of a 1:1, `@mentions`
-and people pages (|logpose-people|). `:Logpose find people` lists everyone;
+People come from meeting `attendees:`, the person of a 1:1, `@mentions`,
+a task's `assignee:` and `stakeholders:` and people pages
+(|logpose-people|). `:Logpose find people` lists everyone;
 `@ana` or `person:ana` filters any search.
 
 Options: `me`, `actions`.
@@ -584,8 +609,9 @@ and renaming makes them one person. You (`me`) aren't in the list.
 `/` filters with any field too: `role:lead`, `slack:*`, `date>=-30d` (met
 in the last 30 days).
 
-`gx` on an `@mention`, or on a name in an `attendees:` or `with:` line,
-opens that person's page when there is one.
+`gx` on an `@mention`, or on a name in an `attendees:`, `with:`,
+`assignee:` or `stakeholders:` line, opens that person's page when there is
+one.
 
                                                      *logpose-people-contacts*
 Ways to reach people are configured (`people.contacts`), so another chat app
@@ -610,8 +636,9 @@ EDITING DETAILS                                                 *logpose-edit*
 opens the frontmatter of a task or a note as a form in a floating window;
 its title says which (`Edit task · …`, `Edit meeting · …`). Each line holds
 one value; the field's name is drawn beside it and can't be edited. Lists
-(`tags`, `attendees`, `paths`) are written `a, b`. Fields logpose keeps
-itself (`created`, `modified`, `started`, `done`, `series`) are shown below.
+(`tags`, `attendees`, `stakeholders`, `paths`) are written `a, b`. Fields
+logpose keeps itself (`created`, `modified`, `started`, `done`, `series`)
+are shown below.
 
 The form, like the peek and help windows, keeps the focus while it's open:
 going to a window behind it (a click, <C-w>w, a plugin) comes back to it, and
@@ -625,7 +652,7 @@ As you type, a menu offers what fits the field: projects, board columns
 
 Every value is checked as you type: a problem shows beside the field, a
 valid value gets a note (what a date means, a project's name, "new project",
-"new: Maria" for an attendee nobody has used yet), and an empty field shows
+"new: Maria" for a person nobody has used yet), and an empty field shows
 what to type. Below the fields, a summary says what
 saving will do (set `started`, log a project change, move a meeting note and
 fix N links to it). Nothing is saved while a field shows a problem.
@@ -642,7 +669,8 @@ fix N links to it). Nothing is saved while a field shows a problem.
   ?              show these keys in the form
 
 Saving applies the changes the way logpose would:
-  - a task's `status`, `project` and `blocked` go through the board's code:
+  - a task's `status`, `project`, `assignee` and `blocked` go through the
+    board's code:
     logged in the task, `started`/`done` kept; `u` on the board undoes an
     edit made there, one save at a time;
   - dates accept YYYY-MM-DD, `today`, `tomorrow`, a weekday (`fri`), `+3d`,
@@ -656,8 +684,9 @@ Saving applies the changes the way logpose would:
 A new task ~
 `:Logpose capture` without text, or `a` on the board, opens the same form
 for a task that doesn't exist yet: title (typed first), column, project,
-tags, due date, blocker and `context` (a line under `## Context`). It starts
-from the active project (on the board: the column, and the row with `s`).
+assignee, stakeholders, tags, due date, blocker and `context` (a line under
+`## Context`). It starts from the active project (on the board: the column,
+and the row with `s`).
 Saving creates the task; the form then edits it, and on the board each save
 is its own undo step.
 
@@ -693,10 +722,11 @@ matter.
                                                          *logpose-completion*
 Completion in notes ~
 In a journal note, `[[` offers every note and task to link (inserted in
-`link_style`); a name in the frontmatter's `attendees:` or `with:` line
-offers people; `@` in the text offers people (pages and everyone mentioned)
-as `@handle`, matching any part of the name. Nothing is offered inside a
-code block, where `@decorator` and `[[` are code.
+`link_style`); a name in the frontmatter's `attendees:`, `with:`,
+`assignee:` or `stakeholders:` line offers people; `@` in the text offers
+people (pages and everyone mentioned) as `@handle`, matching any part of the
+name. Nothing is offered inside a code block, where `@decorator` and `[[`
+are code.
 
 No setup is needed. In a journal note, on the first Insert mode, logpose
 adds its source to whichever completion plugin is loaded:
@@ -842,11 +872,14 @@ Tasks ~
     project, or the one named with `+name` in {text} (`+none`: no project).
     `#tags` and `due:` (a date, `today`, `tomorrow`, `fri`, `+3d`) go into
     the frontmatter; a `due:` that isn't a date stays in the title, with a
-    warning. <Tab> completes `+projects`, `#tags` and `due:`. The
+    warning. `@name` assigns the task and `for:name` adds a stakeholder
+    (|logpose-assignee|). <Tab> completes `+projects`, `#tags`, `due:`,
+    `@people` and `for:people`. The
     message after it names the project and how it was chosen; |:Logpose-edit|
     `last` fixes a wrong one. [!] opens the new file. Without {text}: the
-    new-task form (|logpose-edit|), to set the title, column, project, tags,
-    due date, blocker and a line of context before the task exists.
+    new-task form (|logpose-edit|), to set the title, column, project,
+    assignee, stakeholders, tags, due date, blocker and a line of context
+    before the task exists.
 
                                                                *:Logpose-done*
 :Logpose done
@@ -868,7 +901,8 @@ To-dos ~
     Move something up a level, linking both ends to each other.
 
     On a to-do: a task in `tasks.promote_status` (Backlog; Done if it was
-    checked), with the note's project and a `From:` link back. The to-do
+    checked), with the note's project, its first `@owner` as assignee and
+    a `From:` link back. The to-do
     keeps its text (an action item its owner and due date) and gains a
     `→ [[task]]` line under it. The two then stay in step
     (|logpose-todo-sync|).
@@ -1036,8 +1070,9 @@ Sprints and maintenance ~
                                                       *:Logpose-rename-person*
 :Logpose rename-person[!] {handle} [{new name}]
     Rename a person everywhere: their page moves to `people/{new-slug}.md`
-    (links follow) and keeps the old name in `aliases`; `attendees:` and
-    `with:` entries and `@mentions` using the old name are rewritten.
+    (links follow) and keeps the old name in `aliases`; `attendees:`,
+    `with:`, `assignee:` and `stakeholders:` entries and `@mentions` using
+    the old name are rewritten.
     Without {new name}, asks for it. Preview and [!] as for
     |:Logpose-rename-tag|.
 
@@ -1100,9 +1135,10 @@ room, and `?` lists them all.
   p             this project / all projects
   P             the projects screen: switch there (|logpose-projects|)
   m             move the card to another project
+  A             assign the card: you, someone, nobody (|logpose-assignee|)
   e             edit the card's fields (|logpose-edit|)
-  v             mark / unmark the card; with cards marked, H L gm x b m e
-                act on all of them, as one undo step
+  v             mark / unmark the card; with cards marked, H L gm x b m A
+                e act on all of them, as one undo step
   V  <Esc>      unmark all
   r             refresh
   q             close
@@ -1120,13 +1156,17 @@ the opposite (also of a group: `-(a or b)`), and parentheses group: >
   project:{name}          the item's project, or a `#{name}` tag (`p:` for
                           short)
   #{tag}  tag:{tag}       tagged items
-  @{name}  person:{name}  involves the person (attendee, 1:1, @mention),
-                          under any of their names
+  @{name}  person:{name}  involves the person (attendee, 1:1, @mention, a
+                          task's assignee or stakeholder), under any of
+                          their names
   type:{type}             meetings of that type; or the kind of note:
                           daily, meeting, topic, project, task, person
   open  done              tasks (in Done or not), to-dos (checked or not)
   status:{key}            tasks in that board column
   blocked                 blocked tasks
+  mine  assignee:me       tasks assigned to you (`me`), or to nobody
+                          (`tasks.unassigned_mine`)
+  unassigned              tasks nobody is assigned
   since:{date}            on or after; YYYY-MM-DD, today, yesterday,
   until:{date}            tomorrow, -7d, +2w
   week:{spec}             a whole week or sprint: current, -N, +N, a date,
@@ -1138,6 +1178,8 @@ the opposite (also of a group: `-(a or b)`), and parentheses group: >
                           and accents ignored): `room:lisboa`, `role:lead`
   attendees:{name}        meetings with the person, by any of their names
   with:{name}             or part of one
+  assignee:{name}         tasks the person does / cares about, the same
+  stakeholders:{name}     way
   date:{when}             a day, month (2026-10) or year; also `due:`,
                           `created:`, `started:`, `done:`, `modified:`
   {key}>={v}  {key}>{v}   comparisons, for dates (`date>=-7d`, `due<today`)
@@ -1248,7 +1290,8 @@ General ~
 
   root           (string|nil)  Journal path (`~` is expanded). Overrides
                  the journal chosen with |:Logpose-init|.
-  me             (string|nil)  Your handle in action items, e.g. "@ana".
+  me             (string|nil)  Your handle, e.g. "@ana": your action items
+                 (`:Logpose actions mine`) and your tasks (`mine`).
   keymaps        (boolean|table)  false. See |logpose-keymaps|.
                                                             *logpose-workdays*
   workdays       (integer[])   ISO weekdays you work (Monday = 1).
@@ -1300,6 +1343,7 @@ Board and tasks ~
   tasks          (table)
       `capture_status`    column for |:Logpose-capture| ("backlog")
       `promote_status`    column for |:Logpose-promote| ("backlog")
+      `unassigned_mine`   tasks without an assignee count as yours (true)
   lists          (table)
       `max_width`         the lists span the window up to this many
                           columns; on a wider one they keep to it, in

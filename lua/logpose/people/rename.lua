@@ -1,6 +1,7 @@
 --- `:Logpose rename-person[!] handle New Name`: a person's new name everywhere. Their page moves
---- (`people/<new>.md`, links follow) and keeps the old name as an alias; attendees and `with:`
---- that name them by the old name, and `@old` mentions, are rewritten. Preview first (`!` skips
+--- (`people/<new>.md`, links follow) and keeps the old name as an alias; frontmatter naming them
+--- by the old name (attendees, `with:`, a task's assignee and stakeholders) and `@old` mentions
+--- are rewritten. Preview first (`!` skips
 --- it); files with unsaved changes are never touched.
 local config = require("logpose.config")
 local fs = require("logpose.util.fs")
@@ -8,9 +9,6 @@ local text = require("logpose.util.text")
 local ui = require("logpose.util.ui")
 
 local M = {}
-
---- The frontmatter keys holding people.
-local KEYS = { attendees = true, with = true }
 
 --- Plan the rename of the person `old` (any of their names) to `new`.
 ---@param root string
@@ -77,7 +75,7 @@ function M.plan(root, old, new)
           end
           close = close - (last - i)
           lines[i], count, last = fmw.line("aliases", list), count + 1, i
-        elseif key and KEYS[key] and v then
+        elseif key and people.FIELDS[key] and v then
           local list = type(v) == "table" and v or { v }
           local changed = false
           list = vim.tbl_map(function(name)

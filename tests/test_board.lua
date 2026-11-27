@@ -10,7 +10,18 @@ end
 
 local function task(name, fields, body)
   local lines = { "---", ('title: "%s"'):format(fields.title or name) }
-  for _, k in ipairs({ "status", "project", "tags", "due", "blocked", "created", "started", "done", "order" }) do
+  for _, k in ipairs({
+    "status",
+    "project",
+    "assignee",
+    "tags",
+    "due",
+    "blocked",
+    "created",
+    "started",
+    "done",
+    "order",
+  }) do
     if fields[k] then
       table.insert(lines, k .. ": " .. fields[k])
     end
@@ -195,7 +206,7 @@ T["a opens the new-task form in the focused column with the active project"] = f
   child.type_keys("a")
   fill_new(
     "Draft intro",
-    { [3] = "thesis", [4] = "writing", [5] = "fri", [6] = "waiting on Ana", [7] = "see the outline" }
+    { [3] = "thesis", [6] = "writing", [7] = "fri", [8] = "waiting on Ana", [9] = "see the outline" }
   )
   content = H.read(root .. "/tasks/draft-intro.md")
   H.contains(content, "project: thesis")
@@ -618,6 +629,79 @@ T["cards count the notes linked with the task; n opens them"] = function()
   H.contains(child.notifications()[#child.notifications()].msg, "no notes link to this task")
 end
 
+T["cards show who does them when it isn't you; A assigns, marked cards too, undo restores"] = function()
+  setup("{ me = '@emmanuel' }")
+  task("fix-flaky", {
+    title = "Fix flaky test",
+    status = "todo",
+    project = "acme",
+    assignee = "Ana López",
+    created = "2026-10-10",
+  })
+  task("read-paper", {
+    title = "Read paper",
+    status = "backlog",
+    project = "thesis",
+    assignee = "emmanuel",
+    created = "2026-10-11",
+  })
+  child.cmd("Logpose board")
+  local s = screen()
+  H.contains(s, "@Ana")
+  eq(s:find("@emmanuel", 1, true), nil) -- yours: nothing to say
+  child.type_keys("c")
+  H.contains(screen(), "@Ana")
+  child.type_keys("c")
+  local function assignee(name)
+    local path = root .. "/tasks/" .. name .. ".md"
+    return child.lua_get(
+      ("require('logpose.taskfile').parse(%q, vim.fn.readfile(%q), %q).assignee"):format(path, path, root)
+    )
+  end
+  -- pick by label
+  local function pick(label)
+    child.lua(([[vim.ui.select = function(items, opts, cb)
+      _G.labels = vim.tbl_map(opts.format_item, items); _G.prompt = opts.prompt
+      for _, it in ipairs(items) do if opts.format_item(it):find(%q, 1, true) then return cb(it) end end
+    end]]):format(label))
+  end
+  -- Read paper (focused) is yours: you aren't offered again, nobody is
+  pick("Nobody")
+  child.type_keys("A")
+  eq(child.lua_get("_G.prompt"), "Assign to")
+  local labels = child.lua_get("_G.labels")
+  eq(labels[1], "Ana López  (1 note)")
+  eq(labels[#labels - 1], "Someone new…")
+  eq(labels[#labels], "Nobody")
+  eq(assignee("read-paper"), vim.NIL)
+  H.contains(H.read(root .. "/tasks/read-paper.md"), "assignee: emmanuel → none")
+  child.type_keys("u")
+  eq(assignee("read-paper"), "emmanuel")
+  -- marked cards, one undo step
+  child.type_keys("v", "l", "v")
+  pick("Me (emmanuel)")
+  child.type_keys("A")
+  eq(assignee("fix-flaky"), "emmanuel")
+  eq(assignee("read-paper"), "emmanuel")
+  H.contains(child.notifications()[#child.notifications()].msg, "assigned 1 of 2 marked cards to emmanuel")
+  eq(screen():find("@Ana", 1, true), nil)
+  child.type_keys("u")
+  eq(assignee("fix-flaky"), "Ana López")
+  -- someone new: asked for, written by their page's name when they have one
+  H.write(root .. "/people/bob-smith.md", "---\nname: Bob Smith\naliases: [Bob]\n---\n")
+  child.type_keys("V")
+  pick("Someone new")
+  child.lua("vim.ui.input = function(opts, cb) cb('@bob') end")
+  child.type_keys("A")
+  eq(assignee("fix-flaky"), "Bob Smith")
+  H.contains(screen(), "@Bob")
+  -- and the board filters by it
+  child.lua("require('logpose.board').boards[vim.fn.bufnr('logpose://board')].filter = 'mine'")
+  child.type_keys("r")
+  eq(screen():find("Fix flaky test", 1, true), nil)
+  H.contains(screen(), "Read paper")
+end
+
 T["compact cards follow the same rules"] = function()
   child.cmd("Logpose board")
   child.type_keys("c")
@@ -801,9 +885,9 @@ T["v marks cards; H/L, x and e then act on all of them, as one undo step"] = fun
   -- e edits them together: fields they share are filled in, the others left "as is"
   child.type_keys("e")
   eq(child.bo.filetype, "logpose-edit")
-  eq(child.api.nvim_buf_get_lines(0, 0, -1, false), { "", "", "", "", "" })
+  eq(child.api.nvim_buf_get_lines(0, 0, -1, false), { "", "", "", "", "", "" })
   child.api.nvim_buf_set_lines(0, 1, 2, false, { "thesis" })
-  child.api.nvim_buf_set_lines(0, 2, 3, false, { "+urgent" })
+  child.api.nvim_buf_set_lines(0, 3, 4, false, { "+urgent" })
   child.cmd("write")
   child.type_keys("q")
   eq(child.bo.filetype, "logpose-board")

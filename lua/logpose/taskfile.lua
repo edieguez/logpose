@@ -4,6 +4,8 @@
 ---   title: "Fix flaky test"
 ---   status: in-progress
 ---   project: acme
+---   assignee: Ana López       (optional: who does it; nobody means you, `tasks.unassigned_mine`)
+---   stakeholders: [Bob]       (optional: who cares about it)
 ---   tags: [perf]
 ---   due: 2026-10-20
 ---   blocked: waiting on ana
@@ -24,13 +26,32 @@ local text = require("logpose.util.text")
 local M = {}
 
 --- Frontmatter keys logpose writes, in order.
-M.KEYS = { "title", "status", "project", "tags", "due", "blocked", "created", "modified", "started", "done", "order" }
+M.KEYS = {
+  "title",
+  "status",
+  "project",
+  "assignee",
+  "stakeholders",
+  "tags",
+  "due",
+  "blocked",
+  "created",
+  "modified",
+  "started",
+  "done",
+  "order",
+}
+
+--- Keys written only when they have a value (a task is unassigned without them).
+local OPTIONAL = { assignee = true, stakeholders = true, modified = true, order = true }
 
 ---@class logpose.Task
 ---@field path string
 ---@field title string
 ---@field status string
 ---@field project? string
+---@field assignee? string  who does it, as written (nil: nobody)
+---@field stakeholders string[]  who cares about it, as written
 ---@field tags string[]
 ---@field due? string
 ---@field blocked? string  reason ("yes" when none was given)
@@ -124,6 +145,8 @@ function M.parse(path, lines, root)
     title = title or vim.fn.fnamemodify(path, ":t:r"),
     status = status,
     project = str(fm.project) and fm.project:lower() or nil,
+    assignee = type(fm.assignee) == "string" and str(vim.trim(fm.assignee)) or nil,
+    stakeholders = M.names(fm.stakeholders),
     tags = tags,
     due = str(fm.due) and date.is_iso(fm.due) and fm.due or nil,
     blocked = str(fm.blocked),
@@ -133,6 +156,23 @@ function M.parse(path, lines, root)
     order = tonumber(fm.order),
     archived = vim.startswith(fs.normalize(path), fs.normalize(archive)),
   }
+end
+
+--- A list of names from frontmatter: a list, or a comma-separated string.
+---@param v any
+---@return string[]
+function M.names(v)
+  local out = {}
+  if type(v) == "string" then
+    v = vim.split(v, ",", { plain = true })
+  end
+  for _, n in ipairs(type(v) == "table" and v or {}) do
+    n = type(n) == "string" and vim.trim(n) or ""
+    if n ~= "" then
+      table.insert(out, n)
+    end
+  end
+  return out
 end
 
 --- Every task file under `dirs.tasks` (archived ones only with `archived = true`).
@@ -334,6 +374,29 @@ function M.set_project(path, project)
   return changed
 end
 
+--- Assign a task to someone (nil or "": nobody), logging the change. Returns whether it changed.
+---@param path string
+---@param assignee? string
+---@return boolean changed
+function M.set_assignee(path, assignee)
+  assignee = assignee and vim.trim(assignee) or nil
+  if assignee == "" then
+    assignee = nil
+  end
+  local changed = false
+  update(path, function(lines)
+    local fm = require("logpose.index").frontmatter(lines)
+    local old = type(fm.assignee) == "string" and str(vim.trim(fm.assignee)) or nil
+    if old == assignee then
+      return nil
+    end
+    changed = true
+    lines = M.set_field(lines, "assignee", assignee)
+    return M.append_log(lines, ("assignee: %s → %s"):format(old or "none", assignee or "none"))
+  end)
+  return changed
+end
+
 ---@param path string
 ---@param order? number
 function M.set_order(path, order)
@@ -381,6 +444,46 @@ function M.take_project(s)
   end
   local rest = (" " .. s):gsub("(%s)%+(%a[%w_%-]*)%f[%s%z]", take):gsub("(%s)project:(%a[%w_%-]*)%f[%s%z]", take)
   return vim.trim(rest), project
+end
+
+--- Take people out of a task text. `@name` is the assignee and leaves the text; with
+--- `first_only` (a to-do's owner), only the first `@name` counts and the others stay; else the
+--- last one wins (`@none`: explicitly nobody). `for:name` adds a stakeholder (repeatable). An `@`
+--- must start a word, so e-mail addresses are left alone.
+---@param s string
+---@param opts? { first_only?: boolean }
+---@return string rest, string|false|nil assignee false: explicitly nobody; nil: not given, string[] stakeholders
+function M.take_people(s, opts)
+  opts = opts or {}
+  local assignee
+  local stakeholders = {}
+  local handle = text.HANDLE
+  local taken = false
+  local rest = (" " .. s):gsub("(%s)for:(" .. handle .. ")", function(lead, name)
+    name = name:gsub("[%.%-]+$", "")
+    table.insert(stakeholders, name)
+    taken = true
+    return lead
+  end)
+  rest = rest:gsub("([%s%(%[,;])@(" .. handle .. ")", function(lead, name)
+    local trail = name:match("[%.%-]+$") or ""
+    name = name:sub(1, #name - #trail)
+    if opts.first_only and assignee ~= nil then
+      return nil -- not the first: a mention, kept
+    end
+    if name:lower() == "none" then
+      assignee = false
+    else
+      assignee = name
+    end
+    taken = true
+    return lead .. trail
+  end)
+  if taken then
+    rest = rest:gsub("%s+([,;:%.!?])", "%1") -- "ask @ana, then" -> "ask, then"
+  end
+  rest = rest:gsub("%s+", " ")
+  return vim.trim(rest), assignee, stakeholders
 end
 
 --- Split a checkbox text into a clean title, its #tags, a `due:` date (`due:2026-10-20`,
@@ -440,6 +543,8 @@ end
 ---@field path? string  use this path (from M.path_for) instead of a new one
 ---@field status? string
 ---@field project? string
+---@field assignee? string
+---@field stakeholders? string[]
 ---@field tags? string[]
 ---@field due? string
 ---@field created? string
@@ -466,6 +571,8 @@ function M.create(root, t)
     title = t.title,
     status = status,
     project = t.project,
+    assignee = t.assignee,
+    stakeholders = t.stakeholders,
     tags = t.tags or {},
     due = t.due,
     blocked = nil,
@@ -476,7 +583,8 @@ function M.create(root, t)
     done = status == config.get().board.done and today or nil,
   }
   for _, k in ipairs(M.KEYS) do
-    if k ~= "order" and not (k == "modified" and values.modified == nil) then
+    local v = values[k]
+    if not (OPTIONAL[k] and (v == nil or v == "" or (type(v) == "table" and #v == 0))) then
       table.insert(fm, require("logpose.frontmatter").line(k, values[k]))
     end
   end

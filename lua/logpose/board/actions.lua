@@ -41,6 +41,7 @@ local DID = {
   done = "done",
   block = "updated",
   project = "moved",
+  assign = "assigned",
 }
 
 --- Run `fn` on each target card (the marked ones, or the focused one) as one undo step;
@@ -267,6 +268,34 @@ function M.move_to_project(b)
         vim.log.levels.INFO
       )
     end
+  end)
+end
+
+--- `A`: assign the focused card (or the marked ones) to someone, yourself or nobody (asks who).
+---@param b logpose.Board
+function M.assign(b)
+  local targets = M.targets(b)
+  local it = targets[1]
+  if not it then
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  local current = #targets == 1 and it.assignee or nil
+  if #targets > 1 then
+    -- "Nobody" is offered when any of them is assigned
+    for _, card in ipairs(targets) do
+      current = current or card.assignee
+    end
+    current = current and "" or nil
+  end
+  local project = it.project or ((not b.all) and b.project) or nil
+  require("logpose.tasks").choose_assignee(b.root, project, current, function(name)
+    with_card(b, "assign", function(card)
+      if card.assignee == name then
+        return false
+      end
+      taskfile.set_assignee(card.file, name)
+    end, name and ("to " .. name) or "to nobody")
   end)
 end
 

@@ -1,6 +1,7 @@
 --- What the completion sources (blink.cmp, nvim-cmp) offer in a journal note:
 ---   `[[`                          notes and tasks to link (`links.complete_items`)
----   `attendees:` / `with:` lines  people, in the frontmatter, after each comma
+---   `attendees:` / `with:` / `assignee:` / `stakeholders:` lines  people, in the frontmatter,
+---                         after each comma
 ---   `@` in the text               people, as `@handle`
 --- People match any part of the name, accents ignored, the note's project's people first.
 ---
@@ -91,7 +92,7 @@ local function items_at(line, col, row, bufnr)
   local out = {}
   if in_fm then
     local key, rest = before:match("^(%w+):%s*(.*)$")
-    if key ~= "attendees" and key ~= "with" then
+    if not people.FIELDS[key] then
       return {}
     end
     local partial = rest:match("[,%[]%s*([^,%[]*)$") or rest
@@ -111,7 +112,7 @@ local function items_at(line, col, row, bufnr)
     for _, p in ipairs(people.match(known, partial, project)) do
       if not have[p] then
         i = i + 1
-        local name = key == "with" and p.name or yaml_item(p.name)
+        local name = people.FIELDS[key] == "one" and p.name or yaml_item(p.name)
         table.insert(out, person_item(p, i, name, range, p.name .. " " .. people.plain(p.name)))
       end
     end

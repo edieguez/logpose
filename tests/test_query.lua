@@ -181,6 +181,47 @@ T["attendees and with match people, partly typed"] = function()
   eq(m(meeting, { "with:ana" }), false)
 end
 
+T["assignee, stakeholders, mine and unassigned"] = function()
+  local config = require("logpose.config")
+  local function t(fields)
+    return {
+      kind = "task",
+      text = "x",
+      tags = {},
+      assignee = fields.assignee,
+      fields = fields,
+    }
+  end
+  local ana = t({ assignee = "Ana López", stakeholders = { "Bob Smith", "Carla" } })
+  local mine = t({ assignee = "emmanuel" })
+  local nobody = t({})
+  eq(m(ana, { "assignee:ana" }), true) -- part of the name, case and accents ignored
+  eq(m(ana, { 'assignee:"ana lopez"' }), true)
+  eq(m(ana, { "assignee:bob" }), false)
+  eq(m(ana, { "stakeholders:bob" }), true)
+  eq(m(ana, { "stakeholders:carla" }), true)
+  eq(m(ana, { "stakeholders:ana" }), false)
+  eq(m(nobody, { "unassigned" }), true)
+  eq(m(ana, { "unassigned" }), false)
+  eq(m(note, { "unassigned" }), false) -- tasks only
+  -- `me` unset: only tasks nobody is assigned are yours
+  config.setup({})
+  eq(m(nobody, { "mine" }), true)
+  eq(m(mine, { "mine" }), false)
+  eq(m(ana, { "mine" }), false)
+  config.setup({ me = "@emmanuel" })
+  eq(m(mine, { "mine" }), true)
+  eq(m(mine, { "assignee:me" }), true)
+  eq(m(nobody, { "assignee:me" }), true)
+  eq(m(ana, { "mine" }), false)
+  eq(m(ana, { "-mine" }), true)
+  eq(m(note, { "mine" }), false)
+  config.setup({ me = "@emmanuel", tasks = { unassigned_mine = false } })
+  eq(m(nobody, { "mine" }), false)
+  eq(m(mine, { "mine" }), true)
+  config.setup({})
+end
+
 T["dates: a day, a month, comparisons and ranges"] = function()
   eq(m(meeting, { "date:2026-10-14" }), true)
   eq(m(meeting, { "date:2026-10" }), true)

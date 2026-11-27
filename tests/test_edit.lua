@@ -93,17 +93,19 @@ T["the form: values only, field names beside them, hints, logpose's own fields b
   H.write(root .. "/tasks/fix.md", TASK)
   edit(root .. "/tasks/fix.md")
   eq(child.bo.filetype, "logpose-edit")
-  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "", "" })
+  eq(values(), { "Fix flaky test", "todo", "acme", "", "", "ci", "", "" })
   local d = drawn()
   eq(
     vim.tbl_map(function(r)
       return r.label
     end, d.rows),
-    { "title", "status", "project", "tags", "due", "blocked" }
+    { "title", "status", "project", "assignee", "stakeholders", "tags", "due", "blocked" }
   )
-  H.contains(d.rows[5].eol, "today, fri, +3d") -- a hint in the empty due field
-  H.contains(d.rows[6].eol, "waiting on")
-  eq(d.below, { "no changes yet", "created   2026-10-14T09:00", "modified  2026-10-14T09:00" })
+  H.contains(d.rows[4].eol, "who does it") -- a hint in the empty assignee field
+  H.contains(d.rows[7].eol, "today, fri, +3d") -- a hint in the empty due field
+  H.contains(d.rows[8].eol, "waiting on")
+  -- below, aligned with the field names (as wide as "stakeholders")
+  eq(d.below, { "no changes yet", "created       2026-10-14T09:00", "modified      2026-10-14T09:00" })
   eq(child.api.nvim_win_get_config(0).relative, "editor") -- a float
   eq(child.api.nvim_win_get_cursor(0), { 1, #"Fix flaky test" - 1 }) -- on its last character
 end
@@ -131,7 +133,7 @@ T["values are checked as you type, and the summary says what saving will do"] = 
   local d = drawn()
   eq(d.rows[2].eol, "") -- typed the column's name: nothing to add
   eq(d.rows[3].eol, "saved as thesis-work · new project")
-  eq(d.rows[5].eol, "Fri 16 Oct · due tomorrow") -- worded as on the board
+  eq(d.rows[7].eol, "Fri 16 Oct · due tomorrow") -- worded as on the board
   eq(d.below[1], "saving will:")
   eq(d.below[2], "• move it to In progress, setting started (logged)")
   eq(d.below[3], "• project acme → thesis-work (logged)")
@@ -140,7 +142,7 @@ T["values are checked as you type, and the summary says what saving will do"] = 
   set("due", "someday")
   d = drawn()
   eq(d.rows[2].eol, "✗ not a board column · <CR> to pick")
-  H.contains(d.rows[5].eol, "✗ not a date")
+  H.contains(d.rows[7].eol, "✗ not a date")
   eq(d.below[1], "✗ fix 2 fields to save")
   -- saving refuses, says why and goes to the field; nothing is written
   child.api.nvim_win_set_cursor(0, { 1, 0 })
@@ -165,7 +167,7 @@ T["saving a task goes through the board's logic"] = function()
   eq(child.bo.filetype, "logpose-edit")
   eq(
     values(),
-    { "Fix the flaky checkout test", "in-progress", "thesis-work", "ci, flaky", "2026-10-18", "waiting on Ana" }
+    { "Fix the flaky checkout test", "in-progress", "thesis-work", "", "", "ci, flaky", "2026-10-18", "waiting on Ana" }
   )
   eq(drawn().below[1], "no changes yet")
   child.type_keys("q")
@@ -191,9 +193,9 @@ T["saving keeps the form open; q warns about unsaved changes; :wq saves and clos
   child.cmd("write")
   eq(child.bo.filetype, "logpose-edit")
   eq(last_msg(), "logpose: saved due")
-  eq(values()[5], "2026-10-16") -- as written
+  eq(values()[7], "2026-10-16") -- as written
   child.type_keys("u") -- nothing to undo: the form starts over after a save
-  eq(values()[5], "2026-10-16")
+  eq(values()[7], "2026-10-16")
   -- unsaved changes: the first q warns, the second discards
   set("blocked", "waiting on Ana")
   child.type_keys("q")
@@ -213,10 +215,10 @@ end
 T["a new task: set everything first; saving creates it, then the form edits it"] = function()
   child.lua(("require('logpose.edit').open_new(%q, { status = 'todo', project = 'acme' })"):format(root))
   eq(child.api.nvim_win_get_config(0).title[1][1], " New task ")
-  eq(values(), { "", "todo", "acme", "", "", "", "" })
+  eq(values(), { "", "todo", "acme", "", "", "", "", "", "" })
   local d = drawn()
   eq(d.rows[1].eol, "a short title") -- a hint, not an error, before you've typed
-  eq(d.rows[7].label, "context")
+  eq(d.rows[9].label, "context")
   eq(d.below[2], "• create it in TODO, for acme")
   -- no title: saving says so and stays on it
   child.type_keys("<Esc>")
@@ -264,22 +266,85 @@ T["dd clears a field, extra lines join the field above, u undoes both"] = functi
   edit(root .. "/tasks/fix.md")
   on("tags")
   child.type_keys("dd")
-  eq(values(), { "Fix flaky test", "todo", "acme", "", "2026-10-20", "" })
+  eq(values(), { "Fix flaky test", "todo", "acme", "", "", "", "2026-10-20", "" })
   child.type_keys("u")
-  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "2026-10-20", "" })
+  eq(values(), { "Fix flaky test", "todo", "acme", "", "", "ci", "2026-10-20", "" })
   -- the last field too
   on("blocked")
   child.type_keys("dd")
-  eq(values(), { "Fix flaky test", "todo", "acme", "ci", "2026-10-20", "" })
+  eq(values(), { "Fix flaky test", "todo", "acme", "", "", "ci", "2026-10-20", "" })
   -- a pasted line joins the field above it
   on("title")
   child.fn.setreg("z", "and more\n", "l")
   child.type_keys('"zp')
   eq(values()[1], "Fix flaky test and more")
-  eq(#values(), 6)
+  eq(#values(), 8)
   child.cmd("write")
   local text = H.read(root .. "/tasks/fix.md")
   H.contains(text, 'title: "Fix flaky test and more"')
+end
+
+T["a task's assignee and stakeholders: people suggested, new names noted, the assignee logged"] = function()
+  H.write(root .. "/tasks/fix.md", TASK)
+  H.write(root .. "/people/ana-lopez.md", "---\nname: Ana López\naliases: [Ana]\n---\n")
+  H.write(root .. "/people/bob.md", "---\nname: Bob\n---\n")
+  edit(root .. "/tasks/fix.md")
+  local function words(key, text)
+    set(key, text)
+    on(key)
+    child.type_keys("A")
+    local items = child.lua_get("require('logpose.edit').omnifunc(0, '')")
+    child.type_keys("<Esc>")
+    return vim.tbl_map(function(i)
+      return i.word
+    end, items)
+  end
+  eq(words("assignee", "lop"), { "Ana López" }) -- any part of the name
+  eq(words("stakeholders", "Ana López, "), { "Bob" }) -- not the ones already there
+  set("assignee", "@ana")
+  set("stakeholders", "Bob, Maria")
+  local d = drawn()
+  eq(d.rows[4].eol, "") -- known, by an alias
+  eq(d.rows[5].eol, "new: Maria")
+  eq(vim.list_slice(d.below, 1, 3), { "saving will:", "• assign it to ana (logged)", "• update stakeholders" })
+  child.cmd("write")
+  local text = H.read(root .. "/tasks/fix.md")
+  H.contains(text, "project: acme\nassignee: ana\nstakeholders: [Bob, Maria]\ntags: [ci]")
+  H.contains(text, "assignee: none → ana")
+  -- emptied: nobody
+  set("assignee", "")
+  eq(drawn().below[2], "• unassign it (logged)")
+  child.cmd("write")
+  H.contains(H.read(root .. "/tasks/fix.md"), "assignee: ana → none")
+  child.type_keys("q")
+  -- several tasks: none unassigns them all
+  H.write(root .. "/tasks/a.md", TASK:gsub("Fix flaky test", "A"):gsub("project: acme", "project: acme\nassignee: Bob"))
+  H.write(root .. "/tasks/b.md", TASK:gsub("Fix flaky test", "B"):gsub("project: acme", "project: acme\nassignee: Ana"))
+  child.lua(
+    ([[vim.fn.setqflist({ { filename = %q, lnum = 1, text = 'A' }, { filename = %q, lnum = 1, text = 'B' } })]]):format(
+      root .. "/tasks/a.md",
+      root .. "/tasks/b.md"
+    )
+  )
+  child.cmd("copen")
+  child.cmd("1,2Logpose edit")
+  set("assignee", "none")
+  eq(drawn().rows[3].eol, "unassigns them")
+  eq(drawn().below[2], "• unassign 2 tasks (logged)")
+  child.cmd("write")
+  H.contains(H.read(root .. "/tasks/a.md"), "assignee: Bob → none")
+  H.contains(H.read(root .. "/tasks/b.md"), "assignee: Ana → none")
+end
+
+T["a new task can start assigned, with stakeholders"] = function()
+  child.lua(("require('logpose.edit').open_new(%q, { status = 'todo' })"):format(root))
+  set("title", "Plan")
+  set("assignee", "Ana")
+  set("stakeholders", "Bob")
+  local below = drawn().below
+  eq(vim.list_slice(below, 3, 4), { "• assigned to Ana", "• stakeholders: Bob" })
+  child.cmd("write")
+  H.contains(H.read(root .. "/tasks/plan.md"), "project:\nassignee: Ana\nstakeholders: [Bob]\n")
 end
 
 T["<C-a> and <C-x> cycle a field's values and step dates; <CR> picks one"] = function()
@@ -293,11 +358,11 @@ T["<C-a> and <C-x> cycle a field's values and step dates; <CR> picks one"] = fun
   eq(values()[2], "backlog")
   on("due")
   child.type_keys("<C-a>") -- empty: today
-  eq(values()[5], "2026-10-15")
+  eq(values()[7], "2026-10-15")
   child.type_keys("<C-a>")
-  eq(values()[5], "2026-10-16")
+  eq(values()[7], "2026-10-16")
   child.type_keys("<C-x><C-x>")
-  eq(values()[5], "2026-10-14")
+  eq(values()[7], "2026-10-14")
   on("project")
   child.lua([[vim.ui.select = function(items, opts, cb)
     _G.picked = vim.tbl_map(opts.format_item, items)
@@ -314,7 +379,7 @@ T["<C-a> and <C-x> cycle a field's values and step dates; <CR> picks one"] = fun
   H.write(root .. "/tasks/other.md", "---\ntitle: o\nstatus: todo\ntags: [perf]\n---\n")
   child.lua("require('logpose.index').clear_cache()")
   child.type_keys("<CR>")
-  eq(values()[4], "ci, perf")
+  eq(values()[6], "ci, perf")
   -- the title has nothing to pick: <CR> starts typing at its end
   on("title")
   child.type_keys("<CR>", "!", "<Esc>")
@@ -331,7 +396,7 @@ T["in insert mode, <CR> and <Tab> go to the next field"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], 1)
   child.type_keys("<Tab>") -- nothing to complete in the title
   eq(child.api.nvim_win_get_cursor(0)[1], 2)
-  eq(#values(), 6) -- no new lines
+  eq(#values(), 8) -- no new lines
   child.type_keys("<Esc>")
 end
 
@@ -402,7 +467,7 @@ T["completion offers what fits each field"] = function()
   eq(child.fn.pumvisible(), 1) -- the next item: offered again, without the ones already there
   eq(child.fn.complete_info({ "items" }).items[1].word, "docs")
   child.type_keys("<C-e>", "<Esc>")
-  eq(values()[4], "ci, perf, ")
+  eq(values()[6], "ci, perf, ")
   child.type_keys("q", "q") -- unsaved changes: the second q discards them
   edit(root .. "/meetings/x.md")
   _, w = words("attendees", "Ana, ")
@@ -541,14 +606,14 @@ T[":Logpose edit on quickfix lines edits those tasks together"] = function()
   child.cmd("copen")
   child.cmd("1,2Logpose edit")
   eq(child.bo.filetype, "logpose-edit")
-  eq(values(), { "todo", "", "ci", "", "" }) -- project differs: left empty, meaning "as is"
+  eq(values(), { "todo", "", "", "ci", "", "" }) -- project differs: left empty, meaning "as is"
   H.contains(drawn().rows[2].eol, "unchanged")
   set("project", "none")
   set("tags", "-ci +review")
   set("due", "fri")
   local d = drawn()
   eq(d.rows[2].eol, "clears it")
-  eq(d.rows[3].eol, "adds review · removes ci")
+  eq(d.rows[4].eol, "adds review · removes ci")
   eq(d.below[2], "• remove the project (logged)")
   child.cmd("write")
   for _, name in ipairs({ "a", "b" }) do
@@ -559,7 +624,7 @@ T[":Logpose edit on quickfix lines edits those tasks together"] = function()
     H.contains(text, "status: todo")
   end
   eq(last_msg(), "logpose: saved due, project, tags on 2 of 2 tasks")
-  eq(values(), { "todo", "", "review", "2026-10-16", "" }) -- read back: now shared
+  eq(values(), { "todo", "", "", "review", "2026-10-16", "" }) -- read back: now shared
 end
 
 T["a form keeps the focus while it's open; one form at a time"] = function()

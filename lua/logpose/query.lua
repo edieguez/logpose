@@ -10,6 +10,9 @@
 ---   section:decisions      under a `## ` heading containing the text
 ---   person:ana  @ana       involves the person (attendee, 1:1, @mention), under any of their names
 ---   status:todo  blocked   tasks: board column; blocked tasks
+---   mine  assignee:me      tasks: assigned to you (`me`), or to nobody (`tasks.unassigned_mine`)
+---   unassigned             tasks without an assignee
+---   assignee:ana  stakeholders:bob   tasks by who does them / who cares about them
 ---   any frontmatter field  attendees:ana  role:lead  date:2026-10  date>=-7d  due<today
 ---                          date:2026-10-01..2026-10-15  slack:*  has:email  no:email
 ---   anything else          words that must all appear in the text (accents ignored)
@@ -37,8 +40,8 @@ local DATE_FIELDS = {
   modified = false, -- frontmatter only
 }
 
---- Fields holding people.
-local PEOPLE_FIELDS = { attendees = true, with = true }
+--- Fields holding people (`people.FIELDS`).
+local PEOPLE_FIELDS = { attendees = true, with = true, assignee = true, stakeholders = true }
 
 --- The first and last day of a full or partial date ("2026", "2026-10", "2026-10-14"), or of a
 --- relative one (today, -7d…).
@@ -211,6 +214,21 @@ local function person_slugs(name)
   return ok and set or { [slug] = true }
 end
 
+--- A predicate for your tasks (`people.is_mine`); who you are is worked out once.
+---@return fun(it: logpose.Item): boolean
+local function mine()
+  local me
+  return function(it)
+    if it.kind ~= "task" then
+      return false
+    end
+    if me == nil then
+      me = require("logpose.people").me() or false
+    end
+    return require("logpose.people").is_mine(it.assignee, me)
+  end
+end
+
 --- Build the predicate for one filter. Errors (raised) for invalid values.
 ---@param arg string
 ---@param today string
@@ -263,6 +281,12 @@ local function atom(arg, today)
     elseif arg == "blocked" then
       return node(function(it)
         return it.kind == "task" and it.blocked ~= nil and it.blocked ~= false
+      end)
+    elseif arg == "mine" then
+      return node(mine())
+    elseif arg == "unassigned" then
+      return node(function(it)
+        return it.kind == "task" and it.assignee == nil
       end)
     elseif arg == "@" or arg == "#" or arg:match("^%-*$") then
       error(("logpose: %q needs a name"):format(arg), 0)
@@ -345,6 +369,9 @@ local function atom(arg, today)
   end
 
   -- any field: people, dates, numbers, text
+  if key == "assignee" and op == ":" and value:lower() == "me" then
+    return node(mine())
+  end
   if PEOPLE_FIELDS[key] then
     if op ~= ":" then
       error(("logpose: %s compares with :, not %s"):format(key, op), 0)

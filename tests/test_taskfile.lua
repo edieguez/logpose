@@ -287,6 +287,83 @@ T["capture creates a Backlog task; capture! opens it"] = function()
   eq(child.api.nvim_win_get_cursor(0)[1], 14) -- the blank line under ## Context
 end
 
+T["assignee and stakeholders: written in place when set, changes logged"] = function()
+  local path = create("{ title = 'Fix it', project = 'acme', assignee = 'Ana', stakeholders = { 'Bob', 'Carla' } }")
+  H.contains(H.read(path), "project: acme\nassignee: Ana\nstakeholders: [Bob, Carla]\ntags: []\n")
+  local t = fm(path)
+  eq({ t.assignee, t.stakeholders }, { "Ana", { "Bob", "Carla" } })
+  -- a comma string reads as a list too
+  H.write(root .. "/tasks/b.md", "---\ntitle: b\nstatus: todo\nassignee: \nstakeholders: Bob, Carla\n---\n")
+  t = fm(root .. "/tasks/b.md")
+  eq({ t.assignee, t.stakeholders }, { nil, { "Bob", "Carla" } })
+  -- reassigning logs it; the same again does nothing
+  local set = function(name)
+    return child.lua_get(("require('logpose.taskfile').set_assignee(%q, %s)"):format(path, name))
+  end
+  eq(set("'Bob'"), true)
+  eq(set("'Bob'"), false)
+  eq(set("nil"), true)
+  local text = H.read(path)
+  H.contains(text, "assignee: Ana → Bob")
+  H.contains(text, "assignee: Bob → none")
+  H.contains(text, "assignee:\nstakeholders")
+  -- an older task gains the key after project:
+  local old = create("{ title = 'Old', project = 'acme' }")
+  child.lua(("require('logpose.taskfile').set_assignee(%q, 'Ana')"):format(old))
+  H.contains(H.read(old), "project: acme\nassignee: Ana\ntags: []")
+end
+
+T["take_people: @ assigns, for: adds stakeholders"] = function()
+  local take = function(s, opts)
+    return child.lua_get(("{ require('logpose.taskfile').take_people(%q, %s) }"):format(s, opts or "nil"))
+  end
+  eq(take("fix CI @ana for:bob for:carla"), { "fix CI", "ana", { "bob", "carla" } })
+  eq(take("ask @ana, then @bob."), { "ask, then.", "bob", {} }) -- the last one wins
+  eq(take("fix CI @none"), { "fix CI", false, {} })
+  eq(take("mail ana@acme.com"), { "mail ana@acme.com", vim.NIL, {} }) -- not an @ at a word's start
+  eq(take("wait for: nothing"), { "wait for: nothing", vim.NIL, {} })
+  -- a to-do's owner: the first @name; the others stay mentions
+  eq(take("pair @ana with @bob", "{ first_only = true }"), { "pair with @bob", "ana", {} })
+end
+
+T["capture: @name assigns the task, for:name adds a stakeholder"] = function()
+  H.write(root .. "/people/ana-lopez.md", "---\nname: Ana López\naliases: [Ana]\n---\n")
+  child.cmd("Logpose capture fix flaky test @ana for:bob")
+  local t = fm(root .. "/tasks/fix-flaky-test.md")
+  -- a known person is written by their page's name
+  eq({ t.title, t.assignee, t.stakeholders }, { "fix flaky test", "Ana López", { "bob" } })
+  H.contains(child.notifications()[1].msg, "· Backlog · for Ana López")
+  child.cmd("Logpose capture water the plants @ana @none")
+  eq(fm(root .. "/tasks/water-the-plants.md").assignee, nil)
+  -- and the board's filters find them
+  local q = function(args)
+    return child.lua_get(
+      ([[vim.tbl_map(function(it) return it.text end,
+      vim.tbl_filter(function(it) return it.kind == 'task' end,
+        require('logpose.query').filter(require('logpose.index').build(%q), require('logpose.query').parse(%s))))]]):format(
+        root,
+        args
+      )
+    )
+  end
+  eq(q("{ 'assignee:lopez' }"), { "fix flaky test" })
+  eq(q("{ '@ana' }"), { "fix flaky test" }) -- an alias
+  eq(q("{ '@bob' }"), { "fix flaky test" }) -- stakeholders are involved too
+  eq(q("{ 'mine' }"), { "water the plants" })
+  eq(q("{ 'unassigned' }"), { "water the plants" })
+end
+
+T["capture completes @people and for:people"] = function()
+  H.write(root .. "/people/ana-lopez.md", "---\nname: Ana López\n---\n")
+  local function complete(line)
+    return child.fn.getcompletion(line, "cmdline")
+  end
+  eq(complete("Logpose capture Fix @an"), { "@ana-lopez" })
+  eq(complete("Logpose capture Fix for:an"), { "for:ana-lopez" })
+  eq(complete("Logpose capture Fix @lo"), {}) -- a handle's start, as on the command line
+  eq(complete("Logpose capture Fix @no"), { "@none" })
+end
+
 T["done moves the task you're in to Done"] = function()
   local path = create("{ title = 'Finish me' }")
   child.cmd("edit " .. path)
@@ -305,14 +382,18 @@ T["promote turns a to-do into a linked task"] = function()
   child.cmd("edit " .. root .. "/meetings/acme/2026-10-15 - retro.md")
   child.api.nvim_win_set_cursor(0, { 8, 0 })
   child.cmd("Logpose promote")
-  local path = root .. "/tasks/fix-ci-ana.md"
+  local path = root .. "/tasks/fix-ci.md"
   local t = fm(path)
-  eq({ t.title, t.status, t.project, t.tags, t.due }, { "fix CI @ana", "backlog", "acme", { "perf" }, "2026-10-20" })
+  -- the action item's owner does the task, and leaves its title
+  eq(
+    { t.title, t.status, t.project, t.assignee, t.tags, t.due },
+    { "fix CI", "backlog", "acme", "ana", { "perf" }, "2026-10-20" }
+  )
   H.contains(H.read(path), "From: [[meetings/acme/2026-10-15 - retro|Retro]]")
   -- both ways: the action item keeps its owner and due date and links to the task
   eq(
     child.api.nvim_buf_get_lines(0, 7, 9, false),
-    { "- [ ] fix CI #perf @ana due:2026-10-20", "  → [[tasks/fix-ci-ana|task]]" }
+    { "- [ ] fix CI #perf @ana due:2026-10-20", "  → [[tasks/fix-ci|task]]" }
   )
   child.cmd("Logpose actions")
   H.contains(child.fn.getqflist()[1].text, "fix CI #perf @ana due:2026-10-20")
@@ -321,6 +402,18 @@ T["promote turns a to-do into a linked task"] = function()
   child.api.nvim_win_set_cursor(0, { 6, 0 })
   child.cmd("Logpose promote")
   H.contains(child.notifications()[#child.notifications()].msg, "no to-do on this line")
+end
+
+T["promote: the first @owner does the task, other mentions stay"] = function()
+  H.write(root .. "/notes/ideas.md", "# Ideas\n\n- [ ] pair @ana with @bob on the spike for:carla\n")
+  child.cmd("edit " .. root .. "/notes/ideas.md")
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.cmd("Logpose promote")
+  local path = vim.fn.glob(root .. "/tasks/*.md", true, true)[1]
+  local t = fm(path)
+  eq({ t.title, t.assignee, t.stakeholders }, { "pair with @bob on the spike", "ana", { "carla" } })
+  -- the to-do keeps its words
+  eq(child.api.nvim_buf_get_lines(0, 2, 3, false), { "- [ ] pair @ana with @bob on the spike for:carla" })
 end
 
 T["promote warns about a due: it can't read"] = function()

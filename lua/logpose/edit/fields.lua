@@ -9,7 +9,7 @@ local M = {}
 
 --- Fields offered per note type, in order (keys a note already has are shown too).
 M.FIELDS = {
-  task = { "title", "status", "project", "tags", "due", "blocked" },
+  task = { "title", "status", "project", "assignee", "stakeholders", "tags", "due", "blocked" },
   meeting = { "title", "type", "date", "project", "attendees", "tags" },
   project = { "title", "description", "paths", "color" },
   topic = { "title", "project", "tags" },
@@ -33,7 +33,7 @@ function M.fields_for(kind)
 end
 
 --- Fields of a new task (`context` is a line under `## Context`, not frontmatter).
-M.NEW_FIELDS = { "title", "status", "project", "tags", "due", "blocked", "context" }
+M.NEW_FIELDS = { "title", "status", "project", "assignee", "stakeholders", "tags", "due", "blocked", "context" }
 
 --- Fields of a new note, per kind. A new meeting's `title` follows its type: empty for the
 --- type's own ("Retro"), or the answer to what the type asks (a 1:1's person).
@@ -44,7 +44,7 @@ M.NEW_NOTE_FIELDS = {
 }
 
 --- Fields a bulk edit of tasks offers (a title is per task).
-M.BULK_FIELDS = { "status", "project", "tags", "due", "blocked" }
+M.BULK_FIELDS = { "status", "project", "assignee", "tags", "due", "blocked" }
 
 --- Keys logpose maintains itself: shown, not editable.
 M.MANAGED = {
@@ -59,7 +59,7 @@ M.MANAGED = {
 }
 
 --- Keys whose value is a list (`[a, b]` in the file, `a, b` in the form).
-M.LISTS = { tags = true, attendees = true, paths = true, aliases = true, projects = true }
+M.LISTS = { tags = true, attendees = true, stakeholders = true, paths = true, aliases = true, projects = true }
 
 --- Keys holding a date.
 M.DATES = { due = true, date = true }
@@ -77,6 +77,8 @@ M.HINTS = {
   date = "today, -1d, 2026-10-14",
   blocked = "what it's waiting on (empty: not blocked)",
   attendees = "names, comma-separated · <Tab> completes",
+  assignee = "who does it · <Tab> completes · empty: nobody (counts as yours)",
+  stakeholders = "who cares about it, comma-separated · <Tab> completes",
   type = "<CR> to pick",
   description = "one line about the project",
   paths = "repo folders, comma-separated",
@@ -93,6 +95,7 @@ M.HINTS = {
 M.BULK_HINTS = {
   status = "unchanged · <CR> to pick",
   project = "unchanged · <CR> to pick · none removes it",
+  assignee = "unchanged · <Tab> completes · none: nobody",
   tags = "unchanged · a, b replaces · +a -b adds or removes",
   due = "unchanged · today, fri, +3d · none clears it",
   blocked = "unchanged · a reason blocks · none unblocks",
@@ -205,7 +208,7 @@ end
 --- The model for a task that doesn't exist yet: the form starts from `defaults` (the column,
 --- the detected project…) and saving creates the file.
 ---@param root string
----@param defaults? { title?: string, status?: string, project?: string, tags?: string[], due?: string }
+---@param defaults? { title?: string, status?: string, project?: string, assignee?: string, stakeholders?: string[], tags?: string[], due?: string }
 ---@return logpose.EditModel
 function M.load_new(root, defaults)
   defaults = defaults or {}
@@ -214,6 +217,8 @@ function M.load_new(root, defaults)
     status = defaults.status or config.get().tasks.capture_status,
     project = defaults.project or "",
     tags = table.concat(defaults.tags or {}, ", "),
+    assignee = defaults.assignee or "",
+    stakeholders = table.concat(defaults.stakeholders or {}, ", "),
     due = defaults.due or "",
     blocked = "",
     context = "",
@@ -357,27 +362,35 @@ end
 ---@return string|string[] value, string? err, string? note
 function M.check(kind, key, text, ctx)
   text = vim.trim(text)
+  local people_key = require("logpose.people").FIELDS[key]
+  -- names nobody has used yet: new people, or typos
+  local function new_people(list)
+    local slugify = require("logpose.util.text").slugify
+    ctx.people = ctx.people
+      or (function()
+        local set = {}
+        for _, p in ipairs(require("logpose.people").known(ctx.root)) do
+          for slug in pairs(p.slugs or { [p.slug] = true }) do
+            set[slug] = true
+          end
+        end
+        return set
+      end)()
+    local new = vim.tbl_filter(function(n)
+      return not ctx.people[slugify((n:gsub("^@", "")))]
+    end, list)
+    return #new > 0 and ("new: " .. table.concat(new, ", ")) or nil
+  end
   if M.LISTS[key] then
     local list = M.split(key, text)
-    if key == "attendees" or key == "with" then
-      -- a name nobody has used yet: a new person, or a typo
-      local slugify = require("logpose.util.text").slugify
-      ctx.people = ctx.people
-        or (function()
-          local set = {}
-          for _, p in ipairs(require("logpose.people").known(ctx.root)) do
-            set[p.slug] = true
-          end
-          return set
-        end)()
-      local new = vim.tbl_filter(function(n)
-        return not ctx.people[slugify(n)]
-      end, type(list) == "table" and list or { list })
-      if #new > 0 then
-        return list, nil, "new: " .. table.concat(new, ", ")
-      end
+    if people_key then
+      return list, nil, new_people(list)
     end
     return list, nil, nil
+  end
+  if key == "assignee" and text ~= "" then
+    text = (text:gsub("^@", ""))
+    return text, nil, new_people({ text })
   end
   if text == "" then
     if key == "title" and (kind == "task" or kind == "meeting" or kind == "project") then
@@ -473,8 +486,10 @@ function M.collect(model, texts, ctx)
       local trimmed = vim.trim(text)
       if trimmed == vim.trim(model.initial[key] or "") then
         value = nil -- left as it was
-      elseif trimmed:lower() == "none" and (key == "project" or key == "due" or key == "blocked") then
-        value, note = "", key == "blocked" and "unblocks them" or "clears it"
+      elseif
+        trimmed:lower() == "none" and (key == "project" or key == "assignee" or key == "due" or key == "blocked")
+      then
+        value, note = "", key == "blocked" and "unblocks them" or key == "assignee" and "unassigns them" or "clears it"
       elseif key == "tags" and trimmed:match("^[+-]") then
         local delta, ok = { add = {}, remove = {} }, true
         for item in trimmed:gmatch("%S+") do
@@ -788,6 +803,12 @@ function M.new_effects(model, r, ctx)
     line = line .. ", setting started"
   end
   local out = { line }
+  if type(v.assignee) == "string" and v.assignee ~= "" then
+    table.insert(out, "assigned to " .. v.assignee)
+  end
+  if type(v.stakeholders) == "table" and #v.stakeholders > 0 then
+    table.insert(out, "stakeholders: " .. table.concat(v.stakeholders, ", "))
+  end
   if type(v.tags) == "table" and #v.tags > 0 then
     table.insert(out, "tagged " .. table.concat(v.tags, ", "))
   end
@@ -835,6 +856,11 @@ function M.effects(model, r, links_to, ctx)
         else
           table.insert(out, ("project %s→ %s (logged)"):format(from and (from .. " ") or "", v))
         end
+      elseif model.kind == "task" and key == "assignee" then
+        table.insert(
+          out,
+          v == "" and ("unassign %s (logged)"):format(who) or ("assign %s to %s (logged)"):format(who, v)
+        )
       elseif model.kind == "task" and key == "blocked" then
         table.insert(out, v == "" and ("unblock %s (logged)"):format(who) or ("block %s (logged)"):format(who))
       elseif model.kind == "doc" and key == "project" and v ~= "" then

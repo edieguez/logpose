@@ -94,7 +94,8 @@ M.defaults = {
       name = "sprint-{n}",
     },
   },
-  --- Your handle in action items, e.g. "@emmanuel" (used by `:Logpose actions mine`).
+  --- Your handle, e.g. "@emmanuel": the owner of your action items (`:Logpose actions mine`) and
+  --- the assignee of your tasks (`mine`, `assignee:me`, `A` on the board).
   ---@type string?
   me = nil,
   actions = {
@@ -171,6 +172,8 @@ M.defaults = {
     --- Column a captured task starts in, and one promoted from a to-do.
     capture_status = "backlog",
     promote_status = "backlog",
+    --- Tasks without an `assignee` count as yours (`mine`, `assignee:me`).
+    unassigned_mine = true,
   },
   board = {
     --- Columns, left to right. `key` is the task's `status:`; `label` is shown; optional `limit`
@@ -419,6 +422,7 @@ local function validate(opts)
     end
     keys[col.key] = true
   end
+  check("tasks.unassigned_mine", opts.tasks.unassigned_mine, "boolean")
   for _, name in ipairs({ "board.start", "board.done", "tasks.capture_status", "tasks.promote_status" }) do
     local section, key = name:match("^(%w+)%.([%w_]+)$")
     local v = opts[section][key]

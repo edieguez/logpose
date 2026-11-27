@@ -13,6 +13,8 @@ M.CHEATSHEET = {
   { "project:acme", "the project (or a #acme tag)" },
   { "type:retro", "meeting type; or a kind: type:daily, type:topic…" },
   { "open  done  blocked", "tasks and to-dos by state" },
+  { "mine  unassigned", "tasks assigned to you (or nobody) · to nobody" },
+  { "assignee:ana  stakeholders:bob", "tasks Ana does · tasks Bob cares about" },
   { "status:in-progress", "tasks in a board column" },
   { "Any frontmatter field" },
   { "attendees:ana", "the field contains it (lists: any item)" },
@@ -47,6 +49,10 @@ local KEYS = {
   { "@", "a person" },
   { "attendees:", "meetings with a person" },
   { "with:", "1:1s with a person" },
+  { "assignee:", "tasks a person does (assignee:me: yours)" },
+  { "stakeholders:", "tasks a person cares about" },
+  { "mine", "your tasks, and unassigned ones" },
+  { "unassigned", "tasks nobody is assigned" },
   { "date:", "a day, month, year or range" },
   { "date>=", "on or after a date" },
   { "date<=", "on or before a date" },
@@ -217,8 +223,11 @@ function M.complete(token, root)
         add((op == "#" and "#" or prefix) .. c.tag, ("%d"):format(c.count))
       end
     end
-  elseif key == "person" or key == "attendees" or key == "with" then
+  elseif key == "person" or require("logpose.people").FIELDS[key] then
     local people = require("logpose.people")
+    if key == "assignee" and starts("me", value) then
+      add(prefix .. "me", "you, and tasks nobody is assigned")
+    end
     for _, p in ipairs(people.match(people.known(root), value)) do
       add(prefix .. p.slug, p.name .. (p.role and (" · " .. p.role) or ""), prefix .. p.name)
     end

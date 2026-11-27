@@ -8,7 +8,7 @@ return {
   -- enabled = false, -- no logpose on this computer
   opts = {
     -- root = "~/work/journal", -- this computer's journal, if it isn't the one :Logpose init chose
-    -- me = "@ana", -- your handle in action items here
+    -- me = "@ana", -- your handle here (action items, tasks assigned to you)
     -- projects = { paths = { ["~/work/acme-api"] = "acme" } }, -- repo folders that are a project here
     -- tickets = { url = "https://acme.atlassian.net/browse/{id}" }, -- the tracker gx opens tickets in
     -- people = { contacts = { slack = { label = "Slack", show = "@{value}", order = 2 } } }, -- the team's chat

@@ -78,8 +78,8 @@ No keymaps are set by default; suggested ones go in the README.
 arithmetic goes through `util/date.lua`, anchored at **12:00 local time** to avoid DST bugs.
 
 **Tasks, notes and to-dos** (1.21.0; the words every command, screen, search and doc uses).
-- A **task** is a task file in `tasks/` (B1): frontmatter with `status`, `project`, `tags`,
-  `due`, `blocked`…, shown on the board. Done tasks of past periods move to
+- A **task** is a task file in `tasks/` (B1): frontmatter with `status`, `project`,
+  `assignee`, `stakeholders`, `tags`, `due`, `blocked`…, shown on the board. Done tasks of past periods move to
   `tasks/archive/<period>/`.
 - A **note** is what you write: daily notes, meeting notes, topic notes, project pages.
 - A **to-do** is a checkbox `- [ ] text` / `- [x] text` inside a note (or a task file's
@@ -1740,6 +1740,100 @@ refresh (your lines and sub-bullets kept, states updated, deleted lines back, re
 blockers dropped, unsaved buffers, past notes), carry-over skipping generated blockers,
 copying (grouped, flat).
 
+## C25 — Assignees and stakeholders on tasks (1.43.0)
+
+**Goal.** Say who does a task and who cares about it. Tasks had no owner: every task was
+implicitly yours, so a teammate's task you track looked like your own work, and the people
+waiting on a task were only in its text. Action items already have an owner (`@owner`); tasks
+get the same, plus the people to keep informed.
+
+**Words.** The **assignee** does the work (one person). **Stakeholders** care about the outcome:
+who asked for it, who to keep informed or ask for approval (a list). Meetings keep `attendees`
+and `with:`; topic notes get neither.
+
+**Design** (`taskfile.lua`, `index.lua`, `query.lua`, `edit/`, `board/`)
+
+- Storage: task frontmatter `assignee: Ana López` (a name, like `with:`) and
+  `stakeholders: [Bob, Carla]` (a list, like `attendees`). Names resolve through `people.find` /
+  `people.expand`, so "Ana", `@ana` and "Ana López" are one person. `taskfile.KEYS` gains both
+  after `project`, written only when set; existing files need no migration (`set_field`, and the
+  form's save, add a missing key in order). `logpose.Task` and the index's task items gain
+  `assignee` and `stakeholders`. `people.FIELDS` lists the keys naming people (attendees, `with`,
+  assignee, stakeholders) for the index, filters, completion, `gx` and rename.
+- Mine (`people.is_mine`): a task is yours when its assignee is `me` (any of your names) or it
+  has none (`tasks.unassigned_mine = true`, the same rule as `actions.unassigned_mine`). New tasks
+  are unassigned, so a journal kept alone sees no change.
+- Index: a task's `people` include its assignee and stakeholders, so `@ana` / `person:ana` find
+  tasks for either reason.
+- Filters: `assignee` and `stakeholders` join `PEOPLE_FIELDS` (any of the person's names, or part
+  of one). `assignee:me` and the word `mine` match your tasks (as above); `unassigned` matches
+  tasks without an assignee. All three match tasks only. The filter bar and `find` complete them.
+- Writes: `taskfile.set_assignee(path, name?)` logs the change like a project move
+  (`assignee: none → ana`); `create` takes `assignee` and `stakeholders`.
+- Capture (`taskfile.take_people`, `tasks.take_people`): a bare `@name` in the text is the
+  assignee and leaves the title (the last one wins, like `+project`; `@none` means unassigned).
+  `for:name` adds a stakeholder (repeatable). A space left before punctuation goes (`ask @ana,
+  then` → `ask, then`). Names are written as `people.canonical` gives them: a known person's
+  page name, else as typed. Inline mentions in captured text are therefore assignments; write
+  the name without `@` to keep it as text. `<Tab>` completes `@handle` and `for:handle` (handles
+  starting with what's typed, as the command line filters by prefix), and `@none`.
+- Promote: the to-do's first `@owner` becomes the assignee and leaves the title; other
+  `@mentions` stay in it. A `for:name` there adds a stakeholder, as in capture.
+- Edit form: tasks get `assignee` (one person) and `stakeholders` (`a, b`), with the attendees'
+  people suggestions and `new: Maria`; bulk edit gets `assignee`.
+- Board: a card's details show `@` and the assignee's first name (`@Ana`, `LogposeBoardAssignee`)
+  when it isn't you, after the dates (your and unassigned cards look as before; compact cards
+  too). `A` assigns the card (or the marked cards, one undo step; `tasks.choose_assignee`): "Me
+  (name)" when `me` is set, everyone known (the project's people first), "Someone new…" (asked,
+  with people completion) and "Nobody" when there's an assignee. Stakeholders show in peek
+  (`K`), not on cards.
+- People: `rename-person` rewrites `assignee` and `stakeholders` entries; completion in notes
+  and `gx` work on those frontmatter lines as on `attendees:`/`with:`.
+
+**Acceptance criteria** (on the real journal)
+
+- `:Logpose capture fix flaky test @ana for:bob` creates a task assigned to Ana with Bob as
+  stakeholder; its card shows `@ana`; `:Logpose board mine` hides it, `assignee:"Ana López"`
+  shows it, `@bob` finds it.
+- `A` → "Me" on that card logs `assignee: Ana López → <me>` and the `@Ana` goes from the card.
+- Promoting `- [ ] Share results @ana due:fri` makes a task assigned to Ana titled "Share results".
+
+**Tests** (`test_taskfile.lua`, `test_query.lua`, `test_board.lua`, `test_edit.lua`,
+`test_people.lua`, `test_lists_people.lua`): fields, key order and the log line; parsing (a list
+or a comma string); capture (`@`, `@none`, last wins, `for:`, completion); promote; filters
+(`assignee:`, `stakeholders:`, aliases, `mine`, `unassigned`, `me` unset,
+`unassigned_mine = false`); cards and `A` (marked cards, undo, someone new); form fields,
+suggestions, bulk `none`; completion in a task note; `gx`; rename rewriting both fields. The
+task form grows from six fields to eight, so tests that address fields by row moved.
+
+## C26 — Assignees and stakeholders everywhere else (1.44.0)
+
+**Goal.** The rest of logpose takes C25's people into account: your status is about your work,
+and the people you meet see what's theirs and what they're waiting on.
+
+**Design** (`notes/status.lua`, `lists/people.lua`, `people/agenda.lua`, `projects/`, `report.lua`)
+
+- Daily status (`notes/status.lua`): Yesterday, Today and Blockers take only your tasks (C25's
+  mine) when `daily.status.only_mine = true` (default).
+- People list (`lists/people.lua`): rows show `☐ N assigned`; `<Tab>` details gain "Assigned"
+  (open tasks) and "Stakeholder in".
+- 1:1s (`people/agenda.lua`): a new 1:1 gets `## Updates`: the person's open assigned tasks, and
+  the tasks they're a stakeholder in that moved since the last 1:1 with them (from `## Log`), as
+  task links with their column.
+- Projects: project pages get `stakeholders:` (edit form field); the hub section and the
+  projects screen list them; they rank first in that project's people suggestions, like a person
+  page's `projects`.
+- Project docs: `stakeholders` in the doc form (every doc type).
+- Report (`report.lua`): takes filters (`:Logpose report sprint stakeholders:bob` for a
+  stakeholder update); the review groups blocked and stale tasks by assignee.
+
+**Not planned:** board rows per assignee, assignee counts in the statusline, notifications.
+
+**Tests** (`test_status.lua`, `test_lists_people.lua`, `test_projects.lua`, `test_report.lua`):
+status with and without `only_mine`; people rows and details; `## Updates`
+(since the last 1:1, none before the first); project stakeholders in the form, hub and
+suggestions; doc form; report filters and the review by assignee.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1820,6 +1914,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.43.0 | 2026-11-27 | assignees and stakeholders on tasks |  |
 | 1.42.0 | 2026-11-25 | the status in the daily note; `:Logpose standup` removed |  |
 | 1.41.2 | 2026-11-21 | links survive every move; sample configs; settings for each computer |  |
 | 1.41.1 | 2026-11-21 | screens keep to themselves; symlinked journals | 0.58.1 |
