@@ -41,18 +41,27 @@ function M.task_of(root, file, link, names)
   return nil
 end
 
---- The to-dos made into `task`: { file, row, checked }.
+--- The to-dos made into `task`: { file, row, checked, mark } (mark: "x", " " or "-").
 ---@param root string
 ---@param task string
----@return { file: string, row: integer, checked: boolean }[]
+---@return { file: string, row: integer, checked: boolean, mark: string }[]
 function M.todos_of(root, task)
   local todos = require("logpose.todos")
   task = fs.in_root(task, root) or fs.normalize(task)
-  -- the notes holding to-dos made into tasks (from the index: only those links get resolved)
+  -- the notes holding to-dos made into tasks (from the index: only those links get resolved), and
+  -- notes linking to the task by name (a `- [-]` to-do of a cancelled task isn't a to-do there)
   local files, out = {}, {}
+  local stem = vim.fn.fnamemodify(task, ":t:r"):lower()
   for _, it in ipairs(require("logpose.index").build(root)) do
     if it.kind == "todo" and it.task_link and not files[it.file] then
       files[it.file] = true
+    elseif it.kind == "note" and not files[it.file] then
+      for _, l in ipairs(it.links or {}) do
+        if vim.fn.fnamemodify((l.target:gsub("#.*$", "")), ":t:r"):lower() == stem then
+          files[it.file] = true
+          break
+        end
+      end
     end
   end
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -67,7 +76,7 @@ function M.todos_of(root, task)
     for _, t in ipairs(todos.linked(lines_of(file))) do
       names = names or by_name(root)
       if M.task_of(root, file, t.link, names) == task then
-        table.insert(out, { file = file, row = t.row, checked = t.checked })
+        table.insert(out, { file = file, row = t.row, checked = t.checked, mark = t.mark })
       end
     end
   end
@@ -84,16 +93,39 @@ local function is_done(status)
   return status == config.get().board.done
 end
 
+--- The box a to-do made into a task with this status has: "x" done, "-" cancelled, else " ".
+---@param status? string
+---@return string
+function M.mark_for(status)
+  if is_done(status) then
+    return "x"
+  end
+  return require("logpose.taskfile").is_cancelled(status) and "-" or " "
+end
+
 --- Check (or uncheck) the to-dos made into `task`. Returns how many changed.
 ---@param root string
 ---@param task string
 ---@param done boolean
 ---@return integer
 function M.set_todos(root, task, done)
+  return M.set_marks(root, task, done and "x" or " ")
+end
+
+--- What setting a to-do's box to `mark` did, in a message.
+local DID = { x = "checked", [" "] = "unchecked", ["-"] = "marked [-] (cancelled)" }
+
+--- Give the to-dos made into `task` the box `mark`: "x" (its task done), " " (open again) or
+--- "-" (its task cancelled: no longer a to-do). Returns how many changed.
+---@param root string
+---@param task string
+---@param mark string
+---@return integer
+function M.set_marks(root, task, mark)
   M.declined[fs.normalize(task)] = nil
   local by_file = {}
   for _, t in ipairs(M.todos_of(root, task)) do
-    if t.checked ~= done then
+    if t.mark ~= mark and not (mark == "x" and t.checked) then
       by_file[t.file] = by_file[t.file] or {}
       table.insert(by_file[t.file], t.row)
     end
@@ -102,8 +134,7 @@ function M.set_todos(root, task, done)
   for file, rows in pairs(by_file) do
     local ok, err = fs.update_lines(file, function(lines)
       for _, row in ipairs(rows) do
-        local line = lines[row]
-        lines[row] = done and line:gsub("%[ %]", "[x]", 1) or line:gsub("%[[xX]%]", "[ ]", 1)
+        lines[row] = lines[row]:gsub("%[[ xX%-]%]", "[" .. mark .. "]", 1)
       end
       return lines
     end, { raw = true })
@@ -118,7 +149,7 @@ function M.set_todos(root, task, done)
     require("logpose.index").clear_cache()
     table.sort(titles)
     ui.notify(
-      ("logpose: %s its to-do in %s"):format(done and "checked" or "unchecked", table.concat(titles, ", ")),
+      ("logpose: %s its to-do in %s"):format(DID[mark] or "updated", table.concat(titles, ", ")),
       vim.log.levels.INFO
     )
   end
@@ -230,10 +261,10 @@ function M.on_write(buf)
   if taskfile.is_task_file(path, root) then
     local index = require("logpose.index")
     local was, now = index.frontmatter(old).status, index.frontmatter(new).status
-    if is_done(was) ~= is_done(now) then
-      local done = is_done(now)
+    if M.mark_for(was) ~= M.mark_for(now) then
+      local mark = M.mark_for(now)
       vim.schedule(ui.safely(function()
-        M.set_todos(root, path, done)
+        M.set_marks(root, path, mark)
       end))
     end
   end

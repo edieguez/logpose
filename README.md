@@ -401,6 +401,10 @@ task, without counting as one.
 - They're no longer open anywhere: the statusline, today, the projects screen, the people list and
   your status leave them out. `open` and `done` both skip them; `cancelled` finds them.
   `:Logpose archive` files them away with the done ones.
+- What they leave behind says they were dropped: a to-do the task was made from becomes `- [-]`
+  (no longer an action item; reopening the task makes it `- [ ]` again), your status's Yesterday
+  says `In progress → Cancelled`, a report lists them under `## Cancelled tasks` with why, and a
+  1:1 with someone who cared about one says so in its `## Updates`.
 
 ### Who does it, who cares about it
 
@@ -488,6 +492,8 @@ Once a to-do is a task, finishing either one finishes the other:
   for that task.
 - **Reopening works the same way.** The task moved out of Done unchecks the to-do; the to-do
   unchecked moves the task back to the column it was in before Done.
+- **The task cancelled** (`X` on the board, `:Logpose cancel`) marks its to-do `- [-]`: it isn't
+  a to-do any more, nor done. Reopening the task makes it `- [ ]` again.
 
 Notes changed this way keep their `modified:` date. A note with unsaved changes is edited in its
 buffer, for you to save. Board undo (`u`) puts the to-do back too. If a task is marked done
@@ -1044,8 +1050,8 @@ This drives `sprint:` filters, the `{sprint}` template variable, the board's Don
 shows the current sprint), the statusline and the reports below. Without it, periods are
 Monday-to-Sunday weeks ([Weeks and sprints](#weeks-and-sprints) has the options).
 
-**Reports.** `:Logpose report sprint` summarises the current sprint: tasks done, meetings,
-decisions and open action items. A review section lists what needs attention: overdue action
+**Reports.** `:Logpose report sprint` summarises the current sprint: tasks done, tasks cancelled
+(with why), meetings, decisions and open action items. A review section lists what needs attention: overdue action
 items, old open to-dos, blocked tasks, and tasks in progress for too long (grouped by who does
 them when some are someone else's).
 

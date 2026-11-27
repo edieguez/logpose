@@ -1944,20 +1944,30 @@ projects' counts; archive; the config check.
 
 **Goal.** What reads a task's history tells a cancelled task from a finished one.
 
-**Design** (`sync.lua`, `notes/status.lua`, `report.lua`, `people/agenda.lua`)
+**Design** (`sync.lua`, `todos.lua`, `taskfile.lua`, `board/history.lua`, `report.lua`, `index.lua`)
 
-- A to-do made into a task: cancelling the task marks the to-do `- [-]` (like `- [>]`, no longer a
-  to-do: not an open action item, not done), in every note where it is; reopening the task makes it
-  `- [ ]` again. A note with unsaved changes is edited in its buffer; `modified:` stays.
-- Daily status: Yesterday lists `In progress → Cancelled` (from the log); a cancelled task is never
-  in Today or Blockers.
-- Report: `## Cancelled tasks (N)` after Done, by day, with the reason; filters apply
-  (`stakeholders:bob`).
-- 1:1 `## Updates`: a stakeholder's task that was cancelled since the last 1:1 shows
-  `TODO → Cancelled`.
+- A to-do made into a task: `sync.mark_for(status)` is the box its to-dos should have (`x` done,
+  `-` cancelled, ` ` otherwise), and `sync.set_marks(root, task, mark)` sets it in every note
+  (`set_todos(done)` is now `set_marks` with `x` or ` `). Every place that synced on "in or out
+  of Done" compares marks instead: `taskfile.set_status` (reopening a cancelled task: `- [ ]`;
+  finishing it: `- [x]`), `set_cancelled` (newly cancelled: `- [-]`), the board's undo and redo,
+  and a task file saved by hand. A `- [-]` line is no longer a to-do (like `- [>]`): not an open
+  action item, not done; `todos.linked` still reads it (`mark = "-"`), and `sync.todos_of` also
+  looks in notes that link to the task by name, since the index has no to-do there. A note with
+  unsaved changes is edited in its buffer; `modified:` stays. The message says `marked [-]
+  (cancelled) its to-do in …`.
+- Daily status: Yesterday lists `TODO → Cancelled` from the log (the move line C28 writes); a
+  cancelled task is never in Today or Blockers (C28's `is_closed`).
+- Report: `## Cancelled tasks (N)` after Done: one list, oldest first, `- <day> <title>: <reason>
+  (<link>)  @project` (day headings would repeat Done's, which markdownlint refuses). A cancelled
+  task's index date is the day it was cancelled (`since`), so the period and `since:`/`until:`
+  filters take it then; filters apply (`stakeholders:bob`).
+- 1:1 `## Updates`: a stakeholder's task cancelled since the last 1:1 shows `TODO → Cancelled`
+  (the log's moves, as for any move).
 
-**Tests**: the to-do both ways (several notes, unsaved buffer); Yesterday; the report section;
-`## Updates`.
+**Tests** (`test_cancel.lua`): the to-do both ways across two notes (cancel, reopen, done, then
+cancelled; no longer in actions; an unsaved buffer), the board's undo and redo; Yesterday, Today
+and Blockers; the report section and a filter; `## Updates`.
 
 ## 5. Command reference (final state)
 
@@ -2041,6 +2051,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.47.0 | 2026-11-27 | cancelled tasks in to-dos (`- [-]`), the status, reports and 1:1s |  |
 | 1.46.0 | 2026-11-27 | cancelled tasks: `X` on the board, `:Logpose cancel`; closed, not done |  |
 | 1.45.0 | 2026-11-27 | a new title renames the file: the form asks; `:Logpose rename`, `R` on the lists |  |
 | 1.44.1 | 2026-11-27 | a person typed in the form stays as typed (the menu put a stale name in its place) |  |

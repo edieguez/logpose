@@ -337,6 +337,10 @@ Cancelled tasks aren't open anywhere (statusline, today, the projects
 screen, the people list, your status); `open` and `done` both leave them
 out, `cancelled` finds them, and |:Logpose-archive| files them with the done
 ones. The status is `board.cancelled` ("cancelled"), which can't be a column.
+A to-do the task was made from becomes `- [-]` (|logpose-todo-sync|); the
+status's Yesterday says `In progress → Cancelled`; reports list them under
+`## Cancelled tasks` with why; a 1:1's `## Updates` shows one its person
+cared about.
 
                                                            *logpose-todo-sync*
 A to-do made into a task and its task stay in step, both ways:
@@ -350,6 +354,8 @@ A to-do made into a task and its task stay in step, both ways:
   for that task.
 - Reopening: the task out of Done unchecks the to-do; the to-do unchecked
   moves the task back to the column it was in before Done.
+- The task cancelled (|logpose-cancel|) marks the to-do `- [-]`: no longer a
+  to-do, nor done. Reopening the task makes it `- [ ]` again.
 
 Notes changed this way keep their `modified:` date; one with unsaved
 changes is edited in its buffer. Board undo puts the to-do back too. A task
@@ -1104,10 +1110,10 @@ Sprints and maintenance ~
 :Logpose report[!] [week|sprint] [{offset}|{date}] [{filters}...]
     Summary of a period in a scratch buffer. Default: the current period of
     `period.kind`; `-1` the previous one; a date the period containing it.
-    Lists tasks done, meetings, decisions and open action items, then a
-    review section: overdue actions per project, open to-dos older than
-    `review.stale_days`, blocked tasks, and tasks in progress for longer
-    (grouped by assignee when some are someone else's). {filters} as in
+    Lists tasks done, tasks cancelled (with why), meetings, decisions and
+    open action items, then a review section: overdue actions per project,
+    open to-dos older than `review.stale_days`, blocked tasks, and tasks in
+    progress for longer (grouped by assignee when some are someone else's). {filters} as in
     |logpose-filters|: `stakeholders:bob` makes a stakeholder update.
     [!] saves it to `reports/{period}.md`.
 

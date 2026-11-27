@@ -19,13 +19,25 @@ end
 --- To-dos made into tasks: each to-do followed by the `→ [[task]]` line `:Logpose promote` adds
 --- (indented under it). `link` is the link on that line, `link_row` where it is.
 ---@param lines string[]
----@return { row: integer, checked: boolean, indent: string, text: string, link: { target: string, style: string }, link_row: integer, link_text: string }[]
+--- A to-do whose task was cancelled is `- [-]` (no longer a to-do, but still its task's): those
+--- come too, with `mark = "-"` and `checked = false`.
+---@return { row: integer, checked: boolean, mark: string, indent: string, text: string, link: { target: string, style: string }, link_row: integer, link_text: string }[]
 function M.linked(lines)
   local out, cur = {}, nil
   for i, line in ipairs(lines) do
     local t = M.parse(line)
+    if not t then
+      local indent, rest = line:match("^(%s*)[-*+]%s+%[%-%]%s?(.*)$")
+      t = indent and { indent = indent, checked = false, text = rest, mark = "-" } or nil
+    end
     if t then
-      cur = { row = i, checked = t.checked, indent = t.indent, text = t.text }
+      cur = {
+        row = i,
+        checked = t.checked,
+        mark = t.mark or (t.checked and "x" or " "),
+        indent = t.indent,
+        text = t.text,
+      }
     elseif cur then
       local indent, rest = line:match("^(%s*)(.-)%s*$")
       if rest ~= "" then

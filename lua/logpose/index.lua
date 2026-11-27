@@ -374,7 +374,9 @@ function M.index_lines(path, lines, root)
     note.assignee, note.stakeholders = t.assignee, t.stakeholders
     note.cancelled = t.cancelled
     note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
-    note.date = t.done or (t.created and t.created:sub(1, 10)) or note.date
+    -- a task's day: when it finished, or was cancelled (from its log), else when it was made
+    local cancelled_on = require("logpose.taskfile").is_cancelled(t.status) and t.since or nil
+    note.date = t.done or cancelled_on or (t.created and t.created:sub(1, 10)) or note.date
   end
   table.insert(items, note)
 

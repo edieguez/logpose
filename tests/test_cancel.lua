@@ -291,4 +291,116 @@ T["config: the cancelled status can't be a column"] = function()
   H.contains(tostring(err), '`board.cancelled` = "done" is a column')
 end
 
+T["C29"] = MiniTest.new_set()
+
+T["C29"]["a to-do made into a task: [-] when it's cancelled, back to [ ] or [x] when it's reopened or done"] = function()
+  local retro = root .. "/meetings/acme/2026-10-14 - retro.md"
+  local daily = root .. "/daily/daily-2026-10-15.md"
+  H.write(
+    retro,
+    '---\ntype: retro\ndate: 2026-10-14\ntitle: "Retro"\n---\n- [ ] fix CI @ana\n  → [[tasks/docs|task]]\n'
+  )
+  H.write(daily, "# d\n\n- [ ] fix CI @ana\n  → [[tasks/docs|task]]\n")
+  local task = root .. "/tasks/docs.md"
+  child.lua(("require('logpose.taskfile').set_cancelled(%q, 'not needed')"):format(task))
+  H.contains(H.read(retro), "- [-] fix CI @ana\n  → [[tasks/docs|task]]")
+  H.contains(H.read(daily), "- [-] fix CI @ana")
+  H.contains(last_msg(), "marked [-] (cancelled) its to-do in")
+  -- not an action item any more
+  child.cmd("Logpose actions")
+  eq(#child.fn.getqflist(), 0)
+  child.cmd("cclose")
+  -- reopened: an open to-do again
+  child.lua(("require('logpose.taskfile').set_status(%q, 'todo')"):format(task))
+  H.contains(H.read(retro), "- [ ] fix CI @ana")
+  -- done, then cancelled: checked, then [-]
+  child.lua(("require('logpose.taskfile').set_status(%q, 'done')"):format(task))
+  H.contains(H.read(retro), "- [x] fix CI @ana")
+  child.lua(("require('logpose.taskfile').set_cancelled(%q)"):format(task))
+  H.contains(H.read(retro), "- [-] fix CI @ana")
+  -- a note with unsaved changes is changed in its buffer
+  child.lua(("require('logpose.taskfile').set_status(%q, 'todo')"):format(task))
+  child.cmd("edit " .. daily)
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "# day" })
+  child.lua(("require('logpose.taskfile').set_cancelled(%q)"):format(task))
+  eq(child.api.nvim_buf_get_lines(0, 2, 3, false), { "- [-] fix CI @ana" })
+  eq(child.bo.modified, true)
+end
+
+T["C29"]["the board's undo puts the to-do back too"] = function()
+  local retro = root .. "/meetings/acme/2026-10-14 - retro.md"
+  H.write(
+    retro,
+    '---\ntype: retro\ndate: 2026-10-14\ntitle: "Retro"\n---\n- [ ] write the docs\n  → [[tasks/docs|task]]\n'
+  )
+  child.cmd("Logpose board")
+  child.type_keys("l") -- TODO: docs
+  child.lua("vim.ui.input = function(o, cb) cb('') end")
+  child.type_keys("X")
+  H.contains(H.read(retro), "- [-] write the docs")
+  child.type_keys("u")
+  H.contains(H.read(retro), "- [ ] write the docs")
+  child.type_keys("<C-r>")
+  H.contains(H.read(retro), "- [-] write the docs")
+end
+
+T["C29"]["the status's Yesterday says a task was cancelled; Today and Blockers leave it out"] = function()
+  task("dropped", { status = "cancelled", cancelled = "superseded", project = "acme" }, {
+    "- 2026-10-10 09:00: created in Backlog",
+    "- 2026-10-14 11:00: TODO → Cancelled",
+    "- 2026-10-14 11:00: cancelled: superseded",
+  })
+  local s = child.lua_get(([[(function()
+    local s = require('logpose.notes.status').collect(%q)
+    local function t(list) return vim.tbl_map(function(e) return e.label .. ' (' .. e.note .. ')' end, list) end
+    return { yesterday = t(s.yesterday), today = t(s.today), blockers = t(s.blockers) }
+  end)()]]):format(root))
+  H.contains(table.concat(s.yesterday, "\n"), "dropped (TODO → Cancelled)")
+  eq(table.concat(s.today, "\n"):find("dropped", 1, true), nil)
+  eq(table.concat(s.blockers, "\n"):find("dropped", 1, true), nil)
+end
+
+T["C29"]["the report lists what was cancelled in the period, with why, apart from what was done"] = function()
+  task("dropped", { status = "cancelled", cancelled = "superseded", project = "acme" }, {
+    "- 2026-10-10 09:00: created in Backlog",
+    "- 2026-10-13 11:00: TODO → Cancelled",
+  })
+  task("quiet", { status = "cancelled", cancelled = "yes" }, {
+    "- 2026-10-10 09:00: created in Backlog",
+    "- 2026-10-14 11:00: Backlog → Cancelled",
+  })
+  child.cmd("Logpose report week")
+  local r = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(r, "## Done tasks (1)\n\n### 2026-10-14\n\n- shipped (")
+  H.contains(
+    r,
+    "## Cancelled tasks (2)\n\n- 2026-10-13 dropped: superseded ([[tasks/dropped|dropped]])  @acme\n"
+      .. "- 2026-10-14 quiet ([[tasks/quiet|quiet]])"
+  )
+  child.cmd("close")
+  child.cmd("Logpose report week project:acme")
+  r = table.concat(child.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  H.contains(r, "## Cancelled tasks (1)")
+end
+
+T["C29"]["a 1:1's updates: a task they care about that was cancelled since the last one"] = function()
+  H.write(root .. "/people/ana.md", '---\nname: "Ana"\n---\n')
+  H.write(
+    root .. "/meetings/2026-10-01 - 1-1-ana.md",
+    '---\ntype: 1on1\ndate: 2026-10-01\ntitle: "1:1 Ana"\nwith: Ana\n---\n'
+  )
+  local path = task("pricing", { status = "cancelled", cancelled = "no budget" }, {
+    "- 2026-09-20 09:00: created in TODO",
+    "- 2026-10-08 09:00: TODO → Cancelled",
+  })
+  H.write(path, H.read(path):gsub("status: cancelled", "status: cancelled\nstakeholders: [Ana]"))
+  local note = child.lua_get(([[(function()
+    local m = require("logpose.notes.meeting")
+    local n = m.build(%q, "1on1", "Ana", "2026-10-15")
+    m.write(%q, n, true)
+    return n
+  end)()]]):format(root, root))
+  H.contains(H.read(note.path), "## Updates\n\n- [[tasks/pricing|pricing]] — TODO → Cancelled\n")
+end
+
 return T

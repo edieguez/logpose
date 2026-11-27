@@ -113,6 +113,27 @@ function M.build(root, p, args, today, dest)
     end
   end
 
+  -- Tasks cancelled in the period (dated by when they were): dropped, not done.
+  local taskfile = require("logpose.taskfile")
+  local cancelled = vim.tbl_filter(function(it)
+    return it.kind == "task" and taskfile.is_cancelled(it.status)
+  end, in_period(items, p))
+  section(out, "Cancelled tasks", #cancelled)
+  -- one list, the day on each line (day headings would repeat Done's)
+  table.sort(cancelled, function(a, b)
+    if a.date ~= b.date then
+      return a.date < b.date
+    end
+    return a.text:lower() < b.text:lower()
+  end)
+  for _, it in ipairs(cancelled) do
+    local why = it.cancelled and it.cancelled ~= "yes" and (": " .. it.cancelled) or ""
+    table.insert(
+      out,
+      ("- %s %s%s (%s)%s"):format(it.date, it.text, why, ref(it), it.project and ("  @" .. it.project) or "")
+    )
+  end
+
   -- Meetings held, by type.
   local meetings = vim.tbl_filter(function(it)
     return it.kind == "note" and it.file_type == "meeting"

@@ -330,7 +330,7 @@ function M.set_status(path, status)
   if not M.column_index(status) then
     error(("logpose: unknown board column %q"):format(status), 0)
   end
-  local changed, was_done = false, false
+  local changed, was = false, nil -- the status it had
   update(path, function(lines)
     local fm = require("logpose.index").frontmatter(lines)
     local from = str(fm.status) or config.get().tasks.capture_status
@@ -355,15 +355,16 @@ function M.set_status(path, status)
     if M.is_cancelled(from) then
       lines = M.set_field(lines, "cancelled", nil) -- reopened
     end
-    was_done = from == board.done
+    was = from
     return M.append_log(lines, ("%s → %s"):format(M.label(from), M.label(status)))
   end)
-  -- in or out of Done: the to-dos it was made from follow
-  local is_done = status == config.get().board.done
-  if changed and was_done ~= is_done then
+  -- in or out of Done, or out of Cancelled: the to-dos it was made from follow
+  local sync = require("logpose.sync")
+  local mark = sync.mark_for(status)
+  if changed and sync.mark_for(was) ~= mark then
     local root = config.resolve_root()
     if root then
-      local ok, err = pcall(require("logpose.sync").set_todos, root, fs.normalize(path), is_done)
+      local ok, err = pcall(sync.set_marks, root, fs.normalize(path), mark)
       if not ok then
         require("logpose.util.ui").notify(require("logpose.util.ui").message(err), vim.log.levels.WARN)
       end
@@ -381,6 +382,7 @@ end
 ---@return boolean changed
 function M.set_cancelled(path, reason)
   local none = reason == false
+  local newly = false
   reason = type(reason) == "string" and vim.trim(reason) or nil
   if reason == "" then
     reason = nil
@@ -410,8 +412,19 @@ function M.set_cancelled(path, reason)
     if reason then
       lines = M.append_log(lines, "cancelled: " .. reason)
     end
+    newly = not already
     return lines
   end)
+  -- the to-dos it was made from aren't to-dos any more: `- [-]`
+  if newly then
+    local root = config.resolve_root()
+    if root then
+      local ok, err = pcall(require("logpose.sync").set_marks, root, fs.normalize(path), "-")
+      if not ok then
+        require("logpose.util.ui").notify(require("logpose.util.ui").message(err), vim.log.levels.WARN)
+      end
+    end
+  end
   return changed
 end
 
