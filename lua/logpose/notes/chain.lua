@@ -185,11 +185,20 @@ local function plan_note(path, want, migrate, changes)
 end
 
 --- Every daily note and meeting of a series, with the links it should have, against the ones it
---- has: what `relink` would change. Nothing is written.
+--- has: what `relink` would change. Nothing is written. `opts.series`: only those series' meetings
+--- (no daily notes).
 ---@param root string
+---@param opts? { series?: string[] }
 ---@return logpose.Change[]
-function M.plan(root)
+function M.plan(root, opts)
   local cfg = require("logpose.config").get()
+  local only
+  if opts and opts.series then
+    only = {}
+    for _, s in ipairs(opts.series) do
+      only[s] = true
+    end
+  end
   local changes = {}
   local function walk(list, link_of, migrate)
     for i, it in ipairs(list) do
@@ -200,7 +209,7 @@ function M.plan(root)
       plan_note(it.file, want, migrate, changes)
     end
   end
-  if cfg.daily.links then
+  if cfg.daily.links and not only then
     local daily = require("logpose.notes.daily")
     local notes = vim.tbl_map(function(d)
       return { file = daily.path(d, root), label = M.daily_label(d) }
@@ -212,7 +221,13 @@ function M.plan(root)
   if cfg.series.links then
     local series = {}
     for _, it in ipairs(require("logpose.index").build(root)) do
-      if it.kind == "note" and it.file_type == "meeting" and it.series and it.date then
+      if
+        it.kind == "note"
+        and it.file_type == "meeting"
+        and it.series
+        and it.date
+        and (not only or only[it.series])
+      then
         series[it.series] = series[it.series] or {}
         table.insert(series[it.series], it)
       end

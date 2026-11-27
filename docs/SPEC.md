@@ -1849,6 +1849,45 @@ rows and details; `## Updates` (since the last 1:1, only assigned tasks at the f
 empty); project stakeholders in the form, the projects screen, the hub and suggestions; the doc
 form; report filters and the review by assignee (and without groups when it's all yours).
 
+## C27 — A new title renames the file (1.45.0)
+
+**Goal.** A note's file name came from its first title and never changed: retitling a meeting or a
+topic note in the form left `2026-11-20 - sync.md` behind, and nothing renamed notes. Now the file
+can follow the title, with every link to it.
+
+**Design** (`notes/rename.lua`)
+
+- `target(root, path, kind, old, new)`: where the note goes, or nil when the name stays (same slug,
+  or a kind that keeps its name). Topic notes, project docs and other notes: `<slug>.md` in the
+  same folder. Meetings: the old title's slug in the file name is replaced (a `-2` after it goes
+  too), so the date and `{time}` stay; when the old slug isn't there, the name is made again from
+  `meeting_filename` (date from `date:`, time from `created:`). People: `people.page_path`. A
+  name already taken gets `-2`, `-3`… (the note itself counts as free). Tasks, daily notes and
+  project pages keep their names (`KEEPS` says why).
+- `plan` (nothing written): the note's `title:`, its own markdown links (relative to where it'll
+  be), the links to it in every file (`maintenance.link_pair`/`rewrite_links`: wiki, short
+  `[[name]]`, markdown), the move. A meeting whose type has a `prompt` and isn't a person type (an
+  ad-hoc one: its title made its series) starts a new series, `[project/]type-<slug>`, and loses
+  its `previous:`/`next:`; `apply` then relinks the old and the new series with
+  `chain.plan(root, { series = … })` (only those series, no daily notes). A retro's series is its
+  type, a 1:1's its person: unchanged.
+- People: `rename-person`'s plan, with `opts.was` (the name before the form wrote the new one):
+  that's the name replaced everywhere and kept as an alias.
+- The edit form: a new `title` (a person's `name`) on a single note adds `then ask to rename the
+  file to …` to the summary; after saving, `offer` asks with `vim.ui.select` ("Rename the file to
+  …" / "Keep the file name"). Saving never waits on the answer; yes renames, notifies
+  (`renamed to …, fixing links in N notes`) and the form edits the note where it is now.
+- `:Logpose rename [title]` (asks, starting from the current title) and `R` on the notes and
+  meetings lists rename without asking twice. The same file name: only the title changes. A note
+  with unsaved changes stops it.
+
+**Tests** (`test_rename.lua`): the form asks, yes renames and fixes wiki, short and markdown links,
+the form and the note's buffer follow; keep; a title with the same file name and other fields ask
+nothing; `-2`; the command asks with the current title, and only retitles when the name stays;
+tasks, daily notes, project pages and unsaved notes refused; an ad-hoc meeting keeps date and time,
+starts a series, the old one is relinked; a retro keeps its series; `R` on both lists; a person
+through the form.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1882,6 +1921,7 @@ form; report filters and the review by assignee (and without groups when it's al
 | `:Logpose meetings [filters]`             | C8 |
 | `:Logpose people [filter]`, `person [handle]`, `rename-person` | C6 |
 | `:Logpose relink[!]`                      | C21 |
+| `:Logpose rename [title]`                 | C27 |
 
 ## 6. Definition of done (every feature)
 
@@ -1929,6 +1969,8 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.45.0 | 2026-11-27 | a new title renames the file: the form asks; `:Logpose rename`, `R` on the lists |  |
+| 1.44.1 | 2026-11-27 | a person typed in the form stays as typed (the menu put a stale name in its place) |  |
 | 1.44.0 | 2026-11-27 | assignees and stakeholders in the status, people, 1:1s, projects and reports |  |
 | 1.43.0 | 2026-11-27 | assignees and stakeholders on tasks |  |
 | 1.42.0 | 2026-11-25 | the status in the daily note; `:Logpose standup` removed |  |

@@ -15,6 +15,7 @@ M.one = "note"
 M.help = {
   { "a", "a new topic note (in this group's project or tag); under a doc type, a new doc" },
   { "P", "a project doc: make it a lasting note in notes/" },
+  { "R", "rename it: its title, its file and the links to it" },
   { "d  b", "today's daily note · the board" },
   { "type:daily", "in the filter: daily notes too (type:meeting: meetings)" },
 }
@@ -324,6 +325,9 @@ function M.add(s, group)
 end
 
 function M.keys(s, map, helpers)
+  map("R", function()
+    require("logpose.lists.common").rename(s, helpers)
+  end, "Rename the note")
   map("P", function()
     local e = helpers.entry_at(s)
     if not e or e.item.file_type ~= "doc" then

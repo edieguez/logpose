@@ -793,6 +793,9 @@ function M.save(f)
     end
     return
   end
+  local title_key = model.kind == "person" and "name" or "title"
+  local old_title = type(model.old[title_key]) == "string" and model.old[title_key] or ""
+  local new_title = r.changed[title_key]
   local path, keys = save.note(model.root, model.path, model.kind, r.changed)
   reload(f, path)
   if #keys == 0 then
@@ -802,6 +805,17 @@ function M.save(f)
   end
   if f.on_save and #keys > 0 then
     f.on_save(path, keys)
+  end
+  -- a new title: ask whether the file follows it (and its links with it)
+  if type(new_title) == "string" and new_title ~= "" then
+    require("logpose.notes.rename").offer(model.root, path, model.kind, old_title, new_title, function(dest)
+      if M.forms[f.buf] and vim.api.nvim_buf_is_valid(f.buf) then
+        reload(f, dest)
+      end
+      if f.on_save then
+        f.on_save(dest, { "file" })
+      end
+    end)
   end
 end
 

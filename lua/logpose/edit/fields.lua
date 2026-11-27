@@ -895,6 +895,16 @@ function M.effects(model, r, links_to, ctx)
   if #plain > 0 then
     table.insert(out, "update " .. table.concat(plain, ", "))
   end
+  -- a new title: the file can follow it (asked after saving)
+  local title_key = model.kind == "person" and "name" or "title"
+  local new_title = not model.bulk and model.path and changed[title_key]
+  if type(new_title) == "string" and new_title ~= "" then
+    local old = type(model.old[title_key]) == "string" and model.old[title_key] or ""
+    local ok, dest = pcall(require("logpose.notes.rename").target, model.root, model.path, model.kind, old, new_title)
+    if ok and dest then
+      table.insert(out, ("then ask to rename the file to %s"):format(require("logpose.link").relpath(model.root, dest)))
+    end
+  end
   return out
 end
 

@@ -11,11 +11,15 @@ local ui = require("logpose.util.ui")
 local M = {}
 
 --- Plan the rename of the person `old` (any of their names) to `new`.
+--- `opts.was`: the name the page had before an edit already wrote `new` into it (the edit form):
+--- it's the one replaced everywhere and kept as an alias.
 ---@param root string
 ---@param old string
 ---@param new string
+---@param opts? { was?: string }
 ---@return logpose.Change[] changes, logpose.Person person
-function M.plan(root, old, new)
+function M.plan(root, old, new, opts)
+  opts = opts or {}
   local people = require("logpose.people")
   local index = require("logpose.index")
   local fmw = require("logpose.frontmatter")
@@ -30,11 +34,13 @@ function M.plan(root, old, new)
   if not p then
     error(("logpose: nobody called %q"):format(old), 0)
   end
-  if new == p.name then
+  local was = opts.was and vim.trim(opts.was) ~= "" and vim.trim(opts.was) or nil
+  if new == p.name and not was then
     error("logpose: that's already their name", 0)
   end
+  local former = was or p.name
   -- the names rewritten: the one being replaced, as written or as a handle
-  local replaced = { [text.slugify((old:gsub("^@", "")))] = true, [text.slugify(p.name)] = true, [p.slug] = true }
+  local replaced = { [text.slugify((old:gsub("^@", "")))] = true, [text.slugify(former)] = true, [p.slug] = true }
 
   local moves, link_pairs = {}, {}
   local page_new = p.page and people.page_path(root, new)
@@ -67,8 +73,8 @@ function M.plan(root, old, new)
         elseif path == p.page and key == "aliases" then
           had_aliases = true
           local list = type(v) == "table" and v or (type(v) == "string" and v ~= "" and { v } or {})
-          if not vim.tbl_contains(list, p.name) then
-            list = vim.list_extend(vim.deepcopy(list), { p.name })
+          if not vim.tbl_contains(list, former) then
+            list = vim.list_extend(vim.deepcopy(list), { former })
           end
           for k = last, i + 1, -1 do
             table.remove(lines, k)
@@ -98,7 +104,7 @@ function M.plan(root, old, new)
         i = last + 1
       end
       if path == p.page and not had_aliases then
-        table.insert(lines, close, fmw.line("aliases", { p.name }))
+        table.insert(lines, close, fmw.line("aliases", { former }))
         close, count = close + 1, count + 1
       end
     end

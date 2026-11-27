@@ -15,7 +15,14 @@ M.noun = "meetings"
 M.one = "meeting"
 M.help = {
   { "a", "a new meeting (of this group's type or project)" },
+  { "R", "rename it: its title, its file and the links to it (an ad-hoc one starts a new series)" },
 }
+
+function M.keys(s, map, helpers)
+  map("R", function()
+    common.rename(s, helpers)
+  end, "Rename the meeting")
+end
 
 --- The meeting types' labels.
 ---@return table<string, string>

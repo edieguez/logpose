@@ -156,6 +156,11 @@ M.builtin = {
   report = { module = "logpose.report", desc = "logpose: week or sprint report" },
   ticket = { module = "logpose.tickets", complete = false, desc = "logpose: notes mentioning a ticket" },
   stats = { module = "logpose.telemetry", complete = false, desc = "logpose: local usage stats" },
+  rename = {
+    module = "logpose.notes.rename",
+    complete = false,
+    desc = "logpose: rename this note: its title, its file and the links to it",
+  },
   ["rename-tag"] = {
     module = "logpose.maintenance",
     fn = "rename_tag_command",

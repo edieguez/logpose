@@ -5,6 +5,9 @@ set -eu
 cd "$(dirname "$0")/.."
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
-TZ=America/New_York ${NVIM:-nvim} --headless --clean -u scripts/lint-output.lua -- "$dir/journal"
+# Its own data and state folders: your pinned project doesn't shape the notes, and the run
+# doesn't count in your usage stats.
+XDG_DATA_HOME="$dir/data" XDG_STATE_HOME="$dir/state" TZ=America/New_York \
+  ${NVIM:-nvim} --headless --clean -u scripts/lint-output.lua -- "$dir/journal"
 markdownlint-cli2 "templates/*.md"
 cd "$dir/journal" && markdownlint-cli2 "**/*.md"

@@ -230,4 +230,21 @@ function M.swap_in_list(root, file, kind, key, current, from, to)
   return path
 end
 
+--- `R` on a list: rename the note under the cursor (asks for its title), then show it again.
+---@param s logpose.ListState
+---@param helpers { refresh: fun(key?: string), entry_at: fun(s: logpose.ListState): logpose.ListEntry? }
+function M.rename(s, helpers)
+  local ui = require("logpose.util.ui")
+  ui.safely(function()
+    local e = helpers.entry_at(s)
+    if not e or not e.file or e.file == "" then
+      ui.notify("logpose: no note here", vim.log.levels.INFO)
+      return
+    end
+    require("logpose.notes.rename").ask(s.root, e.file, function(dest)
+      helpers.refresh(dest)
+    end)
+  end)()
+end
+
 return M

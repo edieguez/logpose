@@ -551,8 +551,9 @@ Each list adds a few keys of its own:
   notes something for the next 1:1 and `R` renames them everywhere. When a bare first name
   (`ana`) is probably someone with a fuller name (`Ana López`), the list says
   `same as Ana López? R merges`, and `R` offers that name. You (`me`) aren't listed.
-- **Notes:** `P` makes a project doc a lasting note, `d` opens today's daily note and `b` the
-  board.
+- **Notes:** `P` makes a project doc a lasting note, `R` renames the note (its title, its file
+  and the links to it), `d` opens today's daily note and `b` the board.
+- **Meetings:** `R` renames the meeting the same way; an ad-hoc one starts a series of its own.
 
 Rows leave out what their group heading already says (the project, the meeting type), and a
 meeting whose title is its type shows it once. `f` on a project in `:Logpose projects` opens its
@@ -876,6 +877,17 @@ there, one save at a time. Moving a meeting to another project moves the note in
 folder, follows its series, and fixes links to it, including the `- project:` label in your daily
 note. Renaming a project is `R` in `:Logpose projects`, since that updates every note.
 
+**A new title can rename the file.** Change the title of a topic note, a project doc or a meeting
+(or a person's name) and the summary says `then ask to rename the file to notes/queue-v2.md`.
+After saving, logpose asks; say yes and the file takes the new name, and every link to it in the
+journal follows (wiki, short `[[name]]` and markdown links, and a meeting's previous/next links).
+A meeting keeps its date and time in its file name. An ad-hoc meeting, whose title is what ties it
+to the meetings before it, starts a series of its own, and the meetings it left are linked to each
+other again. A person goes through `rename-person`: the old name stays as an alias and mentions
+follow. A name already taken gets `-2`. Tasks keep their file names, since to-dos link to them and
+the board's undo restores them by name. `:Logpose rename [title]` renames the note you're in
+without asking, and `R` does it on the notes and meetings lists.
+
 The form keeps the focus while it's open, like the peek and help windows: clicking the board or
 `<C-w>w` brings you back to it, so nothing behind it changes underneath, and opening another form
 brings the open one to the front instead. Pickers and menus opened from it work as usual.
@@ -892,6 +904,7 @@ tasks and run `:'<,'>Logpose edit` (see [Working on the board](#working-on-the-b
 | `:Logpose note Queue design` | Creates or opens `notes/queue-design.md`, for how-tos, decision records and references. A different title with the same file name (`C++ tips`, `C# tips`) gets its own file, `c-tips-2.md`. |
 | `:Logpose note` | The new-note form: title, project and tags, then the note opens. |
 | `:Logpose project-page` | Creates or opens `projects/<project>.md`, the hub for a project. |
+| `:Logpose rename [title]` | Renames the note you're in: its title, its file and every link to it (see [editing details](#editing-details)). |
 | `:Logpose backlinks` | Notes linking to the current one. |
 | `:Logpose links` | Links going out of it, with missing targets flagged. |
 
@@ -1150,6 +1163,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `merge-project[!] OLD NEW` | Merge one project into another. |
 | `rename-person[!] HANDLE [NEW NAME]` | Rename a person everywhere (asks for the name if not given). |
 | `relink[!]` | Add or fix the previous/next links of daily notes and meeting series. `!` skips the preview. |
+| `rename [TITLE]` | Rename the note you're in: its title, its file and the links to it (asks for the title if not given). Not tasks, daily notes or project pages. |
 | `init [DIR]` | Choose or create the journal folder. |
 | `stats[!] [DAYS]` | Usage stats. `!` resets them. |
 

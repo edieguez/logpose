@@ -415,7 +415,9 @@ words (<Tab> opens it). The bar's right end counts the matches and names
 ignored words.
 
 The notes list adds `P` (a project doc becomes a lasting note,
-|logpose-docs|), `d` (today's daily note) and `b` (the board); the people
+|logpose-docs|), `R` (rename the note: its title, file and links,
+|logpose-rename|), `d` (today's daily note) and `b` (the board); the
+meetings list `R` (the same); the people
 list `y`, `o`, `t` and `R` (|logpose-people-screen|). `f` on a project in
 |:Logpose-projects| opens its notes.
 
@@ -704,7 +706,27 @@ Saving applies the changes the way logpose would:
     its `series` follows, and links to it (with the `- project:` label in
     daily notes) are fixed;
   - a project page's `project` can't change here: rename with `R` in
-    |:Logpose-projects|.
+    |:Logpose-projects|;
+  - a new title (a person's name) can rename the file: the summary says
+    `then ask to rename the file to …`, and after saving you're asked
+    (|logpose-rename|).
+
+                                                              *logpose-rename*
+Renaming ~
+A topic note, project doc, meeting or person's page can take its new title
+as its file name: the file moves, and every link to it follows (wiki, short
+`[[name]]` and markdown links, a meeting's `previous:`/`next:`). A name
+already taken gets `-2`. A meeting keeps its date and time in its file
+name; an ad-hoc meeting, whose title ties it to the ones before, starts a
+series of its own, and the meetings it left are linked to each other again.
+A person goes through |:Logpose-rename-person| (the old name stays as an
+alias, mentions follow). Tasks keep their file names (to-dos link to them,
+and the board's undo restores them by name); daily notes are named by their
+date and project pages by their project.
+
+  the edit form   asks after saving a new title
+  |:Logpose-rename|  renames the note you're in
+  `R`             on the notes and meetings lists
 
 A new task ~
 `:Logpose capture` without text, or `a` on the board, opens the same form
@@ -1112,6 +1134,14 @@ Sprints and maintenance ~
     series note's old `Previous: [[…]]` line moves into the frontmatter.
     It's bookkeeping: `modified:` stays. Preview and [!] as for
     |:Logpose-rename-tag|; files with unsaved changes stop it.
+
+                                                             *:Logpose-rename*
+:Logpose rename [{title}]
+    Rename the note you're in: its title, its file and every link to it
+    (|logpose-rename|). Without {title}, asks for it, starting from the
+    current one. A title with the same file name only changes the title.
+    Tasks, daily notes and project pages keep their names; a note with
+    unsaved changes has to be saved first.
 
                                                                *:Logpose-init*
 :Logpose init [{dir}]
