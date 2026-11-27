@@ -126,6 +126,9 @@ your meetings and your to-dos:
   Today      tasks in progress, due, or done today
   Blockers   blocked tasks with their reasons
 
+Only your tasks count (|logpose-assignee|): assigned to `me`, or to nobody.
+`daily.status.only_mine = false` lists everyone's.
+
 logpose writes the lines that start with a link: >markdown
   - acme: [[tasks/flaky|Fix flaky test]] — In progress
 <
@@ -299,6 +302,11 @@ alone needs neither.
   - Filters: `mine`, `assignee:me`, `unassigned`, `assignee:ana`,
     `stakeholders:bob`; `@ana` finds the tasks she does or cares about too
     (|logpose-filters|).
+  - Elsewhere: your daily status lists only your tasks (|logpose-status|);
+    the people list counts and lists what each person is assigned and is a
+    stakeholder in (|logpose-people-screen|); a 1:1 starts with their
+    `## Updates` (|logpose-1on1-updates|); `:Logpose report sprint
+    stakeholders:bob` is a stakeholder update (|:Logpose-report|).
 
 Getting tasks in and out ~
 
@@ -382,7 +390,8 @@ note itself (week, month, last met) can't be moved to.
 
   <CR>    open (a heading: fold the group; a detail: open it)
   <Tab>   details: attendees, action items, linked tasks; for a person,
-          their meetings, to-dos and mentions; for a note, the notes linking
+          their meetings, to-dos, the open tasks they're assigned or a
+          stakeholder in, and mentions; for a note, the notes linking
           to it (`←`) and those it links to (`→`, missing ones flagged)
   K       peek: the note in a floating window, to read and edit
   /       the filter bar (|logpose-filter-bar|)  <BS>  clear the filter
@@ -465,7 +474,7 @@ The active project is marked with `●`.
   o      its open to-dos
   a      add a project (name, then repo folder)
   p      link another repo folder      R  rename it everywhere
-  e      edit its name, description, repo folders and colour
+  e      edit its name, description, stakeholders, repo folders and colour
   M      merge it into another one     c  detect the project (auto)
   x      no project (pick one per note)
   D      archive it                    U  restore an archived one
@@ -480,12 +489,16 @@ its frontmatter, which you can edit by hand or with `e` there: >markdown
   title: "Acme API"
   project: acme
   description: Payments API for the Acme storefront
+  stakeholders: [Ana López, Bob]
   paths: [~/work/acme-api, ~/work/acme-web]
   color: "#e0af68"
   ---
 <
   `title`        the name you see (`project` is the short name)
   `description`  one line, shown on the projects screen
+  `stakeholders` who care about the project: listed on the projects screen
+                 and in the hub (|logpose-hub|), first when you pick people
+                 for its notes
   `paths`        repo folders that belong to the project; working in one makes
                  it the active project
   `color`        hex colour or highlight group for its cards on the board
@@ -583,7 +596,8 @@ people.
 
                                                        *logpose-people-screen*
 |:Logpose-people| is one of the lists (|logpose-lists|): people with a page
-(role, how to reach them, when you last met, the open to-dos they own),
+(role, how to reach them, when you last met, the open to-dos they own, the
+open tasks they're assigned: `▣ 2 assigned`),
 then the people your notes mention who have no page yet. Besides the lists'
 keys:
 
@@ -601,6 +615,17 @@ Lines under `## Next 1:1` on a person's page (add them there, or with `n`)
 wait for your next 1:1 with them: the list shows `✎ N for the next 1:1`,
 and starting the 1:1 moves them into the note's `## Topics` (or a new
 `## Agenda`), leaving the page's section empty.
+
+                                                        *logpose-1on1-updates*
+A new 1:1 starts with `## Updates`: the open tasks the person is assigned,
+with their column (and blocker), and the tasks they're a stakeholder in
+that moved since your last 1:1 with them (none at the first): >markdown
+  ## Updates
+
+  - [[tasks/migrate|Migrate the DB]] — In progress, blocked: waiting on DBA
+  - [[tasks/pricing|New pricing]] — TODO → Done
+<
+No section when there's nothing to catch up on.
 
 A bare first name with no page (`ana`) that only one fuller name starts with
 (`Ana López`) says `same as Ana López? R merges`: `R` then offers that name,
@@ -770,9 +795,10 @@ Options: `doc_types` (|logpose-setup|).
 
                                                                  *logpose-hub*
 The project page as a hub ~
-At the end of `projects/acme.md`, logpose keeps a list of the project's docs
-by type, its topic notes (with `project: acme`, or linking to the page) and
-its latest meetings, between `<!-- logpose:hub -->` and
+At the end of `projects/acme.md`, logpose keeps a list of the project's
+stakeholders (linked to their pages), its docs by type, its topic notes
+(with `project: acme`, or linking to the page) and its latest meetings,
+between `<!-- logpose:hub -->` and
 `<!-- /logpose:hub -->` (Obsidian and GitHub hide the markers). It follows
 a moment after the journal changes; |:Logpose-hub| does it now. The page is
 written only when the list changes, keeps its `modified:`, and waits while
@@ -1033,7 +1059,9 @@ Sprints and maintenance ~
     `period.kind`; `-1` the previous one; a date the period containing it.
     Lists tasks done, meetings, decisions and open action items, then a
     review section: overdue actions per project, open to-dos older than
-    `review.stale_days`, blocked tasks, and tasks in progress for longer.
+    `review.stale_days`, blocked tasks, and tasks in progress for longer
+    (grouped by assignee when some are someone else's). {filters} as in
+    |logpose-filters|: `stakeholders:bob` makes a stakeholder update.
     [!] saves it to `reports/{period}.md`.
 
                                                             *:Logpose-archive*
@@ -1384,7 +1412,8 @@ Notes and meetings ~
                  status in today's note (|logpose-status|): `enabled`
                  (true), `refresh` ("open": when you open today's note;
                  "manual"), `group_by_project` (true): group what
-                 `:Logpose daily copy` copies by project.
+                 `:Logpose daily copy` copies by project, `only_mine`
+                 (true): only your tasks (|logpose-assignee|).
   timestamps     (table)       `created` (true), `modified` (true): add
                  `created:` and `modified:` (local time, 2026-10-15T18:57)
                  to new notes. `modified:` is bumped when logpose changes a

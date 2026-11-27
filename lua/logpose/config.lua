@@ -130,6 +130,8 @@ M.defaults = {
       refresh = "open",
       --- `:Logpose daily copy` groups the status by project.
       group_by_project = true,
+      --- Only your tasks (assigned to `me`, or to nobody) go in the status.
+      only_mine = true,
     },
   },
   review = {
@@ -363,6 +365,7 @@ local function validate(opts)
   check("daily.status", opts.daily.status, "table")
   check("daily.status.enabled", opts.daily.status.enabled, "boolean")
   check("daily.status.group_by_project", opts.daily.status.group_by_project, "boolean")
+  check("daily.status.only_mine", opts.daily.status.only_mine, "boolean")
   if opts.daily.status.refresh ~= "open" and opts.daily.status.refresh ~= "manual" then
     error(
       ('logpose: `daily.status.refresh` must be "open" or "manual", got %s'):format(

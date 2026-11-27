@@ -11,9 +11,9 @@ local M = {}
 M.FIELDS = {
   task = { "title", "status", "project", "assignee", "stakeholders", "tags", "due", "blocked" },
   meeting = { "title", "type", "date", "project", "attendees", "tags" },
-  project = { "title", "description", "paths", "color" },
+  project = { "title", "description", "stakeholders", "paths", "color" },
   topic = { "title", "project", "tags" },
-  doc = { "title", "type", "status", "project", "tags" },
+  doc = { "title", "type", "status", "project", "stakeholders", "tags" },
   other = { "title", "project", "tags" },
   person = {}, -- see M.fields_for: its own fields, then the configured ways to reach people
 }
@@ -40,7 +40,7 @@ M.NEW_FIELDS = { "title", "status", "project", "assignee", "stakeholders", "tags
 M.NEW_NOTE_FIELDS = {
   meeting = { "type", "title", "date", "project", "attendees", "tags" },
   topic = { "title", "project", "tags" },
-  doc = { "type", "title", "project", "status", "tags" },
+  doc = { "type", "title", "project", "status", "stakeholders", "tags" },
 }
 
 --- Fields a bulk edit of tasks offers (a title is per task).
@@ -262,6 +262,7 @@ function M.load_new_note(root, kind, defaults)
   if kind == "doc" then
     initial.type = defaults.type or require("logpose.notes.doc").default_type()
     initial.status = ""
+    initial.stakeholders = table.concat(defaults.stakeholders or {}, ", ")
   end
   if kind == "meeting" then
     initial.type = defaults.type or require("logpose.notes.meeting").default_type()

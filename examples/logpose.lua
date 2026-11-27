@@ -81,6 +81,7 @@ return {
         enabled = true,
         refresh = "open", -- brought up to date when you open today's note; "manual": :Logpose daily refresh
         group_by_project = true, -- :Logpose daily copy groups the status by project; false: a flat list
+        only_mine = true, -- only your tasks (assigned to you, or to nobody); false: everyone's
       },
     },
     series = { -- meetings with the same type and title (or person, for 1:1s), within a project

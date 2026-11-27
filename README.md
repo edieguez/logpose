@@ -198,6 +198,8 @@ other text.
   It's written when the note is made.
 - **Today**: tasks in progress, due, or done today.
 - **Blockers**: blocked tasks with their reasons, and the lines you write there.
+- Only [your tasks](#who-does-it-who-cares-about-it) count: assigned to you, or to nobody.
+  `daily.status.only_mine = false` lists everyone's.
 
 **logpose writes the lines that start with a link** (`- project: [[…]] — what happened`); the rest
 is yours. Add lines of your own, write sub-bullets under a line, reword a label: they stay. When
@@ -398,6 +400,10 @@ A task can say who does it (`assignee`, one person) and who cares about the outc
   `unassigned` the ones nobody is assigned, `assignee:ana` and `stakeholders:bob` the ones Ana does
   and Bob cares about. `@ana` finds every task she does or cares about, along with her meetings
   and mentions.
+- **Elsewhere:** your daily status lists only your tasks; the people list counts what each person
+  is assigned (`▣ 2 assigned`) and `<Tab>` lists it, with what they're a stakeholder in; a 1:1
+  starts with their [updates](#people); and `:Logpose report sprint stakeholders:bob` is a
+  stakeholder update, its review grouping blocked and lingering tasks by who does them.
 
 > [!NOTE]
 > In captured text, every `@name` is an assignment. To mention someone in the title, write their
@@ -627,7 +633,7 @@ come first, and ones untouched for two weeks fade. `<Tab>` opens a project in pl
 | `f` | Open the notes list for it. |
 | `a` | Add a project: its name, then its repo folder (suggested from where you came from). |
 | `p` | Link another repo folder to the project. |
-| `e` | Edit its name, description, repo folders and colour in a form. |
+| `e` | Edit its name, description, stakeholders, repo folders and colour in a form. |
 | `R` | Rename it everywhere: tasks, notes, tags, its meeting folder and page, and links. |
 | `M` | Merge it into another project. |
 | `D` / `U` | Archive it / restore it (`A` shows archived projects). |
@@ -643,6 +649,7 @@ projects screen shows, and you can edit it by hand (or with `e` there):
 title: "Acme API"
 project: acme
 description: Payments API for the Acme storefront
+stakeholders: [Ana López, Bob]
 paths: [~/work/acme-api, ~/work/acme-web]
 color: "#e0af68"
 ---
@@ -652,6 +659,9 @@ color: "#e0af68"
 - `paths` are the repo folders that belong to the project. Working in one of them makes it the
   active project, with no config needed.
 - `color` (a hex colour or a highlight group) colours the project's cards on the board.
+- `stakeholders` are who care about the project. The projects screen and the page's
+  [hub](#the-project-page-as-a-hub) list them, and they come first when you pick people in that
+  project's notes and forms.
 - The rest of the page is yours: overview, links, decisions, open questions.
 
 **Moving a task to another project:** `m` on the board, or change `project` in the edit form
@@ -778,7 +788,8 @@ added, so you can add several in a row; `<CR>` opens their page.
 
 **The people list** (`:Logpose people`, see [the lists](#meetings-notes-and-people-lists)) shows
 people with a page, then the people your notes mention who have no page yet. `<Tab>` shows what
-involves someone (their meetings, the open to-dos they own, tasks and notes mentioning them).
+involves someone (their meetings, the open to-dos they own, the open tasks they're assigned or a
+stakeholder in, tasks and notes mentioning them).
 `<CR>` opens their page, or the form to add one. `e` edits it, `t` starts a 1:1, `y` copies a way
 to reach them and `o` opens it (a mail, a chat). `R` renames them everywhere, and `/` filters with
 any field: `role:lead`, `slack:*`, `project:acme`.
@@ -787,6 +798,20 @@ any field: `role:lead`, `slack:*`, `project:acme`.
 press `n` on the people list. The list shows how many are waiting (`✎ 2 for the next 1:1`), and
 the next 1:1 with them (`t`, or any meeting type with `person = true`) takes them into its
 `## Topics` (or a new `## Agenda`) and empties the page's list, so each lives in one place.
+
+**A 1:1 starts with what to catch up on.** Its `## Updates` lists the open tasks they're assigned,
+with their column (and blocker), and the tasks they're a stakeholder in that moved since your last
+1:1 with them:
+
+```markdown
+## Updates
+
+- [[tasks/migrate|Migrate the DB]] — In progress, blocked: waiting on DBA
+- [[tasks/pricing|New pricing]] — TODO → Done
+```
+
+There's no `## Updates` when there's nothing to say, and the first 1:1 with someone lists only
+their tasks.
 
 `gx` on an `@mention`, an attendee, an assignee or a stakeholder opens their page.
 `:Logpose rename-person ana Ana García` renames someone everywhere: the page (the old name stays
@@ -817,8 +842,8 @@ task you just captured:
 | Tasks | title, status, project, assignee, stakeholders, tags, due, blocked |
 | Meetings | title, type, date, project, attendees, tags |
 | Topic notes | title, project, tags |
-| Project docs | title, type, status, project, tags |
-| Project pages | title, description, paths, colour |
+| Project docs | title, type, status, project, stakeholders, tags |
+| Project pages | title, description, stakeholders, paths, colour |
 | People pages | name, aliases, role, projects, and each way to reach them |
 
 The form's title says which it is (`Edit task · …`, `Edit meeting · …`), and other keys are left
@@ -940,13 +965,15 @@ on the project page's list below, so the project still points to what it taught 
 ### The project page as a hub
 
 **The project page lists what's in the project, and keeps the list up to date.** At its end,
-logpose keeps a section of links to the project's docs by type, its topic notes (those with the
-project, and those that link to the page) and its latest meetings:
+logpose keeps a section of links to the project's stakeholders (to their people pages), its docs
+by type, its topic notes (those with the project, and those that link to the page) and its latest
+meetings:
 
 ```markdown
 ## In this project
 
 <!-- logpose:hub -->
+- Stakeholders: [[people/ana-lopez|Ana López]], Bob
 - Decisions
   - [[projects/acme/use-postgres|Use Postgres]] · accepted
 - Notes
@@ -986,11 +1013,13 @@ Monday-to-Sunday weeks ([Weeks and sprints](#weeks-and-sprints) has the options)
 
 **Reports.** `:Logpose report sprint` summarises the current sprint: tasks done, meetings,
 decisions and open action items. A review section lists what needs attention: overdue action
-items, old open to-dos, blocked tasks, and tasks in progress for too long.
+items, old open to-dos, blocked tasks, and tasks in progress for too long (grouped by who does
+them when some are someone else's).
 
 ```vim
 :Logpose report sprint -1               " the previous sprint
 :Logpose report sprint -1 project:acme  " just one project
+:Logpose report sprint stakeholders:bob  " what Bob cares about: a stakeholder update
 :Logpose report! sprint -1              " save it to reports/sprint-42.md
 ```
 
@@ -1556,6 +1585,7 @@ Every option, with its default. Links lead to the guide sections where it matter
 | `daily.status.enabled` | `true` | Write your status (`## Yesterday`, `## Today`, `## Blockers`) into today's daily note. |
 | `daily.status.refresh` | `"open"` | `"open"`: bring it up to date when you open today's note; `"manual"`: only with `:Logpose daily refresh`. |
 | `daily.status.group_by_project` | `true` | `:Logpose daily copy` groups the status by project; `false` copies a flat list. |
+| `daily.status.only_mine` | `true` | Only your tasks (assigned to `me`, or to nobody) go in the status; `false` lists everyone's. |
 | `series.carry_over` | `true` | A new meeting in a series starts with the previous one's open to-dos under `## Carried over`. |
 | `series.mark_carried` | `true` | Mark those `- [>]` in the previous meeting. |
 | `series.links` | `true` | Link each meeting to the ones before and after it in its series. |

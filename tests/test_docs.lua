@@ -97,11 +97,15 @@ T[":Logpose doc opens the form; saving creates the doc in the project's folder"]
   eq(d.below[1], "saving will:")
   H.contains(table.concat(d.below, "\n"), "create projects/acme/use-postgres.md, a decision of acme")
   set("tags", "db")
+  set("stakeholders", "Ana, Bob")
   save()
   local path = root .. "/projects/acme/use-postgres.md"
   eq(child.api.nvim_buf_get_name(0), path)
   local text = H.read(path)
-  H.contains(text, '---\ntitle: "Use Postgres"\ntype: decision\nproject: acme\nstatus: proposed\ntags: [db]\n')
+  H.contains(
+    text,
+    '---\ntitle: "Use Postgres"\ntype: decision\nproject: acme\nstatus: proposed\nstakeholders: [Ana, Bob]\ntags: [db]\n'
+  )
   H.contains(text, "## Context\n\n## Decision")
   eq(child.api.nvim_get_current_line(), "") -- writing the context
   eq(child.api.nvim_buf_get_lines(0, child.fn.line(".") - 2, child.fn.line(".") - 1, false)[1], "## Context")

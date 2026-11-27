@@ -57,6 +57,12 @@ answers = { "Sync with QA" }
 run("Logpose meeting adhoc")
 run("Logpose note Queue design")
 run("Logpose project-page acme")
+-- who cares about the project: the hub lists them
+local acme = root .. "/projects/acme.md"
+vim.fn.writefile(
+  require("logpose.frontmatter").set(vim.fn.readfile(acme), { stakeholders = { "Ana López", "Bob" } }),
+  acme
+)
 for _, t in ipairs(require("logpose.notes.doc").types()) do
   local ok_doc, derr =
     pcall(require("logpose.notes.doc").create, root, { type = t.key, title = t.spec.label .. " one", project = "acme" })
@@ -109,6 +115,16 @@ for i, l in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
     run("Logpose promote")
     break
   end
+end
+-- someone else's task, blocked: a 1:1's ## Updates, and the report's review by assignee
+run("Logpose capture review the API @ana for:bob")
+require("logpose.taskfile").set_blocked(root .. "/tasks/review-the-api.md", "waiting on QA")
+local ok_1on1, merr = pcall(function()
+  local m = require("logpose.notes.meeting")
+  m.write(root, m.build(root, "1on1", "Ana", "2026-10-14"), true)
+end)
+if not ok_1on1 then
+  io.stderr:write("1on1: " .. tostring(merr) .. "\n")
 end
 run("edit " .. root .. "/tasks/write-the-retro.md")
 run("Logpose done")

@@ -36,6 +36,38 @@ local function group_by(list, key)
   return keys, groups
 end
 
+--- Write `list` with `fmt`, grouped by who does each task (`#### You`, `#### Ana`…) when any
+--- of them is someone else's; else as a plain list.
+---@param out string[]
+---@param list logpose.Item[]
+---@param fmt fun(it: logpose.Item): string
+local function by_assignee(out, list, fmt)
+  local people = require("logpose.people")
+  local me = people.me() or false
+  local function who(it)
+    return people.is_mine(it.assignee, me) and "" or (it.assignee or "")
+  end
+  local others = false
+  for _, it in ipairs(list) do
+    others = others or who(it) ~= ""
+  end
+  if not others then
+    for _, it in ipairs(list) do
+      table.insert(out, fmt(it))
+    end
+    return
+  end
+  -- you first, then the others by name
+  local keys, groups = group_by(list, who)
+  for _, k in ipairs(keys) do
+    table.insert(out, "")
+    table.insert(out, "#### " .. (k == "" and "You" or k))
+    for _, it in ipairs(groups[k]) do
+      table.insert(out, fmt(it))
+    end
+  end
+end
+
 ---@param out string[]
 ---@param heading string
 ---@param n integer
@@ -155,10 +187,10 @@ function M.build(root, p, args, today, dest)
     end, task_files)
     table.insert(out, "")
     table.insert(out, ("### Blocked tasks (%d)"):format(#blocked))
-    for _, it in ipairs(blocked) do
+    by_assignee(out, blocked, function(it)
       local reason = it.blocked == "yes" and "" or (": " .. it.blocked)
-      table.insert(out, ("- [%s] %s%s (%s)"):format(taskfile.label(it.status), it.text, reason, ref(it)))
-    end
+      return ("- [%s] %s%s (%s)"):format(taskfile.label(it.status), it.text, reason, ref(it))
+    end)
     local start = config.get().board.start
     local lingering = vim.tbl_filter(function(it)
       return it.status == start and it.started ~= nil and it.started < stale_before
@@ -168,9 +200,9 @@ function M.build(root, p, args, today, dest)
       out,
       ("### %s for more than %d days (%d)"):format(taskfile.label(start), config.get().review.stale_days, #lingering)
     )
-    for _, it in ipairs(lingering) do
-      table.insert(out, ("- since %s %s (%s)"):format(it.started, it.text, ref(it)))
-    end
+    by_assignee(out, lingering, function(it)
+      return ("- since %s %s (%s)"):format(it.started, it.text, ref(it))
+    end)
   end
 
   local markdown = require("logpose.markdown")

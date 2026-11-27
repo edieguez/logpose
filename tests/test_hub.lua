@@ -81,6 +81,28 @@ T[":Logpose hub lists the project's docs, notes and latest meetings at the end o
   eq(vim.uv.fs_stat(page).mtime, before)
 end
 
+T["the page's stakeholders head the section, linked to their pages"] = function()
+  H.write(page, (PAGE:gsub("project: acme\n", "project: acme\nstakeholders: [Ana, Bob]\n")))
+  H.write(root .. "/people/ana-lopez.md", '---\nname: "Ana López"\naliases: [Ana]\n---\n')
+  child.cmd("Logpose hub acme")
+  H.contains(H.read(page), "<!-- logpose:hub -->\n- Stakeholders: [[people/ana-lopez|Ana]], Bob\n<!-- /logpose:hub -->")
+  -- and they come first in that project's people suggestions
+  -- Bobby comes up more, but not in acme
+  for _, d in ipairs({ "2026-11-02", "2026-11-03" }) do
+    H.write(
+      root .. "/meetings/" .. d .. " - sync.md",
+      ('---\ntype: adhoc\ndate: %s\ntitle: "Sync"\nattendees: [Bobby Tables]\n---\n'):format(d)
+    )
+  end
+  eq(
+    child.lua_get(([[require('logpose.people').match(require('logpose.people').known(%q), 'bo')[1].name]]):format(root)),
+    "Bobby Tables"
+  )
+  local names = child.lua_get(([[vim.tbl_map(function(p) return p.name end,
+    require('logpose.people').match(require('logpose.people').known(%q), 'bo', 'acme'))]]):format(root))
+  eq(names[1], "Bob")
+end
+
 T["the section is replaced where it is; what's after it stays"] = function()
   seed()
   H.write(

@@ -243,14 +243,20 @@ function M.build(root, key, input, iso, project, attendees, extra)
   end
 
   -- a 1:1: what you noted on their page for it comes along
+  -- and what to catch up on: their tasks, and those they care about that moved since the last one
   local agenda
   if with then
     local people = require("logpose.people")
+    local ag = require("logpose.people.agenda")
     local p = people.find(people.known(root), with)
-    local items = p and p.page and require("logpose.people.agenda").items(p.page) or {}
+    local items = p and p.page and ag.items(p.page) or {}
     if #items > 0 then
-      cursor[1] = cursor[1] + require("logpose.people.agenda").insert(body, items, cursor[1])
+      cursor[1] = cursor[1] + ag.insert(body, items, cursor[1])
       agenda = { page = p.page, items = items, name = p.name }
+    end
+    local updates = p and ag.updates(root, p, iso, path) or {}
+    if #updates > 0 then
+      cursor[1] = cursor[1] + ag.insert_updates(body, updates, cursor[1])
     end
   end
 

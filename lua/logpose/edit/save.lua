@@ -158,6 +158,7 @@ function M.create_note(root, kind, r, ctx, model)
       project = project,
       tags = tags,
       status = str(v.status),
+      stakeholders = type(v.stakeholders) == "table" and v.stakeholders or nil,
     })
   elseif kind == "meeting" then
     local note = require("logpose.edit.fields").build_meeting({ root = root }, r, ctx)

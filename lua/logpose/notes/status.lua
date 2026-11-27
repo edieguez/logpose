@@ -1,7 +1,8 @@
 --- The daily status, written into the daily note: `## Yesterday` (what happened since the
 --- previous workday), `## Today` (tasks in progress, due or done today) and `## Blockers` (blocked
---- tasks). A line logpose writes reads `- project: <link> — note`: the link names the task, the
---- meeting or the daily note a to-do was checked in, and it's how a refresh finds the line again.
+--- tasks). Only your tasks count (`daily.status.only_mine`): assigned to `me`, or to nobody.
+--- A line logpose writes reads `- project: <link> — note`: the link names the task, the meeting
+--- or the daily note a to-do was checked in, and it's how a refresh finds the line again.
 --- Everything else in those sections is yours (your own lines, the sub-bullets under a line):
 --- logpose rewrites its lines and leaves the rest alone.
 ---   Yesterday  filled when the note is made; `refresh!` rebuilds it
@@ -67,7 +68,7 @@ end
 ---@param from string
 ---@param to string
 ---@return { from?: string, to: string }[]
-local function moves(lines, from, to)
+function M.moves(lines, from, to)
   local out, in_log = {}, false
   for _, l in ipairs(lines) do
     if l:match("^##%s+[Ll]og%s*$") then
@@ -121,6 +122,18 @@ function M.collect(root, iso, items)
   local until_ = date.add_days(iso, -1)
   local s = { date = iso, since = since, yesterday = {}, today = {}, blockers = {}, tasks = {} }
   local done_label = taskfile.label(board.done)
+  -- someone else's task isn't your status (`daily.status.only_mine`)
+  local people = require("logpose.people")
+  local me
+  local function yours(it)
+    if not cfg.daily.status.only_mine then
+      return true
+    end
+    if me == nil then
+      me = people.me() or false
+    end
+    return people.is_mine(it.assignee, me)
+  end
 
   -- a daily note's line belongs to the project its #tag names
   local known = {}
@@ -148,9 +161,9 @@ function M.collect(root, iso, items)
   end
 
   for _, it in ipairs(items) do
-    if it.kind == "task" then
+    if it.kind == "task" and yours(it) then
       local title = it.title or it.text
-      local m = moves(fs.read_lines(it.file) or {}, since, until_)
+      local m = M.moves(fs.read_lines(it.file) or {}, since, until_)
       if #m > 0 then
         local first, last = m[1], m[#m]
         if first.from ~= last.to then

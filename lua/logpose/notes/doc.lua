@@ -72,7 +72,7 @@ end
 --- Create a doc (without opening it). Returns its path, where the cursor goes, and whether it
 --- existed already (then it's left as it is).
 ---@param root string
----@param d { type: string, title: string, project: string, tags?: string[], status?: string }
+---@param d { type: string, title: string, project: string, tags?: string[], status?: string, stakeholders?: string[] }
 ---@return string path, integer[]? cursor, boolean existed
 function M.create(root, d)
   local spec = M.spec(d.type)
@@ -103,6 +103,9 @@ function M.create(root, d)
   local status = text.nonempty(d.status) or (spec.statuses and spec.statuses[1])
   if status then
     table.insert(lines, "status: " .. status)
+  end
+  if d.stakeholders and #d.stakeholders > 0 then
+    table.insert(lines, fmt.line("stakeholders", d.stakeholders))
   end
   table.insert(lines, "tags: " .. fmt.render("tags", d.tags or {}))
   vim.list_extend(lines, require("logpose.timestamps").lines())

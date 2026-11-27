@@ -183,6 +183,35 @@ T["collect"]["a task done today is in Today"] = function()
   H.contains(table.concat(collect().today, "\n"), "Quick fix (→ Done)")
 end
 
+T["collect"]["only your tasks: someone else's stay out, unless only_mine = false"] = function()
+  setup("{ me = '@emmanuel' }")
+  -- Ana's: in progress, moved yesterday, blocked; yours by name: in progress
+  task(
+    "anas",
+    "---",
+    'title: "Ana\'s migration"',
+    "status: in-progress",
+    "assignee: Ana",
+    "blocked: waiting on DBA",
+    "---",
+    "## Log",
+    "",
+    "- 2026-10-13 10:00: TODO → In progress"
+  )
+  task("mine", "---", 'title: "My review"', "status: in-progress", "assignee: emmanuel", "---")
+  local s = collect()
+  local all =
+    table.concat(vim.list_extend(vim.list_extend(vim.list_extend({}, s.yesterday), s.today), s.blockers), "\n")
+  eq(all:find("Ana's migration", 1, true), nil)
+  H.contains(table.concat(s.today, "\n"), "My review (In progress)")
+  H.contains(table.concat(s.today, "\n"), "Write the ADR (In progress)") -- nobody's: yours
+  setup("{ me = '@emmanuel', daily = { status = { only_mine = false } } }")
+  s = collect()
+  H.contains(table.concat(s.yesterday, "\n"), "Ana's migration (TODO → In progress)")
+  H.contains(table.concat(s.today, "\n"), "Ana's migration (In progress)")
+  H.contains(table.concat(s.blockers, "\n"), "Ana's migration (waiting on DBA)")
+end
+
 T["collect"]["a to-do's text without tags, mentions, due dates and link markup"] = function()
   eq(
     child.lua_get(

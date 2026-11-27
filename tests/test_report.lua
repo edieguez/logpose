@@ -73,6 +73,35 @@ T["project filter"] = function()
   H.contains(r, "### Open to-dos older than 14 days (0)")
 end
 
+T["a stakeholder update: filters by stakeholder; the review groups tasks by who does them"] = function()
+  setup("{ me = '@emmanuel', period = { kind = 'sprint', sprint = { anchor = '2026-10-01', first_number = 42 } } }")
+  H.write(
+    root .. "/tasks/pricing.md",
+    '---\ntitle: "New pricing"\nstatus: done\nproject: acme\nstakeholders: [Bob]\ndone: 2026-10-12\n---\n'
+  )
+  H.write(
+    root .. "/tasks/migrate.md",
+    '---\ntitle: "Migrate"\nstatus: todo\nassignee: Ana\nstakeholders: [Bob]\nblocked: waiting on DBA\n---\n'
+  )
+  H.write(root .. "/tasks/mine.md", '---\ntitle: "Mine"\nstatus: todo\nblocked: yes\n---\n')
+  local r = report("stakeholders:bob")
+  H.contains(r, "— stakeholders:bob")
+  H.contains(r, "## Done tasks (1)\n\n### 2026-10-12\n\n- New pricing (")
+  eq(r:find("Shipped login", 1, true), nil)
+  H.contains(r, "### Blocked tasks (1)\n\n#### Ana\n\n- [TODO] Migrate: waiting on DBA (")
+  child.cmd("close")
+  r = report()
+  H.contains(
+    r,
+    "### Blocked tasks (2)\n\n#### You\n\n- [TODO] Mine ([[tasks/mine|Mine]])\n\n#### Ana\n\n- [TODO] Migrate"
+  )
+end
+
+T["a review of only your tasks has no groups"] = function()
+  H.write(root .. "/tasks/mine.md", '---\ntitle: "Mine"\nstatus: todo\nblocked: yes\n---\n')
+  H.contains(report(), "### Blocked tasks (1)\n\n- [TODO] Mine ([[tasks/mine|Mine]])")
+end
+
 T["weekly report and offsets"] = function()
   setup()
   H.contains(report(), "# Report: week of 2026-10-12")

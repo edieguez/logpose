@@ -1813,26 +1813,41 @@ and the people you meet see what's theirs and what they're waiting on.
 
 **Design** (`notes/status.lua`, `lists/people.lua`, `people/agenda.lua`, `projects/`, `report.lua`)
 
-- Daily status (`notes/status.lua`): Yesterday, Today and Blockers take only your tasks (C25's
-  mine) when `daily.status.only_mine = true` (default).
-- People list (`lists/people.lua`): rows show `☐ N assigned`; `<Tab>` details gain "Assigned"
-  (open tasks) and "Stakeholder in".
-- 1:1s (`people/agenda.lua`): a new 1:1 gets `## Updates`: the person's open assigned tasks, and
-  the tasks they're a stakeholder in that moved since the last 1:1 with them (from `## Log`), as
-  task links with their column.
-- Projects: project pages get `stakeholders:` (edit form field); the hub section and the
-  projects screen list them; they rank first in that project's people suggestions, like a person
-  page's `projects`.
-- Project docs: `stakeholders` in the doc form (every doc type).
-- Report (`report.lua`): takes filters (`:Logpose report sprint stakeholders:bob` for a
-  stakeholder update); the review groups blocked and stale tasks by assignee.
+- Daily status (`notes/status.lua`): Yesterday, Today and Blockers take only your tasks
+  (`people.is_mine`, C25) when `daily.status.only_mine = true` (default); meetings and to-dos are
+  unaffected. A Today line already written for a task that's now someone else's stays (Today
+  never drops lines); its Blockers line goes, like a resolved blocker's.
+- People list (`lists/people.lua`): `involvement` sorts open, unarchived tasks into `assigned`
+  and `stakeholder` (the rest stay mentions). Rows show `▣ N assigned` (the board's task glyph;
+  `☐` is for to-dos); `<Tab>` details gain `▣ assigned: Title · Column` and
+  `◆ stakeholder: Title · Column` lines (five of each), which `<CR>` opens.
+- 1:1s (`people/agenda.lua`, from `meeting.build` when the type has a person): `## Updates` after
+  the title, before `## Topics`/`## Agenda`, with `- <link> — what` lines: the person's open
+  assigned tasks with their column (and `, blocked: reason`), then the tasks they're a
+  stakeholder in that moved since the last 1:1 with them (`last_one_on_one`: the latest meeting
+  with them as `with:`, any project; moves from `status.moves`, now public, first column → last).
+  Before a first 1:1 only the assigned tasks. No section when both are empty.
+- Projects: project pages get `stakeholders:` (`project.pages` reads them; edit form field after
+  `description`); the projects screen's details show `stakeholders: Bob, Carla`; the hub's first
+  line is `- Stakeholders: …`, linking those with a page. They rank first in that project's people
+  suggestions with no extra code: the page's frontmatter people count toward its project in
+  `people.known`, as a person page's `projects` do.
+- Project docs: `stakeholders` in the doc form (every doc type), written by `doc.create` after
+  `status`.
+- Report (`report.lua`): already took filters, so `:Logpose report sprint stakeholders:bob` is a
+  stakeholder update. The review's blocked and lingering tasks are grouped under `#### You` and
+  `#### <assignee>` when any of them is someone else's; otherwise the list is as before.
+- `scripts/lint-output.lua` covers the new output: project stakeholders in the hub, a 1:1 with
+  `## Updates` (made through `meeting.build`, as `:Logpose meeting 1on1` opens the form), the
+  review by assignee.
 
 **Not planned:** board rows per assignee, assignee counts in the statusline, notifications.
 
-**Tests** (`test_status.lua`, `test_lists_people.lua`, `test_projects.lua`, `test_report.lua`):
-status with and without `only_mine`; people rows and details; `## Updates`
-(since the last 1:1, none before the first); project stakeholders in the form, hub and
-suggestions; doc form; report filters and the review by assignee.
+**Tests** (`test_status.lua`, `test_lists_people.lua`, `test_hub.lua`, `test_projects.lua`,
+`test_edit.lua`, `test_docs.lua`, `test_report.lua`): status with and without `only_mine`; people
+rows and details; `## Updates` (since the last 1:1, only assigned tasks at the first, none when
+empty); project stakeholders in the form, the projects screen, the hub and suggestions; the doc
+form; report filters and the review by assignee (and without groups when it's all yours).
 
 ## 5. Command reference (final state)
 
@@ -1914,6 +1929,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.44.0 | 2026-11-27 | assignees and stakeholders in the status, people, 1:1s, projects and reports |  |
 | 1.43.0 | 2026-11-27 | assignees and stakeholders on tasks |  |
 | 1.42.0 | 2026-11-25 | the status in the daily note; `:Logpose standup` removed |  |
 | 1.41.2 | 2026-11-21 | links survive every move; sample configs; settings for each computer |  |

@@ -24,11 +24,28 @@ M.help = {
   { "R", "rename them everywhere (on `same as …?`: merge them into that person)" },
 }
 
---- What involves each person: meetings (newest first), open to-dos, other mentions.
+--- What involves each person: meetings (newest first), open to-dos, open tasks they're assigned
+--- or a stakeholder in, other mentions.
 ---@param root string
 ---@param people logpose.Person[]
----@return table<logpose.Person, { meetings: logpose.Item[], todos: logpose.Item[], mentions: logpose.Item[], last?: string }>
+---@return table<logpose.Person, { meetings: logpose.Item[], todos: logpose.Item[], assigned: logpose.Item[], stakeholder: logpose.Item[], mentions: logpose.Item[], last?: string }>
 function M.involvement(root, people)
+  local slugify = require("logpose.util.text").slugify
+  local done = config.get().board.done
+  -- an open task's role for the person: "assigned", "stakeholder" or nil (a mention)
+  local function role(it, p)
+    if it.kind ~= "task" or it.archived or it.status == done then
+      return nil
+    end
+    if it.assignee and p.slugs[slugify((it.assignee:gsub("^@", "")))] then
+      return "assigned"
+    end
+    for _, n in ipairs(it.stakeholders or {}) do
+      if p.slugs[slugify((n:gsub("^@", "")))] then
+        return "stakeholder"
+      end
+    end
+  end
   local by_slug = {}
   for _, p in ipairs(people) do
     for s in pairs(p.slugs) do
@@ -37,7 +54,7 @@ function M.involvement(root, people)
   end
   local out = {}
   for _, p in ipairs(people) do
-    out[p] = { meetings = {}, todos = {}, mentions = {} }
+    out[p] = { meetings = {}, todos = {}, assigned = {}, stakeholder = {}, mentions = {} }
   end
   for _, it in ipairs(require("logpose.index").build(root)) do
     local seen = {}
@@ -53,6 +70,8 @@ function M.involvement(root, people)
           end
         elseif it.kind == "todo" and not it.checked then
           table.insert(inv.todos, it)
+        elseif role(it, p) then
+          table.insert(inv[role(it, p)], it)
         elseif it.kind ~= "person" and it.kind ~= "todo" then
           table.insert(inv.mentions, it)
         end
@@ -282,6 +301,9 @@ function M.cells(e, ctx)
   if #i.todos > 0 then
     table.insert(activity, { ("☐ %d open"):format(#i.todos), "LogposeListTodos" })
   end
+  if #i.assigned > 0 then
+    table.insert(activity, { ("▣ %d assigned"):format(#i.assigned), "LogposeListTasks" })
+  end
   if #e.next > 0 then
     table.insert(activity, { ("✎ %d for the next 1:1"):format(#e.next), "LogposeListTasks" })
   end
@@ -334,6 +356,20 @@ function M.details(e)
       file = it.file,
       lnum = it.lnum,
     })
+  end
+  local taskfile = require("logpose.taskfile")
+  for _, part in ipairs({ { i.assigned, "▣ assigned: " }, { i.stakeholder, "◆ stakeholder: " } }) do
+    for k = 1, math.min(5, #part[1]) do
+      local it = part[1][k]
+      table.insert(out, {
+        chunks = {
+          { part[2], "LogposeListTasks" },
+          { ("%s  · %s"):format(it.title or it.text, taskfile.label(it.status or "")) },
+        },
+        file = it.file,
+        lnum = it.lnum,
+      })
+    end
   end
   for k = 1, math.min(5, #i.mentions) do
     local it = i.mentions[k]

@@ -113,6 +113,71 @@ T["<Tab> shows what involves them; <CR> opens it"] = function()
   eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "fix-ci.md")
 end
 
+T["tasks they're assigned and care about: counted on their row, listed in the details"] = function()
+  H.write(
+    root .. "/tasks/migrate.md",
+    '---\ntitle: "Migrate the DB"\nstatus: in-progress\nproject: acme\nassignee: Ana\n---\n'
+  )
+  H.write(
+    root .. "/tasks/pricing.md",
+    '---\ntitle: "New pricing"\nstatus: todo\nproject: acme\nstakeholders: [Ana López, Carla]\n---\n'
+  )
+  H.write(root .. "/tasks/shipped.md", '---\ntitle: "Shipped"\nstatus: done\nassignee: Ana\n---\n')
+  child.cmd("Logpose people")
+  local ana = child.api.nvim_buf_get_lines(0, line_with("Ana López") - 1, line_with("Ana López"), false)[1]
+  H.contains(ana, "☐ 1 open · ▣ 1 assigned") -- done tasks don't count
+  child.type_keys("<Tab>")
+  local s = screen()
+  H.contains(s, "▣ assigned: Migrate the DB  · In progress")
+  H.contains(s, "◆ stakeholder: New pricing  · TODO")
+  H.contains(s, "▣ Fix CI") -- a mention stays a mention
+  child.api.nvim_win_set_cursor(0, { line_with("assigned: Migrate"), 0 })
+  child.type_keys("<CR>")
+  eq(vim.fs.basename(child.api.nvim_buf_get_name(0)), "migrate.md")
+end
+
+T["a 1:1 starts with ## Updates: their tasks, and those they care about that moved since the last one"] = function()
+  H.write(
+    root .. "/tasks/migrate.md",
+    '---\ntitle: "Migrate the DB"\nstatus: in-progress\nproject: acme\nassignee: Ana\nblocked: waiting on DBA\n---\n'
+  )
+  H.write(
+    root .. "/tasks/pricing.md",
+    '---\ntitle: "New pricing"\nstatus: done\nstakeholders: [Ana]\n---\n## Log\n\n'
+      .. "- 2026-10-01 09:00: created in Backlog\n- 2026-10-10 09:00: TODO → In progress\n"
+      .. "- 2026-10-14 17:00: In progress → Done\n"
+  )
+  H.write(
+    root .. "/tasks/old.md",
+    '---\ntitle: "Old idea"\nstatus: todo\nstakeholders: [Ana]\n---\n## Log\n\n- 2026-10-01 09:00: created in TODO\n'
+  )
+  local function build(who, iso)
+    return child.lua_get(([[(function()
+      local m = require("logpose.notes.meeting")
+      local n = m.build(%q, "1on1", %q, %q)
+      m.write(%q, n, true)
+      return n
+    end)()]]):format(root, who, iso, root))
+  end
+  -- the last 1:1 with Ana was on the 7th: what moved since then
+  local text = H.read(build("Ana", "2026-10-15").path)
+  H.contains(
+    text,
+    "## Updates\n\n"
+      .. "- [[tasks/migrate|Migrate the DB]] — In progress, blocked: waiting on DBA\n"
+      .. "- [[tasks/pricing|New pricing]] — TODO → Done\n\n## Topics"
+  )
+  eq(text:find("Old idea", 1, true), nil) -- didn't move
+  -- a first 1:1: their tasks, nothing to compare with
+  H.write(root .. "/tasks/pricing.md", H.read(root .. "/tasks/pricing.md"):gsub("%[Ana%]", "[Carla]"))
+  H.write(root .. "/tasks/carlas.md", '---\ntitle: "Roadmap"\nstatus: todo\nassignee: Carla\n---\n')
+  text = H.read(build("Carla", "2026-10-15").path)
+  H.contains(text, "## Updates\n\n- [[tasks/carlas|Roadmap]] — TODO\n\n## Topics")
+  eq(text:find("New pricing", 1, true), nil)
+  -- nothing to catch up on: no section
+  eq(H.read(build("Bob Smith", "2026-10-15").path):find("## Updates", 1, true), nil)
+end
+
 T["<CR> opens the page; on someone without one, the form to add it"] = function()
   child.cmd("Logpose people")
   child.type_keys("<CR>")

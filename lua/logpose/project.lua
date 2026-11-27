@@ -121,6 +121,7 @@ end
 ---@field description? string  one line about the project
 ---@field paths string[]       folders (repos) that belong to the project, for detection
 ---@field color? string        "#7aa2f7" or a highlight group, for its cards on the board
+---@field stakeholders string[] who cares about the project, as written
 ---@field merged_into? string
 
 --- Project pages: `projects/<name>.md` (`projects/archive/<name>.md` once archived), keyed by
@@ -171,6 +172,7 @@ function M._read_pages(dir, in_archive, out)
           description = str(fm.description),
           paths = paths or {},
           color = str(fm.color),
+          stakeholders = require("logpose.taskfile").names(fm.stakeholders),
           merged_into = str(fm.merged_into),
         }
       end

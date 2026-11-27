@@ -1,7 +1,7 @@
 --- The project page as a hub: a section of `projects/<project>.md` that logpose keeps up to date,
 --- between `<!-- logpose:hub -->` and `<!-- /logpose:hub -->` (Obsidian and GitHub hide the
---- markers), listing the project's docs by type, its topic notes (those with `project:` set and
---- those linking to the page) and its latest meetings. It follows on its own a moment after
+--- markers), listing its stakeholders, the project's docs by type, its topic notes (those with
+--- `project:` set and those linking to the page) and its latest meetings. It follows on its own a moment after
 --- anything in the journal changes; `:Logpose hub [project]` does it now (`!`: every project).
 --- The page is written only when the section's text changes, and never while it has unsaved
 --- changes.
@@ -71,6 +71,22 @@ function M.lines(root, project, page, items)
     return extra and (l .. " · " .. extra) or l
   end
   local out = {}
+  -- who cares about the project (the page's `stakeholders:`), their page linked when they have one
+  for _, it in ipairs(items) do
+    if it.kind == "note" and fs.normalize(it.file) == want then
+      local names = require("logpose.taskfile").names((it.fields or {}).stakeholders)
+      if #names > 0 then
+        local people = require("logpose.people")
+        local known = people.known(root)
+        local shown = vim.tbl_map(function(n)
+          local p = people.find(known, n)
+          return p and p.page and link.make(page, p.page, n, root) or n
+        end, names)
+        table.insert(out, "- Stakeholders: " .. table.concat(shown, ", "))
+      end
+      break
+    end
+  end
   local doc = require("logpose.notes.doc")
   local listed = {}
   local function add_docs(key, label)

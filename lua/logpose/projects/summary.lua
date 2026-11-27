@@ -20,6 +20,7 @@ M.DUE_SOON_DAYS = 3
 ---@field title string            display name (page title, else the name)
 ---@field description? string
 ---@field paths string[]
+---@field stakeholders string[]   who cares about it (its page's `stakeholders:`)
 ---@field archived boolean
 ---@field merged_into? string
 ---@field page? string            path of its project page
@@ -79,6 +80,7 @@ function M.stats(root, today)
         title = page.title or name,
         description = page.description,
         paths = page.paths or {},
+        stakeholders = page.stakeholders or {},
         archived = page.archived or false,
         merged_into = page.merged_into,
         page = page.path,
@@ -245,6 +247,9 @@ function M.details(e, indent)
   end
   if #e.paths > 0 then
     add({ { "repo: ", "Comment" }, { table.concat(e.paths, ", ") } })
+  end
+  if #(e.stakeholders or {}) > 0 then
+    add({ { "stakeholders: ", "Comment" }, { table.concat(e.stakeholders, ", ") } })
   end
   if e.merged_into then
     add({ { "merged into ", "Comment" }, { e.merged_into, "Identifier" } })
