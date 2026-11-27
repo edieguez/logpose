@@ -201,7 +201,7 @@ function M.note(root, path, kind, changed, opts)
   end
   local special = {}
   if kind == "task" then
-    for _, key in ipairs({ "status", "project", "assignee", "blocked" }) do
+    for _, key in ipairs({ "status", "project", "assignee", "blocked", "cancelled" }) do
       if changed[key] ~= nil then
         special[key] = changed[key]
         changed[key] = nil
@@ -240,6 +240,10 @@ function M.note(root, path, kind, changed, opts)
   end
   if special.blocked ~= nil then
     taskfile.set_blocked(path, (special.blocked ~= "" and special.blocked) or nil)
+  end
+  if special.cancelled ~= nil then
+    -- the reason: cancels the task if it isn't already; empty means no reason
+    taskfile.set_cancelled(path, special.cancelled ~= "" and special.cancelled or false)
   end
   if meeting_move then
     path = M.move_meeting(root, path, meeting_move.from, meeting_move.to)

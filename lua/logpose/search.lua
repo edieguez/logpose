@@ -72,7 +72,7 @@ function M.is_closed(it)
     return it.checked == true
   end
   if it.kind == "task" then
-    return it.status == config.get().board.done
+    return require("logpose.taskfile").is_closed(it.status)
   end
 end
 
@@ -343,7 +343,8 @@ function M.complete(arglead, args)
       return it.word
     end, require("logpose.filter").complete(arglead))
   end
-  local out = { "open", "done", "blocked", "mine", "unassigned", "since:", "until:", "sprint:current", "sprint:-1" }
+  local out =
+    { "open", "done", "blocked", "cancelled", "mine", "unassigned", "since:", "until:", "sprint:current", "sprint:-1" }
   vim.list_extend(out, { "week:current", "week:-1" })
   for _, name in ipairs(config.get().retrieval.sections) do
     table.insert(out, "section:" .. name:gsub("%s", "-"))

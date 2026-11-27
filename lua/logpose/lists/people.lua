@@ -31,10 +31,10 @@ M.help = {
 ---@return table<logpose.Person, { meetings: logpose.Item[], todos: logpose.Item[], assigned: logpose.Item[], stakeholder: logpose.Item[], mentions: logpose.Item[], last?: string }>
 function M.involvement(root, people)
   local slugify = require("logpose.util.text").slugify
-  local done = config.get().board.done
+  local taskfile = require("logpose.taskfile")
   -- an open task's role for the person: "assigned", "stakeholder" or nil (a mention)
   local function role(it, p)
-    if it.kind ~= "task" or it.archived or it.status == done then
+    if it.kind ~= "task" or it.archived or taskfile.is_closed(it.status) then
       return nil
     end
     if it.assignee and p.slugs[slugify((it.assignee:gsub("^@", "")))] then

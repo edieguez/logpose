@@ -1,5 +1,5 @@
---- `:Logpose archive[!]`: move done tasks from past periods (weeks or sprints) into
---- `tasks/archive/<period>/`, out of the board. Archived tasks still show up in search and reports.
+--- `:Logpose archive[!]`: move done (and cancelled) tasks from past periods (weeks or sprints)
+--- into `tasks/archive/<period>/`, out of the board. Archived tasks still show up in search and reports.
 local config = require("logpose.config")
 local date = require("logpose.util.date")
 local fs = require("logpose.util.fs")
@@ -24,8 +24,12 @@ function M.plan(root, today)
   local taskfile = require("logpose.taskfile")
   local done_status = config.get().board.done
   for _, t in ipairs(taskfile.list(root)) do
-    if t.status == done_status and t.done and date.is_iso(t.done) then
-      local p = period.of(t.done)
+    -- when it closed: finished (`done:`), or cancelled (the log's day, else when it was made)
+    local closed = t.status == done_status and t.done
+      or taskfile.is_cancelled(t.status) and (t.since or (t.created and t.created:sub(1, 10)))
+      or nil
+    if closed and date.is_iso(closed) then
+      local p = period.of(closed)
       if p.start < current.start then
         local affixes = config.get().affixes
         local key = (p.kind == "sprint" and affixes.sprint or affixes.week) .. p.key

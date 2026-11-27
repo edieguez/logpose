@@ -75,6 +75,7 @@ M.HL = {
   LogposeBoardMeta = "Comment",
   LogposeBoardNotes = "Directory",
   LogposeBoardAssignee = "Special",
+  LogposeBoardCancelled = false, -- the done colour, struck through (see below)
   LogposeBoardDueSoon = "DiagnosticWarn",
   LogposeBoardFocusBg = "CursorLine",
 }
@@ -97,6 +98,13 @@ function M.define_highlights()
   else
     vim.api.nvim_set_hl(0, "LogposeBoardTag", { link = "Visual", default = true })
   end
+  -- a cancelled card's title: as quiet as a done one, struck through
+  local done_hl = vim.api.nvim_get_hl(0, { name = "Comment", link = false })
+  vim.api.nvim_set_hl(
+    0,
+    "LogposeBoardCancelled",
+    { fg = done_hl.fg, ctermfg = done_hl.ctermfg, strikethrough = true, default = true }
+  )
   for name, link in pairs(M.HL) do
     if link then
       local spec = type(link) == "table" and vim.tbl_extend("force", { default = true }, link)
@@ -131,6 +139,7 @@ M.ICONS = {
     card = "•",
     marked = "✓",
     done = "✓",
+    cancelled = "✗",
     edge = "┃",
     sep = " · ",
     empty = "· empty ·",
@@ -149,6 +158,7 @@ M.ICONS = {
     card = "•",
     marked = "✓",
     done = "✓",
+    cancelled = "✗",
     edge = "┃",
     sep = " · ",
     empty = "· empty ·",
@@ -167,6 +177,7 @@ M.ICONS = {
     card = "-",
     marked = "x",
     done = "v",
+    cancelled = "~",
     edge = "|",
     sep = "  ",
     empty = "- empty -",
@@ -187,7 +198,7 @@ end
 ---@param today string
 ---@return integer?
 function M.age(it, today)
-  if it.status == config.get().board.done or not it.since or not date.is_iso(it.since) then
+  if require("logpose.taskfile").is_closed(it.status) or not it.since or not date.is_iso(it.since) then
     return nil
   end
   return math.max(0, date.diff_days(it.since, today))
@@ -199,7 +210,7 @@ end
 ---@param today string
 ---@return string?, string?
 function M.due_text(it, today)
-  if not it.due or not date.is_iso(it.due) or it.status == config.get().board.done then
+  if not it.due or not date.is_iso(it.due) or require("logpose.taskfile").is_closed(it.status) then
     return nil
   end
   local text, urgency = date.due(it.due, today)
@@ -231,12 +242,21 @@ end
 --- The card's state, which decides how it looks.
 ---@param it logpose.Item
 ---@param today string
----@return { done: boolean, blocked: boolean, stale: boolean, idle?: integer }
+---@return { done: boolean, cancelled: boolean, blocked: boolean, stale: boolean, idle?: integer }
 function M.state(it, today)
-  local done = it.status == config.get().board.done
+  local taskfile = require("logpose.taskfile")
+  -- `done`: closed, so it looks finished (dimmed); `cancelled` says how it closed
+  local done = taskfile.is_closed(it.status)
+  local cancelled = taskfile.is_cancelled(it.status)
   local age = M.age(it, today)
   local stale = not done and age ~= nil and age >= config.get().board.stale_days
-  return { done = done, blocked = it.blocked ~= nil, stale = stale, idle = stale and age or nil }
+  return {
+    done = done,
+    cancelled = cancelled,
+    blocked = it.blocked ~= nil and not done,
+    stale = stale,
+    idle = stale and age or nil,
+  }
 end
 
 --- The details under the title, quietly: project (with its colour mark), when it's due, how long
@@ -401,13 +421,18 @@ function M.card_lines(it, w, today, o)
   else
     table.insert(out, { { box.tl .. string.rep(box.h, w - 2) .. box.tr, border } })
   end
-  local title_hl = (o.focused and "LogposeBoardFocusTitle")
+  -- a cancelled title is struck through, focused or not (the border shows the focus)
+  local title_hl = (st.cancelled and "LogposeBoardCancelled")
+    or (o.focused and "LogposeBoardFocusTitle")
     or (st.done and "LogposeBoardDone")
     or ((st.stale and not st.blocked) and "LogposeBoardFaded")
     or nil
-  local title = st.done and (ic.done .. " " .. it.text) or it.text
+  local title = st.cancelled and (ic.cancelled .. " " .. it.text) or st.done and (ic.done .. " " .. it.text) or it.text
   for _, l in ipairs(text.wrap(title, inner, 2)) do
     row({ { l, title_hl } })
+  end
+  if st.cancelled and it.cancelled and it.cancelled ~= "yes" then
+    row({ { it.cancelled, "LogposeBoardDone" } }) -- why it was dropped
   end
   if st.blocked then
     row({ { ic.blocked .. " " .. (it.blocked == "yes" and "blocked" or it.blocked), "LogposeBoardBlocked" } })
@@ -433,6 +458,9 @@ function M.compact_line(it, w, today, o)
   local marker, marker_hl = ic.card, "LogposeBoardBorder"
   if st.done then
     marker, marker_hl = ic.done, "LogposeBoardDone"
+  end
+  if st.cancelled then
+    marker = ic.cancelled
   end
   if st.blocked then
     marker, marker_hl = ic.blocked, "LogposeBoardBlocked"
@@ -460,7 +488,9 @@ function M.compact_line(it, w, today, o)
     tail_w = tail_w + vim.fn.strdisplaywidth(c[1])
   end
   local title_w = math.max(w - 2 - tail_w, 1)
-  local title_hl = (o.focused and "LogposeBoardFocusTitle")
+  -- a cancelled title is struck through, focused or not (the border shows the focus)
+  local title_hl = (st.cancelled and "LogposeBoardCancelled")
+    or (o.focused and "LogposeBoardFocusTitle")
     or (st.done and "LogposeBoardDone")
     or ((st.stale and not st.blocked) and "LogposeBoardFaded")
     or nil

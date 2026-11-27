@@ -19,6 +19,11 @@ end
 ---@param a logpose.Item
 ---@param b logpose.Item
 local function card_order(a, b)
+  -- in Done, what was finished before what was dropped
+  local ca, cb = taskfile.is_cancelled(a.status), taskfile.is_cancelled(b.status)
+  if ca ~= cb then
+    return cb
+  end
   local oa, ob = a.order or math.huge, b.order or math.huge
   if oa ~= ob then
     return oa < ob
@@ -66,12 +71,18 @@ function M.collect(root, opts)
       else
         in_scope = not (it.project and opts.hidden and opts.hidden[it.project])
       end
-      local recent = it.status ~= cfg.board.done or not it.done_date or it.done_date >= since
+      -- Done shows what closed in the window: finished (`done:`), or cancelled (from the log)
+      local closed_on = it.status == cfg.board.done and it.done_date
+        or taskfile.is_cancelled(it.status) and since_of[it.file]
+        or nil
+      local recent = not taskfile.is_closed(it.status) or not closed_on or closed_on >= since
       if in_scope and recent and query.match(it, q) then
         it.order = orders[it.file]
         it.since = since_of[it.file]
         it.related = related[it.file]
-        local col = by_key[it.status] or by_key[cfg.tasks.capture_status]
+        local col = by_key[it.status]
+          or (taskfile.is_cancelled(it.status) and by_key[cfg.board.done])
+          or by_key[cfg.tasks.capture_status]
         table.insert(col.cards, it)
       end
     end

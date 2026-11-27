@@ -190,6 +190,8 @@ M.defaults = {
     --- Reaching this column sets `started:`; reaching `done` sets `done:`.
     start = "in-progress",
     done = "done",
+    --- The status of a cancelled task: closed, but not done. Not a column (it shows in Done).
+    cancelled = "cancelled",
     --- Done tasks shown: "period" (current week or sprint) or a number of days.
     ---@type "period"|integer
     done_window = "period",
@@ -433,6 +435,16 @@ local function validate(opts)
     if not keys[v] then
       error(("logpose: `%s` = %q is not a board column"):format(name, v), 0)
     end
+  end
+  check("board.cancelled", opts.board.cancelled, "string")
+  if not opts.board.cancelled:match("^[%w_%-]+$") then
+    error(("logpose: `board.cancelled` = %q may only use letters, digits, - and _"):format(opts.board.cancelled), 0)
+  end
+  if keys[opts.board.cancelled] then
+    error(
+      ("logpose: `board.cancelled` = %q is a column: a cancelled task isn't in one"):format(opts.board.cancelled),
+      0
+    )
   end
   if opts.board.done_window ~= "period" and type(opts.board.done_window) ~= "number" then
     error('logpose: `board.done_window` must be "period" or a number of days', 0)

@@ -141,6 +141,7 @@ return {
       },
       start = "in-progress", -- reaching this column records started: (it must be one of the keys above)
       done = "done", -- reaching this one records done:; it's where x and :Logpose done move a task
+      cancelled = "cancelled", -- a cancelled task's status: closed, not done; not a column (it shows in Done)
       done_window = "period", -- Done shows the current week or sprint ("period"), or the last N days (a number)
       min_column_width = 24, -- narrower than this, the columns stack vertically
       stale_days = 7, -- cards untouched this many days fade and say idle 9d

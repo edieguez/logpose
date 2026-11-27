@@ -237,7 +237,8 @@ rest is quiet. Colour is otherwise kept for what needs attention:
 due dates read as words (`due Tue`, `due 3 Nov`; `due today`/`due tomorrow`
 in yellow; `overdue 2d` in red); a blocked card has a red left edge and
 reason (`⊘ waiting on Ana`); cards untouched for `board.stale_days` fade and
-say `idle 9d` (blocked cards don't fade); done cards are dimmed, with a ✓.
+say `idle 9d` (blocked cards don't fade); done cards are dimmed, with a ✓,
+and cancelled ones follow them, struck through, with a ✗ (|logpose-cancel|).
 The focused card has a heavy border and a background. On a one-project board
 the project is left off the cards. When a card is narrow, the date stays
 whole, the project name is shortened and tags are dropped. A column with a
@@ -316,8 +317,26 @@ Getting tasks in and out ~
                       its write-up becomes a note (`N` on the board)
   |:Logpose-done|     in a task file: move it to Done
   `x` on the board    move the card to Done
+  |:Logpose-cancel|   in a task file: cancel it (`X` on the board)
 
 To-dos aren't tasks: |:Logpose-check| checks them off.
+
+                                                              *logpose-cancel*
+Cancelled tasks ~
+A task you drop is cancelled: closed, but not done. `X` on the board (the
+focused card, or the marked ones) asks why, Enter for no reason;
+|:Logpose-cancel| does it in a task file, and the form's `status` offers
+Cancelled after the columns. The file says `status: cancelled` and
+`cancelled: <reason>` (`yes` without one), as `blocked:` does, and the log
+`In progress → Cancelled`; a blocker goes, `started:` stays.
+
+Cancelled cards show in Done, after the finished ones, within
+`board.done_window`: dimmed, struck through, the reason underneath. `X` on
+one reopens it into the column it left; `H` or `gm` moves it out too.
+Cancelled tasks aren't open anywhere (statusline, today, the projects
+screen, the people list, your status); `open` and `done` both leave them
+out, `cancelled` finds them, and |:Logpose-archive| files them with the done
+ones. The status is `board.cancelled` ("cancelled"), which can't be a column.
 
                                                            *logpose-todo-sync*
 A to-do made into a task and its task stay in step, both ways:
@@ -350,7 +369,8 @@ A column's `hl` picks another group, or override these:
 `LogposeBoardFocus`, `LogposeBoardFocusBg`, `LogposeBoardMeta`,
 `LogposeBoardNotes`, `LogposeBoardAssignee`,
 `LogposeBoardBlocked`, `LogposeBoardOverdue`, `LogposeBoardDueSoon`,
-`LogposeBoardStale`, `LogposeBoardDone`, `LogposeBoardMarked`,
+`LogposeBoardStale`, `LogposeBoardDone`, `LogposeBoardCancelled`,
+`LogposeBoardMarked`,
 `LogposeBoardProject`, `LogposeBoardTag`, `LogposeBoardTitle`,
 `LogposeBoardHint`.
 
@@ -929,6 +949,11 @@ Tasks ~
     assignee, stakeholders, tags, due date, blocker and a line of context
     before the task exists.
 
+                                                             *:Logpose-cancel*
+:Logpose cancel [{reason}]
+    Cancel the task you're in (its task file): closed, not done
+    (|logpose-cancel|). Again on a cancelled task: a new reason.
+
                                                                *:Logpose-done*
 :Logpose done
     Move the task you're in (its task file) to Done. Anywhere else it says
@@ -1172,6 +1197,7 @@ room, and `?` lists them all.
   {N}gm  gm     move the card to column N; without a count, pick one
   <C-j> <C-k>   move the card down / up within its column
   x             done
+  X             cancel (asks why); on a cancelled card: reopen it
   b             block (asks for the reason; <CR> for none) / unblock
   a             add a card to this column (with rows per project: to the
                 row you're in), in the new-task form (|logpose-edit|)
@@ -1195,7 +1221,7 @@ room, and `?` lists them all.
   m             move the card to another project
   A             assign the card: you, someone, nobody (|logpose-assignee|)
   e             edit the card's fields (|logpose-edit|)
-  v             mark / unmark the card; with cards marked, H L gm x b m A
+  v             mark / unmark the card; with cards marked, H L gm x X b m A
                 e act on all of them, as one undo step
   V  <Esc>      unmark all
   r             refresh
@@ -1219,7 +1245,9 @@ the opposite (also of a group: `-(a or b)`), and parentheses group: >
                           their names
   type:{type}             meetings of that type; or the kind of note:
                           daily, meeting, topic, project, task, person
-  open  done              tasks (in Done or not), to-dos (checked or not)
+  open  done              tasks (in Done or not; cancelled ones are
+                          neither), to-dos (checked or not)
+  cancelled               cancelled tasks
   status:{key}            tasks in that board column
   blocked                 blocked tasks
   mine  assignee:me       tasks assigned to you (`me`), or to nobody
@@ -1387,6 +1415,8 @@ Board and tasks ~
                           group for the column's colour.
       `start`             column that records `started:` ("in-progress")
       `done`              column that records `done:` ("done")
+      `cancelled`         status of a cancelled task, not a column
+                          ("cancelled")
       `done_window`       "period" (default: the current week or sprint)
                           or a number of days of done tasks to show
       `min_column_width`  below this, columns stack vertically (24)

@@ -119,6 +119,9 @@ end
 -- someone else's task, blocked: a 1:1's ## Updates, and the report's review by assignee
 run("Logpose capture review the API @ana for:bob")
 require("logpose.taskfile").set_blocked(root .. "/tasks/review-the-api.md", "waiting on QA")
+-- a task dropped with a reason: its log and frontmatter
+run("Logpose capture drop the old exporter")
+require("logpose.taskfile").set_cancelled(root .. "/tasks/drop-the-old-exporter.md", "superseded by the new one")
 local ok_1on1, merr = pcall(function()
   local m = require("logpose.notes.meeting")
   m.write(root, m.build(root, "1on1", "Ana", "2026-10-14"), true)

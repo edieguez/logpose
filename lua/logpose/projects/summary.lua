@@ -120,7 +120,9 @@ function M.stats(root, today)
       local e = entry(name)
       local ref = { file = it.file, lnum = it.lnum or 1, title = it.title or vim.fs.basename(it.file) }
       if it.kind == "task" then
-        if it.archived or it.status == cfg.board.done then
+        if require("logpose.taskfile").is_cancelled(it.status) then
+          e.cancelled = (e.cancelled or 0) + 1 -- closed, and not done (archived too): neither count
+        elseif it.archived or it.status == cfg.board.done then
           e.done = e.done + 1
         else
           e.open = e.open + 1

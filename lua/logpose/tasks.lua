@@ -291,6 +291,30 @@ function M.choose_assignee(root, project, current, fn)
   )
 end
 
+--- `:Logpose cancel [reason]`: cancel the task you're in (its task file): closed, not done.
+---@param opts logpose.CommandOpts
+function M.cancel_command(opts)
+  config.with_root(ui.safely(function(root)
+    local name = vim.api.nvim_buf_get_name(0)
+    local path = name ~= "" and fs.in_root(name, root) or nil
+    local taskfile = require("logpose.taskfile")
+    if not path or not taskfile.is_task_file(path, root) then
+      error("logpose: :Logpose cancel works in a task file", 0)
+    end
+    local reason = vim.trim(table.concat(opts.args, " "))
+    local was = taskfile.parse(path, fs.current_lines(path) or {}, root)
+    if taskfile.set_cancelled(path, reason ~= "" and reason or nil) then
+      ui.notify(
+        taskfile.is_cancelled(was.status) and "logpose: cancelled already; the reason is updated"
+          or ("logpose: cancelled" .. (reason ~= "" and (": " .. reason) or "")),
+        vim.log.levels.INFO
+      )
+    else
+      ui.notify("logpose: cancelled already", vim.log.levels.INFO)
+    end
+  end))
+end
+
 --- `:Logpose done`: move the task you're in (its task file) to Done.
 ---@param _ logpose.CommandOpts
 function M.done_command(_)

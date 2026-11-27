@@ -1888,6 +1888,77 @@ tasks, daily notes, project pages and unsaved notes refused; an ad-hoc meeting k
 starts a series, the old one is relinked; a retro keeps its series; `R` on both lists; a person
 through the form.
 
+## C28 — Cancelled tasks (1.46.0)
+
+**Goal.** A task you drop should close without counting as done. Until now the only way out was
+Done (a false "finished" in the status, reports and project counts) or deleting the file (its
+history and the links to it gone).
+
+**Design** (`taskfile.lua`, `board/`, `tasks.lua`, `query.lua`, `edit/`, `archive.lua`)
+
+- Storage: `status: cancelled` and `cancelled: <reason>` (`yes` when none was given), as
+  `blocked:` holds its reason. `cancelled` is a status outside the columns
+  (`board.cancelled = "cancelled"`; config checks it isn't a column key), so it works with any
+  `board.columns`. `taskfile.label` names it "Cancelled". When it was cancelled comes from the
+  `## Log` line, like `since` for any column (`taskfile.parse`).
+- `taskfile.set_cancelled(path, reason?)`: `status` and `cancelled` set, `blocked` and `done`
+  cleared, `started` kept, `order` dropped, logged `In progress → Cancelled` then, with a reason,
+  `cancelled: <reason>` (as blocking logs `blocked: <reason>`; the move line stays a plain move,
+  so `since` and the status's Yesterday read it). Again on a cancelled task: only the reason
+  (`false`: none, back to `yes`). `cancelled` is written only when set and removed when cleared.
+  `set_status(path, "cancelled")` cancels; moving a cancelled task to a column reopens it:
+  `cancelled` removed, logged `Cancelled → TODO`. `reopen_column(path)`: the column the log says
+  it left (not Done), else the capture column.
+- `taskfile.is_closed(status)`: Done or cancelled; `is_cancelled(status)`. Every check of "is it
+  still open" uses `is_closed` (the board's Done window, card age and due dates, statusline,
+  today, the projects screen, the people list's assigned and stakeholder tasks, 1:1 updates'
+  assigned tasks, the report's review, the daily status's Today and Blockers, `find`'s open
+  first); checks of "was it finished" stay on Done (the report's Done tasks, `done:`, the to-do
+  sync, the projects screen's done count, which leaves cancelled tasks out, archived ones too).
+- Board: `X` cancels the focused or marked cards, asking why (`vim.ui.input`; Enter: no reason,
+  `<Esc>`: nothing happens), as one undo step; when every target is cancelled, `X` reopens them
+  into the columns they left. Cancelled cards show in the Done column, after the done ones, while
+  the day they were cancelled (`since`, from the log) is within `board.done_window`: dimmed, a
+  `✗` before the title, the title struck through even when focused (`LogposeBoardCancelled`,
+  Comment's colour with `strikethrough`), the reason on its own line, no due date or idle age. `H`
+  and `L` count a cancelled card as in Done, so `H` reopens it into the column before Done; `gm`
+  too.
+- `:Logpose cancel [reason]` in a task file (like `:Logpose done`); `<Plug>(logpose-cancel)`.
+- The edit form: `status` offers Cancelled after the columns (`<CR>`, `<C-a>`/`<C-x>`) and takes
+  `cancelled` or `Cancelled`; a new task refuses it ("a new task starts in a column"). The summary
+  says `cancel it: closed, not done (logged)`. Once cancelled, the form shows the `cancelled` field
+  (the reason); saving it goes through `set_cancelled` (empty: no reason). Bulk edit too.
+- Filters: `cancelled`; `status:cancelled`; `open` and `done` leave cancelled tasks out.
+- Archive: cancelled tasks go with done ones, dated by when they were cancelled.
+
+- `scripts/lint-output.lua` cancels a task with a reason (its log is linted; the script's later
+  archive files it away).
+
+**Tests** (`test_cancel.lua`): storage, log, reason changes, reopening and `reopen_column`,
+`is_closed`, no `cancelled` key on new tasks; `X` (reason, none, marked, `<Esc>`, undo and redo,
+reopen), the card's place, look and strike-through; `H` out of Done; the Done window; the command;
+the form's status, summary, reason, a new task refused; filters; Today, Blockers, statusline,
+projects' counts; archive; the config check.
+
+## C29 — Cancelled tasks everywhere else (1.47.0)
+
+**Goal.** What reads a task's history tells a cancelled task from a finished one.
+
+**Design** (`sync.lua`, `notes/status.lua`, `report.lua`, `people/agenda.lua`)
+
+- A to-do made into a task: cancelling the task marks the to-do `- [-]` (like `- [>]`, no longer a
+  to-do: not an open action item, not done), in every note where it is; reopening the task makes it
+  `- [ ]` again. A note with unsaved changes is edited in its buffer; `modified:` stays.
+- Daily status: Yesterday lists `In progress → Cancelled` (from the log); a cancelled task is never
+  in Today or Blockers.
+- Report: `## Cancelled tasks (N)` after Done, by day, with the reason; filters apply
+  (`stakeholders:bob`).
+- 1:1 `## Updates`: a stakeholder's task that was cancelled since the last 1:1 shows
+  `TODO → Cancelled`.
+
+**Tests**: the to-do both ways (several notes, unsaved buffer); Yesterday; the report section;
+`## Updates`.
+
 ## 5. Command reference (final state)
 
 | Command                                   | Feature |
@@ -1922,6 +1993,7 @@ through the form.
 | `:Logpose people [filter]`, `person [handle]`, `rename-person` | C6 |
 | `:Logpose relink[!]`                      | C21 |
 | `:Logpose rename [title]`                 | C27 |
+| `:Logpose cancel [reason]`                | C28 |
 
 ## 6. Definition of done (every feature)
 
@@ -1969,6 +2041,7 @@ the last line of each tag's notes.
 
 | Version | Date | What | Was |
 |---|---|---|---|
+| 1.46.0 | 2026-11-27 | cancelled tasks: `X` on the board, `:Logpose cancel`; closed, not done |  |
 | 1.45.0 | 2026-11-27 | a new title renames the file: the form asks; `:Logpose rename`, `R` on the lists |  |
 | 1.44.1 | 2026-11-27 | a person typed in the form stays as typed (the menu put a stale name in its place) |  |
 | 1.44.0 | 2026-11-27 | assignees and stakeholders in the status, people, 1:1s, projects and reports |  |

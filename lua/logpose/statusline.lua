@@ -47,7 +47,7 @@ local function compute(root, project, opts)
     local doing, blocked = 0, 0
     for _, t in ipairs(require("logpose.taskfile").list(root)) do
       local mine = not project or t.project == project or vim.tbl_contains(t.tags, project)
-      if mine and t.status ~= cfg.board.done then
+      if mine and not require("logpose.taskfile").is_closed(t.status) then
         if t.status == cfg.board.start then
           doing = doing + 1
         end

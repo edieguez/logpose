@@ -17,6 +17,7 @@ M.HELP = {
   { "{N}gm  gm", "move it to column N · pick the column" },
   { "{N}j {N}L…", "a count repeats a move: 3j, 2L" },
   { "x", "done" },
+  { "X", "cancel (asks why) · on a cancelled card: reopen it" },
   { "b", "block (asks why) / unblock" },
   { "<C-j> <C-k>", "move the card down / up" },
   { "a", "add a card here" },
@@ -24,7 +25,7 @@ M.HELP = {
   { "m", "move the card to another project" },
   { "A", "assign the card: you, someone, nobody" },
   { "e", "edit the card's fields" },
-  { "v  V <Esc>", "mark / unmark the card · unmark all (H L gm x b m A e act on all)" },
+  { "v  V <Esc>", "mark / unmark the card · unmark all (H L gm x X b m A e act on all)" },
   { "u  <C-r>", "undo / redo a board change" },
   { "Reading" },
   { "<CR>", "open the task file" },
@@ -108,6 +109,9 @@ function M.attach(b)
   map("x", function()
     actions.done(b)
   end, "Done")
+  map("X", function()
+    actions.cancel(b)
+  end, "Cancel / reopen")
   map("b", function()
     actions.toggle_block(b)
   end, "Block / unblock")

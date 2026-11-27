@@ -347,7 +347,8 @@ Colour is kept for what needs your attention:
 - **Blocked** cards have a red left edge and the reason in red: `⊘ waiting on Ana`.
 - **Untouched** cards (a week by default) fade and say for how long: `idle 9d`. A blocked card
   doesn't fade.
-- **Done** cards are dimmed, with a `✓`.
+- **Done** cards are dimmed, with a `✓`. [Cancelled](#cancelled-tasks) ones follow them, struck
+  through, with a `✗`.
 - **The focused card** has a heavy border and a background.
 
 On a board showing one project, cards leave the project out, since it's in the board's title.
@@ -369,19 +370,37 @@ board; the top bar shows the everyday ones when it has room):
 | `h` `j` `k` `l` | Move between cards and columns. The arrow keys and the mouse work too. |
 | `H` `L` | Move the card to the previous / next column (`2L`: two on). `3gm` moves it to column 3. |
 | `x` | Done. |
+| `X` | Cancel (asks why; Enter for no reason). On a cancelled card: reopen it. |
 | `b` | Block (asks for the reason; Enter for none) or unblock. |
 | `a` | Add a card to this column, in the new-task form: title, project, tags, due date… |
 | `K` | Peek: open the task in a floating window to read or edit it. |
 | `n` | Open the notes linked with the task (the `✎ 2` on the card). |
 | `N` | Make a note from the task's write-up ([copy or move it](#from-a-task-to-a-note)). |
 | `e` | Edit the card's title, project, tags, due date… in a form, with completion. |
-| `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `gm`, `x`, `b`, `m` and `e` then act on every marked card at once. |
+| `v` | Mark the card (`V` or `<Esc>` unmarks all). `H` `L`, `gm`, `x`, `X`, `b`, `m` and `e` then act on every marked card at once. |
 | `<CR>` | Open the task file (or double-click the card). |
 | `u` / `<C-r>` | Undo / redo the last board change, exactly, log lines included. |
 
 In a project's repo, the board shows that project's tasks. `p` shows all projects, `P` switches to
 another project, and `m` moves the focused card to another project. With one row per project
 (`s`), `a` adds the card to the row you're in.
+
+### Cancelled tasks
+
+**A task you drop is cancelled: closed, but not done.** It leaves your open work like a finished
+task, without counting as one.
+
+- `X` on the board cancels the card (or the marked cards), asking why; Enter gives no reason.
+  `:Logpose cancel [reason]` does the same in a task file, and the form's `status` offers
+  Cancelled after the columns.
+- The task file says `status: cancelled` and `cancelled: <reason>` (`yes` without one), as
+  `blocked:` does; its log says `In progress → Cancelled`. A blocker goes; `started:` stays.
+- Cancelled cards sit in Done, after the finished ones, for the same week or sprint: dimmed, struck
+  through, with the reason underneath. `X` on one reopens it into the column it left; `H` or `gm`
+  moves it out too. `u` undoes either.
+- They're no longer open anywhere: the statusline, today, the projects screen, the people list and
+  your status leave them out. `open` and `done` both skip them; `cancelled` finds them.
+  `:Logpose archive` files them away with the done ones.
 
 ### Who does it, who cares about it
 
@@ -452,6 +471,7 @@ Fails on Mondays only; see [[meetings/acme/2026-10-14 - retro|Retro]].
 | Anywhere | `:Logpose capture text #tag +project due:DATE @person for:person` | A Backlog task for the active project, or the `+project` named (`capture!` opens it). |
 | A to-do in a meeting or daily note | `:Logpose promote` | A Backlog task with a `From:` link back, assigned to the to-do's `@owner`; the to-do keeps its text and gains a `→ [[task]]` line under it. |
 | A task file | `:Logpose done` | The task moves to Done. |
+| A task file, or `X` on the board | `:Logpose cancel [reason]` | The task is [cancelled](#cancelled-tasks): closed, not done. |
 | A task file (or a selection in it), or `N` on the board | `:Logpose promote` | A topic note from the task's write-up, linked both ways (see below). |
 
 To-dos aren't tasks: `:Logpose check` checks one off (or a visual selection of them), and again
@@ -709,7 +729,7 @@ must match. The most useful ones:
 | `#perf` | items tagged `perf` |
 | `project:acme` | items of a project |
 | `@ana` | items involving Ana |
-| `open` / `done` | tasks (in Done or not), to-dos (checked or not) |
+| `open` / `done` | tasks (in Done or not; cancelled ones are neither), to-dos (checked or not) |
 | `blocked` | blocked tasks |
 | `mine`, `unassigned` | your tasks (or nobody's) / nobody's |
 | `sprint:current`, `sprint:-1`, `since:-7d` | a time range |
@@ -1117,6 +1137,7 @@ mapping. A `!` can go on either word: `:Logpose archive!` is the same as `:Logpo
 | `board [FILTERS]` | The Kanban board. |
 | `capture[!] [TEXT]` | New task in Backlog. Without text, the new-task form; with text, `+name` picks the project, `@name` assigns it, `for:name` adds a stakeholder. `!` opens it. |
 | `done` | Move the task you're in (its task file) to Done. |
+| `cancel [REASON]` | Cancel the task you're in: closed, not done. |
 
 ### To-dos
 
@@ -1202,7 +1223,8 @@ With cards marked, `H` `L`, `gm`, `x`, `b`, `m`, `A` and `e` act on all of them 
 | `#perf`, `tag:perf` | tagged items |
 | `@ana`, `person:ana` | items involving the person: attendee, 1:1, @mention, a task's assignee or stakeholder |
 | `type:retro` | meetings of that type; `type:daily`, `type:meeting`, `type:topic`, `type:project`, `type:task`, `type:person` for kinds of notes |
-| `open`, `done` | tasks (in Done or not) and to-dos (checked or not) |
+| `open`, `done` | tasks (in Done or not; cancelled ones are neither) and to-dos (checked or not) |
+| `cancelled` | cancelled tasks (also `status:cancelled`) |
 | `status:in-progress` | tasks in that board column |
 | `blocked` | blocked tasks |
 | `mine`, `assignee:me` | tasks assigned to you (`me`), or to nobody (`tasks.unassigned_mine`) |
@@ -1644,6 +1666,7 @@ The defaults are `decision` (statuses `proposed`, `accepted`, `superseded`, `rej
 | `board.columns` | Backlog, TODO, In progress, Follow-up, Done | The columns, left to right: `{ key, label, limit, hl }`. `key` is the task's `status:` (letters, digits, `-`, `_`); `limit` a work-in-progress limit (the count turns red above it); `hl` the highlight group for its colour. At least two. |
 | `board.start` | `"in-progress"` | Reaching this column records `started:`. |
 | `board.done` | `"done"` | Reaching this column records `done:`; it's what `x`, `:Logpose done` and the `done` filter mean by done. |
+| `board.cancelled` | `"cancelled"` | The status of a [cancelled](#cancelled-tasks) task. Not a column (it can't be one of `board.columns`): cancelled cards show in Done. |
 | `board.done_window` | `"period"` | Which done tasks the Done column shows: the current week or sprint (`"period"`), or the last N days (a number). |
 | `board.min_column_width` | `24` | Narrower than this, columns stack vertically. |
 | `board.stale_days` | `7` | Cards untouched this many days (outside Done) fade and say `idle 9d`. |
@@ -1733,6 +1756,7 @@ vim.api.nvim_set_hl(0, "LogposeBoardOverdue", { fg = "#f7768e", bold = true })
 | `LogposeBoardStale` | `DiagnosticWarn` | `idle 9d` |
 | `LogposeBoardFaded` | `Comment` | the title of a card left untouched |
 | `LogposeBoardDone` | `Comment` | done cards |
+| `LogposeBoardCancelled` | `Comment`, struck through | a cancelled card's title |
 | `LogposeBoardDoneBorder` | `NonText` | done cards' borders |
 | `LogposeBoardMarked` | `DiagnosticOk` | marked cards |
 | `LogposeBoardEmpty` | `Comment` | an empty column |

@@ -178,7 +178,7 @@ function M.build(root, p, args, today, dest)
 
   -- Tasks: blocked, and in progress for too long.
   local task_files = vim.tbl_filter(function(it)
-    return it.kind == "task" and not it.archived and it.status ~= done_status
+    return it.kind == "task" and not it.archived and not require("logpose.taskfile").is_closed(it.status)
   end, items)
   if #task_files > 0 then
     local taskfile = require("logpose.taskfile")

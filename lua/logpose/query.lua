@@ -10,6 +10,7 @@
 ---   section:decisions      under a `## ` heading containing the text
 ---   person:ana  @ana       involves the person (attendee, 1:1, @mention), under any of their names
 ---   status:todo  blocked   tasks: board column; blocked tasks
+---   cancelled              tasks: cancelled (`open` and `done` leave them out)
 ---   mine  assignee:me      tasks: assigned to you (`me`), or to nobody (`tasks.unassigned_mine`)
 ---   unassigned             tasks without an assignee
 ---   assignee:ana  stakeholders:bob   tasks by who does them / who cares about them
@@ -270,6 +271,10 @@ local function atom(arg, today)
       return node(function(it)
         local done
         if it.kind == "task" then
+          local taskfile = require("logpose.taskfile")
+          if taskfile.is_cancelled(it.status) then
+            return false -- dropped: neither open nor done
+          end
           done = it.status == require("logpose.config").get().board.done
         elseif it.kind == "todo" then
           done = it.checked
@@ -281,6 +286,10 @@ local function atom(arg, today)
     elseif arg == "blocked" then
       return node(function(it)
         return it.kind == "task" and it.blocked ~= nil and it.blocked ~= false
+      end)
+    elseif arg == "cancelled" then
+      return node(function(it)
+        return it.kind == "task" and require("logpose.taskfile").is_cancelled(it.status)
       end)
     elseif arg == "mine" then
       return node(mine())

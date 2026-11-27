@@ -196,6 +196,12 @@ M.builtin = {
     desc = "logpose: search notes, tasks, to-dos, tags, projects, people",
   },
   grep = { module = "logpose.search", fn = "grep_command", complete = false, desc = "logpose: grep the journal" },
+  cancel = {
+    module = "logpose.tasks",
+    fn = "cancel_command",
+    complete = false,
+    desc = "logpose: cancel the task you're in (closed, not done)",
+  },
   done = {
     module = "logpose.tasks",
     fn = "done_command",

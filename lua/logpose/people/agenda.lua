@@ -124,7 +124,6 @@ function M.updates(root, p, iso, path)
   local taskfile = require("logpose.taskfile")
   local link = require("logpose.link")
   local slugify = require("logpose.util.text").slugify
-  local done = require("logpose.config").get().board.done
   local since = M.last_one_on_one(items, p, iso, path)
   local function is_them(name)
     return type(name) == "string" and p.slugs[slugify((name:gsub("^@", "")))] == true
@@ -136,7 +135,7 @@ function M.updates(root, p, iso, path)
       local function line(what)
         return { title = title, line = ("- %s — %s"):format(link.make(path, it.file, title, root), what) }
       end
-      if is_them(it.assignee) and it.status ~= done then
+      if is_them(it.assignee) and not taskfile.is_closed(it.status) then
         local what = taskfile.label(it.status or "")
         if it.blocked then
           what = what .. ", blocked" .. (it.blocked ~= "yes" and (": " .. it.blocked) or "")

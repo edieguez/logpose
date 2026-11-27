@@ -76,6 +76,7 @@ M.HINTS = {
   due = "today, fri, +3d, 2026-10-30",
   date = "today, -1d, 2026-10-14",
   blocked = "what it's waiting on (empty: not blocked)",
+  cancelled = "why it was dropped (empty: no reason)",
   attendees = "names, comma-separated · <Tab> completes",
   assignee = "who does it · <Tab> completes · empty: nobody (counts as yours)",
   stakeholders = "who cares about it, comma-separated · <Tab> completes",
@@ -411,6 +412,13 @@ function M.check(kind, key, text, ctx)
         -- the column's name, unless that's what was typed
         return c.key, nil, c.label:lower() ~= text:lower() and c.label or nil
       end
+    end
+    local cancelled = config.get().board.cancelled
+    if text:lower() == cancelled or text:lower() == taskfile.label(cancelled):lower() then
+      if ctx.new then
+        return text, "a new task starts in a column"
+      end
+      return cancelled, nil, "closed, not done · the reason goes in cancelled"
     end
     return text, "not a board column · <CR> to pick"
   elseif key == "project" then
@@ -841,7 +849,9 @@ function M.effects(model, r, links_to, ctx)
   for _, key in ipairs(model.keys) do
     local v = changed[key]
     if v ~= nil then
-      if model.kind == "task" and key == "status" and v ~= "" then
+      if model.kind == "task" and key == "status" and taskfile.is_cancelled(v) then
+        table.insert(out, ("cancel %s: closed, not done (logged)"):format(who))
+      elseif model.kind == "task" and key == "status" and v ~= "" then
         local line = ("move %s to %s"):format(who, taskfile.label(v))
         if v == board.start then
           line = line .. ", setting started"
@@ -862,6 +872,8 @@ function M.effects(model, r, links_to, ctx)
           out,
           v == "" and ("unassign %s (logged)"):format(who) or ("assign %s to %s (logged)"):format(who, v)
         )
+      elseif model.kind == "task" and key == "cancelled" then
+        table.insert(out, v == "" and "clear the reason" or "set why it was cancelled (logged)")
       elseif model.kind == "task" and key == "blocked" then
         table.insert(out, v == "" and ("unblock %s (logged)"):format(who) or ("block %s (logged)"):format(who))
       elseif model.kind == "doc" and key == "project" and v ~= "" then

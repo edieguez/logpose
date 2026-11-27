@@ -42,6 +42,8 @@ local DID = {
   block = "updated",
   project = "moved",
   assign = "assigned",
+  cancel = "cancelled",
+  reopen = "reopened",
 }
 
 --- Run `fn` on each target card (the marked ones, or the focused one) as one undo step;
@@ -180,7 +182,11 @@ end
 ---@param delta integer
 function M.move(b, delta)
   with_card(b, "move", function(it)
-    local target = (taskfile.column_index(it.status) or b.focus.col) + delta
+    -- a cancelled card sits in Done: H takes it back out of there (reopening it)
+    local from = taskfile.column_index(it.status)
+      or (taskfile.is_cancelled(it.status) and taskfile.column_index(config.get().board.done))
+      or b.focus.col
+    local target = from + delta
     if target < 1 or target > #b.columns then
       return false
     end
@@ -241,6 +247,45 @@ function M.toggle_block(b)
       end
       with_card(b, "block", function(card)
         taskfile.set_blocked(card.file, reason)
+      end)
+    end)
+  )
+end
+
+--- `X`: cancel the focused card (or the marked ones), asking why (Enter: no reason); on cancelled
+--- cards, reopen them into the column each one left.
+---@param b logpose.Board
+function M.cancel(b)
+  local targets = M.targets(b)
+  if #targets == 0 then
+    require("logpose.util.ui").notify("logpose: no card here", vim.log.levels.INFO)
+    return
+  end
+  local all_cancelled = true
+  for _, it in ipairs(targets) do
+    all_cancelled = all_cancelled and taskfile.is_cancelled(it.status)
+  end
+  if all_cancelled then
+    with_card(b, "reopen", function(card)
+      taskfile.set_status(card.file, taskfile.reopen_column(card.file))
+      return card.file
+    end)
+    return
+  end
+  local prompt = #targets > 1 and ("Cancel %d cards: why? (Enter: no reason) "):format(#targets)
+    or "Cancel it: why? (Enter: no reason) "
+  vim.ui.input(
+    { prompt = prompt },
+    ui.safely(function(reason)
+      if reason == nil then
+        return -- <Esc>: not cancelled
+      end
+      with_card(b, "cancel", function(card)
+        if taskfile.is_cancelled(card.status) then
+          return false
+        end
+        taskfile.set_cancelled(card.file, reason)
+        return card.file
       end)
     end)
   )

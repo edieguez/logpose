@@ -177,13 +177,14 @@ function M.collect(root, iso, items)
         local now = entry(it, title, task_state(it, iso))
         s.tasks[now.key] = now
         local done = it.status == board.done
+        local closed = taskfile.is_closed(it.status) -- done, or cancelled: no longer to do
         if
-          (not done and (it.status == board.start or (it.due and it.due <= iso)))
+          (not closed and (it.status == board.start or (it.due and it.due <= iso)))
           or (done and it.done_date == iso)
         then
           table.insert(s.today, now)
         end
-        if it.blocked and not done then
+        if it.blocked and not closed then
           table.insert(s.blockers, entry(it, title, it.blocked ~= "yes" and it.blocked or "blocked"))
         end
       end

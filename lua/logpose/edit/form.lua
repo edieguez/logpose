@@ -74,9 +74,13 @@ function M.candidates(root, kind, key, partial, others)
       add(name, title ~= name and title or nil)
     end
   elseif key == "status" and kind == "task" then
-    for _, c in ipairs(require("logpose.taskfile").columns()) do
+    local taskfile = require("logpose.taskfile")
+    for _, c in ipairs(taskfile.columns()) do
       add(c.key, c.label)
     end
+    -- after the columns: closed, but not done
+    local cancelled = config.get().board.cancelled
+    add(cancelled, taskfile.label(cancelled))
   elseif key == "tags" then
     local index = require("logpose.index")
     for _, c in ipairs(index.tag_counts(index.build(root))) do
@@ -682,6 +686,7 @@ local function reload(f, path)
   local model = f.model
   f.model = model.bulk and fields.load_bulk(model.bulk.paths, model.root) or fields.load(path, model.root)
   f.links, f.accepted, f.confirm_close = nil, nil, nil
+  f.ctx.new = f.model.new -- a new task, once saved, is an existing one
   local lines = {}
   for _, key in ipairs(f.model.keys) do
     table.insert(lines, f.model.initial[key] or "")
@@ -894,7 +899,7 @@ function M.show(model, opts)
     buf = buf,
     win = win,
     model = model,
-    ctx = fields.context(model.root),
+    ctx = vim.tbl_extend("force", fields.context(model.root), { new = model.new }),
     label_w = label_w,
     marks = {},
     help = false,

@@ -22,6 +22,7 @@ local M = {}
 ---@field fields? table     the frontmatter of the file (a line or to-do: of its note), for filters
 ---@field status? string   tasks: board column
 ---@field blocked? string  tasks: block reason
+---@field cancelled? string  tasks: why it was cancelled ("yes": no reason)
 ---@field due? string      tasks: due date
 ---@field assignee? string  tasks: who does it, as written
 ---@field stakeholders? string[]  tasks: who cares about it, as written
@@ -371,6 +372,7 @@ function M.index_lines(path, lines, root)
     local t = require("logpose.taskfile").parse(path, lines, root)
     note.status, note.blocked, note.due = t.status, t.blocked, t.due
     note.assignee, note.stakeholders = t.assignee, t.stakeholders
+    note.cancelled = t.cancelled
     note.created, note.started, note.done_date, note.archived = t.created, t.started, t.done, t.archived
     note.date = t.done or (t.created and t.created:sub(1, 10)) or note.date
   end

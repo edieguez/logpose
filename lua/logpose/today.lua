@@ -61,7 +61,7 @@ function M.build(root, today)
   -- Due in the next few days, or overdue.
   local due = {}
   for _, it in ipairs(items) do
-    if it.kind == "task" and not it.archived and it.status ~= cfg.board.done and it.due then
+    if it.kind == "task" and not it.archived and not require("logpose.taskfile").is_closed(it.status) and it.due then
       local days = date.diff_days(today, it.due)
       if days <= 3 then
         local w = date.due(it.due, today)

@@ -9,6 +9,7 @@
 ---   tags: [perf]
 ---   due: 2026-10-20
 ---   blocked: waiting on ana
+---   cancelled:                (only once cancelled: the reason, "yes" when none; status: cancelled)
 ---   created: 2026-10-15T09:05
 ---   modified: 2026-10-16T15:02
 ---   started: 2026-10-16
@@ -35,6 +36,7 @@ M.KEYS = {
   "tags",
   "due",
   "blocked",
+  "cancelled",
   "created",
   "modified",
   "started",
@@ -43,7 +45,10 @@ M.KEYS = {
 }
 
 --- Keys written only when they have a value (a task is unassigned without them).
-local OPTIONAL = { assignee = true, stakeholders = true, modified = true, order = true }
+local OPTIONAL = { assignee = true, stakeholders = true, cancelled = true, modified = true, order = true }
+
+--- Keys removed when cleared (rather than left empty).
+local REMOVED = { order = true, cancelled = true }
 
 ---@class logpose.Task
 ---@field path string
@@ -55,6 +60,7 @@ local OPTIONAL = { assignee = true, stakeholders = true, modified = true, order 
 ---@field tags string[]
 ---@field due? string
 ---@field blocked? string  reason ("yes" when none was given)
+---@field cancelled? string  why it was cancelled ("yes" when no reason was given)
 ---@field created? string
 ---@field started? string
 ---@field done? string
@@ -83,7 +89,25 @@ end
 ---@return string
 function M.label(key)
   local i = M.column_index(key)
+  if not i and key == config.get().board.cancelled then
+    return "Cancelled"
+  end
   return i and (config.get().board.columns[i].label or key) or key
+end
+
+--- Is a task with this status closed: done, or cancelled? (Done alone is what was finished.)
+---@param status? string
+---@return boolean
+function M.is_closed(status)
+  local board = config.get().board
+  return status == board.done or status == board.cancelled
+end
+
+--- Is a task with this status cancelled?
+---@param status? string
+---@return boolean
+function M.is_cancelled(status)
+  return status ~= nil and status == config.get().board.cancelled
 end
 
 ---@param root string
@@ -150,6 +174,7 @@ function M.parse(path, lines, root)
     tags = tags,
     due = str(fm.due) and date.is_iso(fm.due) and fm.due or nil,
     blocked = str(fm.blocked),
+    cancelled = str(fm.cancelled),
     created = str(fm.created),
     started = str(fm.started),
     done = str(fm.done),
@@ -241,7 +266,7 @@ function M.set_field(lines, key, value)
   -- `order` only exists while a card is placed by hand; other keys are kept, empty, when cleared
   local v = value
   if v == nil or v == "" then
-    if key == "order" then
+    if REMOVED[key] then
       v = false -- removed
     else
       v = ""
@@ -299,6 +324,9 @@ end
 ---@param status string
 ---@return boolean changed
 function M.set_status(path, status)
+  if M.is_cancelled(status) then
+    return M.set_cancelled(path, nil)
+  end
   if not M.column_index(status) then
     error(("logpose: unknown board column %q"):format(status), 0)
   end
@@ -324,6 +352,9 @@ function M.set_status(path, status)
       lines = M.set_field(lines, "done", nil)
     end
     lines = M.set_field(lines, "order", nil)
+    if M.is_cancelled(from) then
+      lines = M.set_field(lines, "cancelled", nil) -- reopened
+    end
     was_done = from == board.done
     return M.append_log(lines, ("%s → %s"):format(M.label(from), M.label(status)))
   end)
@@ -339,6 +370,70 @@ function M.set_status(path, status)
     end
   end
   return changed
+end
+
+--- Cancel a task (with a reason, or none): closed, but not done. `blocked` and `done` are
+--- cleared, `started` kept; the log says `In progress → Cancelled`, then `cancelled: <reason>`.
+--- Cancelling a cancelled task again only changes the reason. Moving it to a column
+--- (`set_status`) reopens it.
+---@param path string
+---@param reason? string|false  false: no reason (an earlier one is dropped); nil: keep the reason
+---@return boolean changed
+function M.set_cancelled(path, reason)
+  local none = reason == false
+  reason = type(reason) == "string" and vim.trim(reason) or nil
+  if reason == "" then
+    reason = nil
+  end
+  local changed = false
+  update(path, function(lines)
+    local fm = require("logpose.index").frontmatter(lines)
+    local from = str(fm.status) or config.get().tasks.capture_status
+    local already = M.is_cancelled(from)
+    local value = reason or (not none and already and str(fm.cancelled)) or "yes"
+    if already and str(fm.cancelled) == value then
+      return nil
+    end
+    changed = true
+    lines = M.set_field(lines, "status", config.get().board.cancelled)
+    lines = M.set_field(lines, "cancelled", value)
+    if str(fm.blocked) then
+      lines = M.set_field(lines, "blocked", nil) -- nothing waits on dropped work
+    end
+    if str(fm.done) then
+      lines = M.set_field(lines, "done", nil)
+    end
+    lines = M.set_field(lines, "order", nil)
+    if not already then
+      lines = M.append_log(lines, ("%s → %s"):format(M.label(from), M.label(config.get().board.cancelled)))
+    end
+    if reason then
+      lines = M.append_log(lines, "cancelled: " .. reason)
+    end
+    return lines
+  end)
+  return changed
+end
+
+--- The column a cancelled task left (its log's last `X → Cancelled`), to reopen it there; the
+--- capture column when the log doesn't say.
+---@param path string
+---@return string
+function M.reopen_column(path)
+  local cancelled = M.label(config.get().board.cancelled)
+  local left
+  for _, l in ipairs(fs.current_lines(path) or {}) do
+    local from, to = l:match("^%- %d%d%d%d%-%d%d%-%d%d %d%d:%d%d: (.-) → (.+)$")
+    if from and vim.trim(to) == cancelled then
+      left = vim.trim(from)
+    end
+  end
+  for _, c in ipairs(M.columns()) do
+    if left and (c.label == left or c.key == left) and c.key ~= config.get().board.done then
+      return c.key
+    end
+  end
+  return config.get().tasks.capture_status
 end
 
 --- Block (with a reason) or unblock (`reason` nil).
