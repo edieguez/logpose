@@ -202,6 +202,35 @@ T["typing in the form's attendees keeps the menu on matches anywhere in the name
   child.type_keys("<Esc>")
 end
 
+T["a new 1:1's person: <CR> keeps a name nobody matches, whole"] = function()
+  person("ana-lopez", 'name: "Ana López"')
+  child.lua(("require('logpose.edit').open_new_note(%q, 'meeting', { type = '1on1' })"):format(root))
+  local function title()
+    for i, l in ipairs(child.api.nvim_buf_get_lines(0, 0, -1, false)) do
+      if i == 2 then
+        return l
+      end
+    end
+  end
+  -- a longer name than anyone's: the menu closes once nobody matches, and the text stays
+  -- (it used to stay open on Ana López, from after the space, and <CR> made "AAna López")
+  child.type_keys("A", "n", "a", " ", "L", "o", "p", "e", "z", " ", "M", "a", "r", "t", "i", "n", "e", "z")
+  eq(child.fn.pumvisible(), 0)
+  child.type_keys("<CR>")
+  eq(title(), "Ana Lopez Martinez")
+  -- someone else entirely: nothing to offer, so nothing replaces it
+  child.type_keys("<Esc>")
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.type_keys("S", "C", "a", "r", "l", "o", "s", "<CR>")
+  eq(title(), "Carlos")
+  -- a match after a space starts where the name does: Ana López, not "AAna López"
+  child.type_keys("<Esc>")
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.type_keys("S", "A", "n", "a", " ", "L", "<CR>")
+  eq(title(), "Ana López")
+  child.type_keys("<Esc>", "q", "q")
+end
+
 T["in a note: attendees, with: and @mentions complete people"] = function()
   person("ana-lopez", 'name: "Ana López"')
   local path = root .. "/meetings/acme/2026-10-14 - sync.md"

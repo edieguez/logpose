@@ -27,6 +27,7 @@ local track = vim.api.nvim_create_namespace("logpose.edit.track")
 ---@field on_save? fun(path: string|string[], keys: string[])
 ---@field confirm_close? boolean  q was pressed once with unsaved changes
 ---@field accepted? string  the line as a completion left it (the menu isn't reopened for it)
+---@field fuzzy_menu? boolean  the open menu is people's (logpose keeps it in step with the text)
 
 ---@type table<integer, logpose.EditForm>
 M.forms = {}
@@ -208,7 +209,10 @@ local function at_cursor(f)
       start = #before - #partial
     end
   else
-    partial = vim.trim(before)
+    -- the value starts after any leading blanks; blanks typed after a word are part of it
+    -- (trimming them too would put the start that many columns too far right, and accepting an
+    -- item would then keep the value's first letters: "Ana " + Ana López -> "AAna López")
+    partial = (before:gsub("^%s+", ""))
     start = #before - #partial
   end
   local items = M.candidates(f.model.root, f.model.kind, key, partial, texts(f))
@@ -253,14 +257,22 @@ function M.omnifunc(findstart, _)
   return items or {}
 end
 
---- Show the completion menu for the cursor position. Returns whether it opened.
+--- Show the completion menu for the cursor position. Returns whether it opened. A menu of
+--- people stays in step with what's typed: Vim can't narrow it (they match anywhere in the name),
+--- so when nobody matches any more it's closed, rather than left offering someone `<CR>` would
+--- then put in place of what you typed.
 ---@param f logpose.EditForm
 ---@return boolean
 local function popup(f)
   local start, items = at_cursor(f)
   if not start or not items or #items == 0 then
+    if f.fuzzy_menu and vim.fn.pumvisible() == 1 then
+      vim.fn.complete(vim.fn.col("."), {}) -- closes it
+    end
+    f.fuzzy_menu = false
     return false
   end
+  f.fuzzy_menu = items[1].fuzzy == true
   vim.fn.complete(start + 1, items)
   return true
 end
@@ -943,11 +955,8 @@ function M.show(model, opts)
       M.render(f)
       -- people match anywhere in the name: typing with the menu open asks again, rather than
       -- letting the menu narrow by prefix
-      if ev.event == "TextChangedP" and f.accepted ~= vim.api.nvim_get_current_line() then
-        local _, items = at_cursor(f)
-        if items and items[1] and items[1].fuzzy then
-          popup(f)
-        end
+      if ev.event == "TextChangedP" and f.fuzzy_menu and f.accepted ~= vim.api.nvim_get_current_line() then
+        popup(f)
       end
     end,
   })
