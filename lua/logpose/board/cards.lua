@@ -431,8 +431,9 @@ function M.card_lines(it, w, today, o)
   for _, l in ipairs(text.wrap(title, inner, 2)) do
     row({ { l, title_hl } })
   end
-  if st.cancelled and it.cancelled and it.cancelled ~= "yes" then
-    row({ { it.cancelled, "LogposeBoardDone" } }) -- why it was dropped
+  if st.cancelled then
+    local why = "cancelled" .. (it.cancelled and it.cancelled ~= "yes" and (": " .. it.cancelled) or "")
+    row({ { why, "LogposeBoardDone" } })
   end
   if st.blocked then
     row({ { ic.blocked .. " " .. (it.blocked == "yes" and "blocked" or it.blocked), "LogposeBoardBlocked" } })

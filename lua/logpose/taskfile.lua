@@ -152,7 +152,13 @@ function M.parse(path, lines, root)
     end, fm.tags)
   end
   local archive = fs.join(M.dir(root), "archive") .. "/"
-  local status = str(fm.status) or config.get().tasks.capture_status
+  -- A malformed file with `cancelled:` but no `status:` is still cancelled (an earlier mixed
+  -- build wrote those once); otherwise an empty status means the capture column.
+  local status = str(fm.status)
+  if not status and str(fm.cancelled) then
+    status = config.get().board.cancelled
+  end
+  status = status or config.get().tasks.capture_status
   -- When did it reach its current column? The last "A → <label>" log line, else creation.
   local since
   local label = M.label(status)

@@ -60,6 +60,26 @@ local T = MiniTest.new_set({
   },
 })
 
+T["a task with cancelled: but no status: still counts as cancelled"] = function()
+  local path = task("legacy", { project = "acme", cancelled = "old reason" }, {
+    "- 2026-10-10 09:00: created in Backlog",
+    "- 2026-10-14 09:00: Backlog → Cancelled",
+  })
+  local t = child.lua_get(("require('logpose.taskfile').parse(%q, vim.fn.readfile(%q), %q)"):format(path, path, root))
+  eq({ t.status, t.cancelled, t.since }, { "cancelled", "old reason", "2026-10-14" })
+  child.cmd("Logpose board")
+  H.contains(screen(), "✗ legacy")
+  H.contains(screen(), "cancelled: old reason")
+  eq(
+    child.lua_get(
+      ("#require('logpose.query').filter(require('logpose.index').build(%q), require('logpose.query').parse({ 'cancelled' }))"):format(
+        root
+      )
+    ),
+    1
+  )
+end
+
 T["cancelling: status and reason, blocked cleared, started kept, logged; moving it reopens it"] = function()
   local path = root .. "/tasks/spike.md"
   local cancel = function(reason)
